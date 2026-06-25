@@ -2,6 +2,15 @@ function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v))
 }
 
+// Pure transform helpers. `t` is the panzoom transform { s, tx, ty }. Screen
+// coords are relative to the stage's top-left.
+export function worldToScreen(t, x, y) {
+  return { x: x * t.s + t.tx, y: y * t.s + t.ty }
+}
+export function screenToWorld(t, x, y) {
+  return { x: (x - t.tx) / t.s, y: (y - t.ty) / t.s }
+}
+
 // Wheel-zoom (around the cursor) + drag-to-pan on the stage. Calls onChange with
 // the current {s, tx, ty} whenever it changes.
 export function attachPanzoom(stage, onChange) {
