@@ -38,7 +38,10 @@ export async function openPlexSidebar() {
 
 export function plexFrameStyle() {
   return [
-    '.plex-frame{width:100%;min-width:0;height:78vh;min-height:420px;border:0;display:block;' +
+    // width:calc(100% + 20px) + negative right margin bleeds the plex ~20px into
+    // the sidebar block's right gutter so it reaches the true panel edge.
+    '.plex-frame{width:calc(100% + 20px);margin-right:-20px;min-width:0;height:78vh;' +
+      'min-height:420px;border:0;display:block;' +
       'background:var(--ls-secondary-background-color,#fff)}',
     // The macro renderer nests the iframe in INLINE spans, where width:100% is
     // ignored and the iframe falls back to its ~300px intrinsic size. Force the
@@ -57,7 +60,8 @@ export function plexFrameStyle() {
     '.sidebar-item:has(.plex-frame) .ls-block,' +
       '.sidebar-item:has(.plex-frame) .block-content,' +
       '.sidebar-item:has(.plex-frame) .block-content-wrapper{' +
-      'margin-left:0!important;padding-left:0!important;max-width:none!important}',
+      'margin-left:0!important;padding-left:0!important;padding-right:0!important;' +
+      'max-width:none!important}',
   ].join('\n')
 }
 
