@@ -59,6 +59,12 @@ const view = createView({
       .call('removeLink', focus, neighbor, role)
       .then(() => goto(focus, { noHistory: true }))
       .catch(() => {}),
+  onLinkExisting: (fromNode, toNode, role) =>
+    client
+      .call('linkExisting', fromNode, toNode, role)
+      .then(() => goto(focus, { noHistory: true }))
+      .catch(() => {}),
+  onCreateAt: (fromNode, role, at) => createAt(fromNode, role, at),
 })
 
 // Restore the previous focus + history (e.g. after the iframe was re-injected),
@@ -138,6 +144,11 @@ async function jumpToIndex(i) {
 async function create(role) {
   if (!focus) return
   const changed = await openCreateDialog({ root: els.dialogRoot, role, sourcePage: focus, client })
+  if (changed) goto(focus, { noHistory: true })
+}
+
+async function createAt(fromNode, role, at) {
+  const changed = await openCreateDialog({ root: els.dialogRoot, role, sourcePage: fromNode, client, at })
   if (changed) goto(focus, { noHistory: true })
 }
 

@@ -8,7 +8,7 @@ const GATES = {
   sibling: { focus: 'right', node: 'left' },
 }
 
-function gatePoint(node, side) {
+export function gatePoint(node, side) {
   const hw = NODE.W / 2
   const hh = NODE.H / 2
   switch (side) {

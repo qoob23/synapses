@@ -1,5 +1,5 @@
 import { computeLayout, NODE } from './layout.js'
-import { computeEdges, drawEdges } from './edges.js'
+import { computeEdges, drawEdges, gatePoint } from './edges.js'
 import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom.js'
 import { hitTest } from './edge-hit.js'
 import { nodeHandleStates } from './handles.js'
@@ -13,7 +13,9 @@ function defaultTheme() {
 // Renders the plex: HTML <div> nodes in a transformed world + a <canvas> edge
 // layer. Node elements are keyed by name and reused across graphs so positions
 // animate (the clicked neighbor glides to the center on recenter).
-export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCreate, onRemoveLink }) {
+const DRAG_THRESHOLD = 6
+
+export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCreate, onRemoveLink, onLinkExisting, onCreateAt }) {
   const ctx = canvas.getContext('2d')
   // Single source of truth for node box size: the layout math (NODE) drives the
   // CSS variables too, so changing NODE keeps the rendered box and the edge
@@ -98,6 +100,92 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCre
     animateFor(TRANSITION_MS + 40)
   }
 
+  // Map each handle direction to the gate side on the node.
+  const DIR_SIDE = { parent: 'top', child: 'bottom', jump: 'left' }
+
+  // Get the current world-center of a node element from its live CSS transform.
+  function liveCenterOf(el) {
+    const t = getComputedStyle(el).transform
+    if (t && t !== 'none') {
+      try {
+        const m = new DOMMatrixReadOnly(t)
+        // positionEl uses translate(x,y) translate(-50%,-50%), so m.m41/m.m42 is
+        // the translate-to-center offset; add half NODE dims to get the center.
+        return { x: m.m41 + NODE.W / 2, y: m.m42 + NODE.H / 2 }
+      } catch (e) { /* fall through */ }
+    }
+    return { x: 0, y: 0 }
+  }
+
+  // Attach drag-to-connect behaviour to a handle element `h` belonging to node `el`.
+  function attachHandleDrag(h, el) {
+    // Prevent sub-threshold taps from bubbling to the node's click→recenter.
+    h.addEventListener('click', (e) => e.stopPropagation())
+
+    let drag = null
+
+    h.addEventListener('pointerdown', (e) => {
+      e.stopPropagation() // unconditional — prevents panzoom drag starting
+      h.setPointerCapture(e.pointerId)
+      const center = liveCenterOf(el)
+      const anchorWorld = gatePoint(center, DIR_SIDE[h._dir])
+      drag = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        fromNode: el._name,
+        dir: h._dir,
+        anchorWorld,
+        moved: false,
+      }
+    })
+
+    h.addEventListener('pointermove', (e) => {
+      if (!drag) return
+      const dx = e.clientX - drag.startX
+      const dy = e.clientY - drag.startY
+      if (!drag.moved && Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return
+      drag.moved = true
+      // Re-read rect on every move (spec requirement).
+      const rect = stage.getBoundingClientRect()
+      const worldB = screenToWorld(panzoom.getTransform(), e.clientX - rect.left, e.clientY - rect.top)
+      pending = { a: drag.anchorWorld, b: worldB, zone: drag.dir }
+      scheduleDraw()
+    })
+
+    h.addEventListener('pointerup', (e) => {
+      if (!drag) return
+      const wasMoved = drag.moved
+      const fromNode = drag.fromNode
+      const dir = drag.dir
+      drag = null
+      pending = null
+      scheduleDraw()
+
+      if (!wasMoved) {
+        // Sub-threshold tap → open centered create dialog.
+        if (onCreate) onCreate(dir)
+        return
+      }
+
+      // Resolve drop target via LIVE DOM (nodes may be mid-transition).
+      const tgt = document.elementFromPoint(e.clientX, e.clientY)
+      const nodeEl = tgt && tgt.closest('.plex-node')
+      const toName = nodeEl && nodeEl._name
+      if (toName && toName !== fromNode) {
+        if (onLinkExisting) onLinkExisting(fromNode, toName, dir)
+      } else {
+        if (onCreateAt) onCreateAt(fromNode, dir, { x: e.clientX, y: e.clientY })
+      }
+    })
+
+    h.addEventListener('pointercancel', () => {
+      drag = null
+      pending = null
+      scheduleDraw()
+    })
+  }
+
   function makeNode() {
     const el = document.createElement('div')
     el.className = 'plex-node'
@@ -117,6 +205,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCre
       h._dir = dir
       el.appendChild(h)
       el._handles[dir] = h
+      attachHandleDrag(h, el)
     }
     el._handleStates = { parent: 'empty', child: 'empty', jump: 'empty' }
     return el

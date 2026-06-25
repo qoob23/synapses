@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { classifyHandle, computeShownCount, nodeHandleStates } from './handles.js'
+import { classifyHandle, computeShownCount, nodeHandleStates, hitTestNode } from './handles.js'
+import { NODE } from './layout.js'
 
 describe('classifyHandle', () => {
   it('maps (total,shown) to empty/shown/more', () => {
@@ -29,5 +30,17 @@ describe('nodeHandleStates', () => {
     const entry = { parents: ['Above'], children: ['Focus', 'Sib'], jumps: ['Far'] }
     const rendered = new Set(['focus', 'sib']) // Above and Far not rendered
     expect(nodeHandleStates(entry, rendered)).toEqual({ parent: 'more', child: 'shown', jump: 'more' })
+  })
+})
+
+describe('hitTestNode', () => {
+  const nodes = [{ name: 'A', x: 0, y: 0 }, { name: 'B', x: 400, y: 0 }]
+  it('returns the node whose box contains the point', () => {
+    expect(hitTestNode({ x: 0, y: 0 }, nodes)).toBe('A')
+    expect(hitTestNode({ x: NODE.W / 2, y: 0 }, nodes)).toBe('A') // on edge = inside
+    expect(hitTestNode({ x: 400, y: 0 }, nodes)).toBe('B')
+  })
+  it('returns null in empty space', () => {
+    expect(hitTestNode({ x: 200, y: 300 }, nodes)).toBe(null)
   })
 })

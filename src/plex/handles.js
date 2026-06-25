@@ -1,3 +1,5 @@
+import { NODE } from './layout.js'
+
 /** @typedef {'empty'|'shown'|'more'} HandleState */
 
 // total===0 -> 'empty'; every neighbor rendered (shown>=total) -> 'shown';
@@ -29,4 +31,12 @@ export function nodeHandleStates(entry, renderedSet) {
     out[dir] = classifyHandle(arr.length, computeShownCount(arr, renderedSet))
   }
   return out
+}
+
+// First node whose box (NODE.W x NODE.H centered at node.x,node.y) contains pt; else null.
+export function hitTestNode(pt, nodes) {
+  for (const n of nodes || []) {
+    if (Math.abs(pt.x - n.x) <= NODE.W / 2 && Math.abs(pt.y - n.y) <= NODE.H / 2) return n.name
+  }
+  return null
 }
