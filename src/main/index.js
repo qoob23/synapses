@@ -1,7 +1,7 @@
 import '@logseq/libs'
 import { startBridge, connectIframe, notifyPeer } from './bridge-host.js'
 import { renderPlexSlot, openPlexSidebar, plexFrameStyle } from './sidebar.js'
-import { buildGraph, nodeDegrees, rebuildIndex } from './graph.js'
+import { buildGraph, nodeDegrees, nodeAdjacency, rebuildIndex } from './graph.js'
 import { readPalette } from './theme.js'
 import { createChild, createParent, createJump, linkExisting, searchPages, removeLink } from './mutations.js'
 import { createHistory, serialize, deserialize } from './history.js'
@@ -50,6 +50,7 @@ const handlers = {
   getTheme: () => readPalette(),
   buildGraph: (name) => buildGraph(name),
   nodeDegrees: (names) => nodeDegrees(names),
+  nodeAdjacency: (names) => nodeAdjacency(names),
   histState: () => histState(),
   histPush: (name) => histPush(name),
   histJump: (i) => histJump(i),

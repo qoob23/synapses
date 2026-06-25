@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildIndex, queryGraph, applyEdge, hasEdge, reconcilePatches, removeEdge } from './graph.js'
+import { buildIndex, queryGraph, applyEdge, hasEdge, reconcilePatches, removeEdge, getAdjacency } from './graph.js'
 
 const ONT = { parent: ['parent'], child: ['child'], jump: ['jump'] }
 
@@ -147,5 +147,22 @@ describe('reconcilePatches with remove ops', () => {
     const keep = reconcilePatches(fresh, [rm('A', 'child', 'B', 1000)], 1000 + 4001, 4000)
     expect(keep).toEqual([])
     expect(hasEdge(fresh, 'A', 'child', 'B')).toBe(true) // not re-removed
+  })
+})
+
+describe('getAdjacency', () => {
+  it('returns display-cased neighbor arrays per direction, reciprocals included', () => {
+    const idx = buildIndex([
+      { name: 'Ethics', props: { parent: ['Philosophy'], jump: ['Aristotle'] } },
+      { name: 'Philosophy', props: { child: ['Logic'] } },
+    ], ONT)
+    const adj = getAdjacency(idx, ['Ethics', 'Philosophy'])
+    expect(adj.ethics.parents).toEqual(['Philosophy'])
+    expect(adj.ethics.jumps).toEqual(['Aristotle'])
+    expect(adj.philosophy.children.sort()).toEqual(['Ethics', 'Logic']) // reciprocal Ethics + declared Logic
+  })
+  it('omits names not in the index', () => {
+    const idx = buildIndex([{ name: 'A', props: {} }], ONT)
+    expect(getAdjacency(idx, ['Nope'])).toEqual({})
   })
 })

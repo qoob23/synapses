@@ -276,6 +276,30 @@ export function patchRemove(focusName, role, targetName) {
   pendingPatches.push({ focus: focusName, role, target: targetName, ts: Date.now(), kind: 'remove' })
 }
 
+// Per-node neighbor arrays from an index (pure). Keyed by LOWERCASED name;
+// values are DISPLAY-cased. Names absent from the index are omitted.
+export function getAdjacency(index, names) {
+  const out = {}
+  for (const name of names || []) {
+    const l = String(name).toLowerCase()
+    const e = index.pages.get(l)
+    if (!e) continue
+    const disp = (s) => index.display.get(s) || s
+    out[l] = {
+      parents: [...e.parents].map(disp),
+      children: [...e.children].map(disp),
+      jumps: [...e.jumps].map(disp),
+    }
+  }
+  return out
+}
+
+// RPC: per-node adjacency for the live index (raw, UNCAPPED).
+export async function nodeAdjacency(names) {
+  await ensureBuilt()
+  return getAdjacency(liveIndex, names)
+}
+
 // Off-screen-link affordance: connected to more than just the current focus?
 export async function nodeDegrees(names) {
   await ensureBuilt()
