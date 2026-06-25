@@ -12,6 +12,10 @@ describe('node geometry single source of truth', () => {
     expect(css).toContain(`var(--plex-node-w, ${NODE.W}px)`)
     expect(css).toContain(`var(--plex-node-h, ${NODE.H}px)`)
   })
+
+  it('styles.css drives node label size from --plex-node-font', () => {
+    expect(css).toContain('font-size: var(--plex-node-font, 22px)')
+  })
 })
 
 describe('computeLayout', () => {

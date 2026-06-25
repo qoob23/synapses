@@ -2,7 +2,7 @@
 //   parents row above, children row below, jumps column left, siblings column right.
 // All coordinates are "world" units with the focus at (0, 0).
 
-export const NODE = { W: 156, H: 36 }
+export const NODE = { W: 208, H: 52 }
 
 const BAND_Y = 150 // vertical distance to the parent/child rows
 const BAND_X = 250 // horizontal distance to the jump/sibling columns
