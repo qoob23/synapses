@@ -88,7 +88,7 @@ export function drawEdges(ctx, edges, transform, theme, dpr, pending) {
 
   if (pending) {
     ctx.save()
-    ctx.strokeStyle = theme.dot || theme.edge
+    ctx.strokeStyle = theme.edge
     ctx.setLineDash([6, 4])
     curve(ctx, pending.a, pending.b, pending.zone || 'jump')
     ctx.restore()

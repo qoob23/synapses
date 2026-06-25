@@ -26,4 +26,23 @@ describe('computeEdges', () => {
   it('returns [] when there is no focus node', () => {
     expect(computeEdges({ nodes: [] })).toEqual([])
   })
+
+  it('sibling-via-parent: edge connects parent bottom-gate to sibling top-gate', () => {
+    const siblingLayout = {
+      focus: 'F',
+      nodes: [
+        { name: 'F', zone: 'focus', x: 0, y: 0 },
+        { name: 'P', zone: 'parent', x: 0, y: -150 },
+        { name: 'S', zone: 'sibling', x: 150, y: -150, via: 'P' },
+      ],
+    }
+    const edges = computeEdges(siblingLayout)
+    const sibEdge = edges.find((e) => e.neighbor === 'S')
+    expect(sibEdge.role).toBe('sibling')
+    expect(sibEdge.zone).toBe('child')
+    expect(sibEdge.via).toBe(true)
+    // a = P's bottom gate, b = S's top gate
+    expect(sibEdge.a).toEqual({ x: 0, y: -150 + NODE.H / 2 })
+    expect(sibEdge.b).toEqual({ x: 150, y: -150 - NODE.H / 2 })
+  })
 })

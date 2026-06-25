@@ -307,11 +307,12 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   }
 
   stage.addEventListener('mousemove', (e) => {
+    if (pending) { hideRemove(); return } // suppress × while a handle drag is live
     if (removeBtn.classList.contains('confirm')) return // don't move while confirming
     const rect = stage.getBoundingClientRect()
     const t = panzoom.getTransform()
-    const world = screenToWorld(t, e.clientX - rect.left, e.clientY - rect.top)
-    const edge = hitTest(world, lastEdges, 10)
+    const worldPt = screenToWorld(t, e.clientX - rect.left, e.clientY - rect.top)
+    const edge = hitTest(worldPt, lastEdges, 10)
     if (!edge) {
       if (hoveredEdge) hideRemove()
       return
