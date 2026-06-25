@@ -126,7 +126,7 @@ function main() {
       try {
         await rebuildIndex()
       } catch (e) {
-        /* ignore */
+        console.warn('[plex] rebuild failed', e)
       }
       notifyPeer('refresh')
     }, 400)
@@ -137,7 +137,7 @@ function main() {
     try {
       await rebuildIndex()
     } catch (e) {
-      /* ignore */
+      console.warn('[plex] rebuild failed', e)
     }
     notifyPeer('refresh')
   })

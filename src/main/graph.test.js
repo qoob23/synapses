@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildIndex, queryGraph, applyEdge, hasEdge } from './graph.js'
+import { buildIndex, queryGraph, applyEdge, hasEdge, reconcilePatches } from './graph.js'
 
 const ONT = { parent: ['parent'], child: ['child'], jump: ['jump'] }
 
@@ -88,5 +88,30 @@ describe('relationship index', () => {
     const g = build('Ethics')
     const all = [...g.parents, ...g.children, ...g.jumps, ...g.siblings]
     expect(all.some((n) => n.toLowerCase() === 'ethics')).toBe(false)
+  })
+})
+
+describe('reconcilePatches (rebuild replay path)', () => {
+  const patch = (focus, role, target, ts) => ({ focus, role, target, ts })
+
+  it('drops a patch the fresh read has already confirmed', () => {
+    const fresh = buildIndex([{ name: 'A', props: { child: ['B'] } }], ONT)
+    const keep = reconcilePatches(fresh, [patch('A', 'child', 'B', 1000)], 1500, 4000)
+    expect(keep).toEqual([]) // read confirmed it — stop tracking
+  })
+
+  it('drops a stale unconfirmed patch and does NOT resurrect its edge', () => {
+    const fresh = buildIndex([{ name: 'A', props: {} }], ONT)
+    const keep = reconcilePatches(fresh, [patch('A', 'child', 'C', 1000)], 1000 + 4001, 4000)
+    expect(keep).toEqual([]) // outlived the settle window
+    expect(hasEdge(fresh, 'A', 'child', 'C')).toBe(false) // a later external removal wins
+  })
+
+  it('re-applies and keeps a fresh unconfirmed patch (survives the swap)', () => {
+    const fresh = buildIndex([{ name: 'A', props: {} }], ONT)
+    const keep = reconcilePatches(fresh, [patch('A', 'child', 'C', 1000)], 1500, 4000)
+    expect(keep).toHaveLength(1)
+    expect(hasEdge(fresh, 'A', 'child', 'C')).toBe(true) // replayed onto the fresh index
+    expect(hasEdge(fresh, 'C', 'parent', 'A')).toBe(true) // with its reciprocal
   })
 })

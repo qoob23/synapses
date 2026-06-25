@@ -107,8 +107,8 @@ body {
   position: absolute;
   left: 0;
   top: 0;
-  width: 156px;
-  min-height: 36px;
+  width: var(--plex-node-w, 156px);
+  min-height: var(--plex-node-h, 36px);
   display: flex;
   align-items: center;
   justify-content: center;

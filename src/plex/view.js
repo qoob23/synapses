@@ -13,6 +13,11 @@ function defaultTheme() {
 // animate (the clicked neighbor glides to the center on recenter).
 export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCreate }) {
   const ctx = canvas.getContext('2d')
+  // Single source of truth for node box size: the layout math (NODE) drives the
+  // CSS variables too, so changing NODE keeps the rendered box and the edge
+  // endpoints/bbox in agreement (styles.css falls back to matching literals).
+  document.documentElement.style.setProperty('--plex-node-w', NODE.W + 'px')
+  document.documentElement.style.setProperty('--plex-node-h', NODE.H + 'px')
   const elements = new Map() // nameLower -> element
   let layout = null
   let theme = defaultTheme()

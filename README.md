@@ -17,15 +17,19 @@ siblings are computed.
 
 ## Status
 
-**Phase 0 — bridge spike.** Validates the hard part: the plex renders in the **real right sidebar** as
-an injected iframe talking to the plugin over a postMessage bridge. The current view is a simple HTML
-"cross" layout (positioned nodes + canvas edges come in Phase 2).
+Working. The plex renders in the **real right sidebar** as an injected iframe that talks to the plugin
+over a postMessage bridge. It shows absolutely-positioned nodes over a `<canvas>` edge layer with
+pan/zoom and a click-to-recenter glide, follows the page you're viewing, keeps back/forward history
+plus a breadcrumb, syncs the active Logseq theme, and refreshes live as the graph changes.
+Relationships are added from the UI via an in-iframe create/link dialog with search. Targets the
+**Markdown graph (0.10.x)**, not the DB version. Planned work lives in `BACKLOG.md`.
 
 ## Develop
 
 ```sh
 npm install      # first time
 npm run build    # produces dist/  (or: npm run dev  to rebuild on change)
+npm test         # run the unit tests (vitest)
 ```
 
 ## Load in Logseq (0.10.x)
@@ -43,6 +47,7 @@ npm run build    # produces dist/  (or: npm run dev  to rebuild on change)
 3. Open the plex; visit `Philosophy` → you should see `Ethics` and `Logic` as **children**.
 4. Visit `Ethics` → `Philosophy` as parent, `Logic` as **sibling**, `Aristotle` as **jump**.
 5. Click a node → the plex recenters and the main pane follows.
-6. Use a `+ child / parent / jump` button → confirm the focus page's `.md` file gains the property.
+6. Use a **＋child / ＋parent / ＋jump** button (or the handles on the focus node) → confirm the focus
+   page's `.md` file gains the property.
 
 If the iframe shows nothing, open the devtools console for messages prefixed `[plex]`.
