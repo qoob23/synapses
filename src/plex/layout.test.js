@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { NODE, computeLayout } from './layout.js'
+import { NODE, computeLayout, gridPositions } from './layout.js'
 
 const css = readFileSync(fileURLToPath(new URL('./styles.css', import.meta.url)), 'utf8')
 
@@ -15,6 +15,17 @@ describe('node geometry single source of truth', () => {
 
   it('styles.css drives node label size from --plex-node-font', () => {
     expect(css).toContain('font-size: var(--plex-node-font, 22px)')
+  })
+})
+
+describe('gridPositions (2-column grid)', () => {
+  it('fills two centered columns, then wraps to the next row', () => {
+    const out = gridPositions(['a', 'b', 'c'], 100, { cols: 2, colGap: 200, rowGap: 80 })
+    expect(out).toEqual([
+      { name: 'a', x: -100, y: 100 },
+      { name: 'b', x: 100, y: 100 },
+      { name: 'c', x: -100, y: 180 },
+    ])
   })
 })
 
@@ -36,5 +47,36 @@ describe('computeLayout', () => {
     expect(new Set(names).size).toBe(names.length) // no duplicate names
 
     expect(layout.nodes.find((n) => n.name === 'C').zone).toBe('child') // child beats sibling
+  })
+
+  it('lays children out in two columns growing downward', () => {
+    const g = { focus: 'F', parents: [], children: ['c1', 'c2', 'c3', 'c4'], jumps: [], siblings: [], siblingParent: {} }
+    const kids = computeLayout(g).nodes.filter((n) => n.zone === 'child')
+    const xs = [...new Set(kids.map((n) => n.x))]
+    const ys = [...new Set(kids.map((n) => n.y))]
+    expect(xs.length).toBe(2) // exactly two columns
+    expect(ys.length).toBe(2) // 4 children => two rows
+  })
+
+  it('adjacent parents (sorted by x) are at least NODE.W apart', () => {
+    const g = { focus: 'F', parents: ['p1', 'p2', 'p3'], children: [], jumps: [], siblings: [], siblingParent: {} }
+    const parents = computeLayout(g).nodes.filter((n) => n.zone === 'parent').sort((a, b) => a.x - b.x)
+    for (let i = 1; i < parents.length; i++) {
+      expect(parents[i].x - parents[i - 1].x).toBeGreaterThanOrEqual(NODE.W)
+    }
+  })
+
+  it('two children centers are at least NODE.W apart (no horizontal column overlap)', () => {
+    const g = { focus: 'F', parents: [], children: ['c1', 'c2'], jumps: [], siblings: [], siblingParent: {} }
+    const kids = computeLayout(g).nodes.filter((n) => n.zone === 'child').sort((a, b) => a.x - b.x)
+    expect(kids[1].x - kids[0].x).toBeGreaterThanOrEqual(NODE.W)
+  })
+
+  it('adjacent jumps (sorted by y) are at least NODE.H apart (no vertical overlap)', () => {
+    const g = { focus: 'F', parents: [], children: [], jumps: ['j1', 'j2', 'j3'], siblings: [], siblingParent: {} }
+    const jumps = computeLayout(g).nodes.filter((n) => n.zone === 'jump').sort((a, b) => a.y - b.y)
+    for (let i = 1; i < jumps.length; i++) {
+      expect(jumps[i].y - jumps[i - 1].y).toBeGreaterThanOrEqual(NODE.H)
+    }
   })
 })
