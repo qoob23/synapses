@@ -15,7 +15,7 @@ function defaultTheme() {
 // animate (the clicked neighbor glides to the center on recenter).
 const DRAG_THRESHOLD = 6
 
-export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCreate, onRemoveLink, onLinkExisting, onCreateAt }) {
+export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRemoveLink, onLinkExisting, onCreateAt }) {
   const ctx = canvas.getContext('2d')
   // Single source of truth for node box size: the layout math (NODE) drives the
   // CSS variables too, so changing NODE keeps the rendered box and the edge
@@ -163,8 +163,8 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCre
       scheduleDraw()
 
       if (!wasMoved) {
-        // Sub-threshold tap → open centered create dialog.
-        if (onCreate) onCreate(dir)
+        // Sub-threshold tap → open centered create dialog for THIS node (not focus).
+        if (onCreateAt) onCreateAt(fromNode, dir, null)
         return
       }
 

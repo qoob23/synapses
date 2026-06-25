@@ -53,7 +53,6 @@ const view = createView({
   stage: els.stage,
   onNavigate: (name) => goto(name),
   onOpenMain: (name) => client.call('navigate', name).catch(() => {}),
-  onCreate: (role) => create(role),
   onRemoveLink: (neighbor, role) =>
     client
       .call('removeLink', focus, neighbor, role)
