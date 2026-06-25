@@ -4,6 +4,7 @@ import { renderPlexSlot, openPlexSidebar, plexFrameStyle } from './sidebar.js'
 import { buildGraph, nodeDegrees, rebuildIndex } from './graph.js'
 import { readPalette } from './theme.js'
 import { createChild, createParent, createJump, linkExisting, searchPages } from './mutations.js'
+import { createHistory } from './history.js'
 
 function pageNameOf(p) {
   if (!p) return null
@@ -19,23 +20,10 @@ async function getActivePage() {
 
 // Navigation history lives here (durable) so it survives the plex iframe being
 // re-injected when Logseq re-renders the sidebar block.
-const history = { stack: [], idx: -1 }
-const sameName = (a, b) => String(a).toLowerCase() === String(b).toLowerCase()
-function histState() {
-  return { list: history.stack.slice(), index: history.idx }
-}
-function histPush(name) {
-  if (!(history.idx >= 0 && sameName(history.stack[history.idx], name))) {
-    history.stack.splice(history.idx + 1)
-    history.stack.push(name)
-    history.idx = history.stack.length - 1
-  }
-  return histState()
-}
-function histJump(i) {
-  if (i >= 0 && i < history.stack.length) history.idx = i
-  return { name: history.stack[history.idx] || null, ...histState() }
-}
+const history = createHistory()
+const histState = () => history.state()
+const histPush = (name) => history.push(name)
+const histJump = (i) => history.jump(i)
 
 // Methods callable from the plex iframe over RPC.
 const handlers = {
