@@ -139,7 +139,7 @@ async function jumpToIndex(i) {
 
 async function create(role) {
   if (!focus) return
-  const changed = await openCreateDialog({ root: els.dialogRoot, role, focus, client })
+  const changed = await openCreateDialog({ root: els.dialogRoot, role, sourcePage: focus, client })
   if (changed) goto(focus, { noHistory: true })
 }
 

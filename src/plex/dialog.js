@@ -4,14 +4,25 @@ function div(cls) {
   return d
 }
 
+// Position a dialog box with its top-center at `at`, clamped fully on-screen.
+export function clampDialogPosition(at, box, viewport) {
+  const left = Math.max(0, Math.min(at.x - box.w / 2, viewport.w - box.w))
+  const top = Math.max(0, Math.min(at.y, viewport.h - box.h))
+  return { left, top }
+}
+
 // A real in-iframe create/link dialog (replaces window.prompt, which is blocked
 // in the sandboxed plugin iframe). Resolves to true if the graph changed.
-export function openCreateDialog({ root, role, focus, client }) {
+// `sourcePage` is the note the new link attaches to (may differ from the plex focus
+// when triggered from a drag handle on a non-focus node).
+// `at` is an optional { x, y } screen point; when provided the dialog is positioned
+// with its top-center at that point instead of the default centered layout.
+export function openCreateDialog({ root, role, sourcePage, client, at }) {
   return new Promise((resolve) => {
     const overlay = div('plex-dialog-overlay')
     const box = div('plex-dialog')
     const title = div('plex-dialog-title')
-    title.textContent = `Add ${role} of "${focus}"`
+    title.textContent = `Add ${role} of "${sourcePage}"`
     const input = document.createElement('input')
     input.className = 'plex-dialog-input'
     input.placeholder = 'Type a note name…'
@@ -21,6 +32,23 @@ export function openCreateDialog({ root, role, focus, client }) {
     box.append(title, input, results, hint)
     overlay.appendChild(box)
     root.appendChild(overlay)
+
+    // If an `at` point is provided, position the dialog at that screen location.
+    if (at) {
+      const r = box.getBoundingClientRect()
+      const p = clampDialogPosition(
+        at,
+        { w: r.width || 420, h: r.height || 200 },
+        { w: window.innerWidth, h: window.innerHeight },
+      )
+      overlay.style.alignItems = 'flex-start'
+      overlay.style.justifyContent = 'flex-start'
+      overlay.style.paddingTop = '0'
+      box.style.position = 'absolute'
+      box.style.left = p.left + 'px'
+      box.style.top = p.top + 'px'
+    }
+
     input.focus()
 
     let token = 0
@@ -37,7 +65,7 @@ export function openCreateDialog({ root, role, focus, client }) {
       }
       if (mine !== token) return
       for (const m of matches || []) {
-        if (m.toLowerCase() === focus.toLowerCase()) continue
+        if (m.toLowerCase() === sourcePage.toLowerCase()) continue
         const r = div('plex-dialog-result')
         r.textContent = m
         r.addEventListener('click', () => finish(m, true))
@@ -48,11 +76,11 @@ export function openCreateDialog({ root, role, focus, client }) {
     async function finish(name, existing) {
       try {
         if (existing) {
-          await client.call('linkExisting', focus, name, role)
+          await client.call('linkExisting', sourcePage, name, role)
         } else {
           const method =
             role === 'parent' ? 'createParent' : role === 'jump' ? 'createJump' : 'createChild'
-          await client.call(method, focus, name)
+          await client.call(method, sourcePage, name)
         }
         close(true)
       } catch (e) {
