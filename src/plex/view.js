@@ -1,5 +1,5 @@
 import { computeLayout, NODE } from './layout.js'
-import { drawEdges } from './edges.js'
+import { computeEdges, drawEdges } from './edges.js'
 import { attachPanzoom } from './panzoom.js'
 
 const TRANSITION_MS = 320
@@ -24,6 +24,8 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCre
   let dpr = window.devicePixelRatio || 1
   let raf = 0
   let animUntil = 0
+  let lastEdges = []
+  let pending = null
 
   const panzoom = attachPanzoom(stage, (t) => {
     applyTransform(t)
@@ -176,7 +178,8 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCre
   }
 
   function draw() {
-    drawEdges(ctx, liveLayout(), panzoom.getTransform(), theme, dpr)
+    lastEdges = computeEdges(liveLayout())
+    drawEdges(ctx, lastEdges, panzoom.getTransform(), theme, dpr, pending)
   }
   function scheduleDraw() {
     if (!raf) raf = requestAnimationFrame(loop)
@@ -198,6 +201,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCre
     setTheme,
     markMore,
     redraw: scheduleDraw,
+    getEdges: () => lastEdges,
     destroy() {
       ro.disconnect()
     },

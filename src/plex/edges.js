@@ -25,6 +25,38 @@ function gatePoint(node, side) {
   }
 }
 
+// Pure: turn a (live) layout into a retained list of edges with world-space
+// endpoints + metadata, so the same list can be drawn AND hit-tested.
+export function computeEdges(layout) {
+  if (!layout) return []
+  const focus = layout.nodes.find((n) => n.zone === 'focus')
+  if (!focus) return []
+  const edges = []
+  for (const n of layout.nodes) {
+    if (n.zone === 'focus') continue
+
+    // Siblings connect to their shared PARENT, not the focus.
+    if (n.zone === 'sibling') {
+      const via =
+        n.via &&
+        layout.nodes.find(
+          (m) => m.zone === 'parent' && m.name.toLowerCase() === String(n.via).toLowerCase(),
+        )
+      if (via) {
+        edges.push({ a: gatePoint(via, 'bottom'), b: gatePoint(n, 'top'), neighbor: n.name, role: 'sibling', zone: 'child', via: true })
+      } else {
+        edges.push({ a: gatePoint(focus, 'right'), b: gatePoint(n, 'left'), neighbor: n.name, role: 'sibling', zone: 'sibling', via: false })
+      }
+      continue
+    }
+
+    const g = GATES[n.zone]
+    if (!g) continue
+    edges.push({ a: gatePoint(focus, g.focus), b: gatePoint(n, g.node), neighbor: n.name, role: n.zone, zone: n.zone, via: false })
+  }
+  return edges
+}
+
 function curve(ctx, a, b, zone) {
   ctx.beginPath()
   ctx.moveTo(a.x, a.y)
@@ -38,40 +70,39 @@ function curve(ctx, a, b, zone) {
   ctx.stroke()
 }
 
-// Draw focus->neighbor connectors. `transform` is {s, tx, ty}; `dpr` is device
-// pixel ratio. Edges are drawn in world space so they share the node transform.
-export function drawEdges(ctx, layout, transform, theme, dpr) {
+function dot(ctx, p, r) {
+  ctx.beginPath()
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
+  ctx.fill()
+}
+
+// Draw the retained edges in world space (sharing the node transform), plus blue
+// endpoint dots and an optional dashed drag-preview line.
+export function drawEdges(ctx, edges, transform, theme, dpr, pending) {
   const canvas = ctx.canvas
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.clearRect(0, 0, canvas.width, canvas.height)
-  if (!layout) return
 
   const { s, tx, ty } = transform
   ctx.setTransform(s * dpr, 0, 0, s * dpr, tx * dpr, ty * dpr)
 
-  const focus = layout.nodes.find((n) => n.zone === 'focus')
-  if (!focus) return
-
   ctx.lineWidth = 1.5
-  for (const n of layout.nodes) {
-    if (n.zone === 'focus') continue
+  for (const e of edges || []) {
+    ctx.strokeStyle = e.role === 'jump' || e.role === 'sibling' ? theme.jumpEdge : theme.edge
+    curve(ctx, e.a, e.b, e.zone)
+  }
 
-    // Siblings connect to their shared PARENT, not the focus.
-    if (n.zone === 'sibling') {
-      const via =
-        n.via &&
-        layout.nodes.find(
-          (m) => m.zone === 'parent' && m.name.toLowerCase() === String(n.via).toLowerCase(),
-        )
-      ctx.strokeStyle = theme.jumpEdge
-      if (via) curve(ctx, gatePoint(via, 'bottom'), gatePoint(n, 'top'), 'child')
-      else curve(ctx, gatePoint(focus, 'right'), gatePoint(n, 'left'), 'sibling')
-      continue
-    }
+  ctx.fillStyle = theme.dot || theme.edge
+  for (const e of edges || []) {
+    dot(ctx, e.a, 3)
+    dot(ctx, e.b, 3)
+  }
 
-    const g = GATES[n.zone]
-    if (!g) continue
-    ctx.strokeStyle = n.zone === 'jump' ? theme.jumpEdge : theme.edge
-    curve(ctx, gatePoint(focus, g.focus), gatePoint(n, g.node), n.zone)
+  if (pending) {
+    ctx.save()
+    ctx.strokeStyle = theme.dot || theme.edge
+    ctx.setLineDash([6, 4])
+    curve(ctx, pending.a, pending.b, pending.zone || 'jump')
+    ctx.restore()
   }
 }
