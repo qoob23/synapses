@@ -70,14 +70,8 @@ function curve(ctx, a, b, zone) {
   ctx.stroke()
 }
 
-function dot(ctx, p, r) {
-  ctx.beginPath()
-  ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
-  ctx.fill()
-}
-
-// Draw the retained edges in world space (sharing the node transform), plus blue
-// endpoint dots and an optional dashed drag-preview line.
+// Draw the retained edges in world space (sharing the node transform), plus an
+// optional dashed drag-preview line. Endpoint dots are superseded by DOM handles.
 export function drawEdges(ctx, edges, transform, theme, dpr, pending) {
   const canvas = ctx.canvas
   ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -90,12 +84,6 @@ export function drawEdges(ctx, edges, transform, theme, dpr, pending) {
   for (const e of edges || []) {
     ctx.strokeStyle = e.role === 'jump' || e.role === 'sibling' ? theme.jumpEdge : theme.edge
     curve(ctx, e.a, e.b, e.zone)
-  }
-
-  ctx.fillStyle = theme.dot || theme.edge
-  for (const e of edges || []) {
-    dot(ctx, e.a, 3)
-    dot(ctx, e.b, 3)
   }
 
   if (pending) {

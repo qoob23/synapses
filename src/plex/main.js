@@ -113,12 +113,10 @@ async function goto(name, opts = {}) {
     lastRenderKey = key
   }
 
-  const names = [...graph.parents, ...graph.children, ...graph.jumps, ...graph.siblings]
+  const names = view.getRenderedNames()
   client
-    .call('nodeDegrees', names)
-    .then((m) => {
-      if (mine === navToken) view.markMore(m || {})
-    })
+    .call('nodeAdjacency', [...names])
+    .then((adj) => { if (mine === navToken) view.setHandles(adj || {}, names) })
     .catch(() => {})
 
   // Mirror focus into the main pane unless this navigation came FROM Logseq.

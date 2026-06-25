@@ -144,49 +144,32 @@ body {
   opacity: 0;
   pointer-events: none;
 }
-.plex-node.has-more::after {
+/* ---- handles (on every node, 3 directions, 3 states) ---- */
+.plex-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  cursor: pointer;
+  z-index: 5;
+}
+.plex-handle::before { /* enlarged invisible grab/hover radius */
   content: "";
   position: absolute;
-  right: 7px;
-  top: 7px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--plex-accent);
-  opacity: 0.75;
-}
-
-/* ---- gates (on the focus node) ---- */
-.plex-gate {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--plex-bg);
-  border: 2px solid var(--plex-accent);
-  cursor: pointer;
-  opacity: 0.9;
-  transition: transform 0.12s, background 0.12s;
-}
-.plex-gate:hover {
-  background: var(--plex-accent);
-  transform: scale(1.25);
-}
-.gate-top {
-  top: -8px;
   left: 50%;
-  margin-left: -7px;
-}
-.gate-bottom {
-  bottom: -8px;
-  left: 50%;
-  margin-left: -7px;
-}
-.gate-left {
-  left: -8px;
   top: 50%;
-  margin-top: -7px;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
 }
+.handle-top    { top: -6px;  left: 50%; margin-left: -6px; }
+.handle-bottom { bottom: -6px; left: 50%; margin-left: -6px; }
+.handle-left   { left: -6px; top: 50%;  margin-top: -6px; }
+.handle-empty { background: transparent; border: 2px solid var(--plex-accent); }
+.handle-shown { background: var(--plex-accent); border: 2px solid var(--plex-accent); }
+.handle-more  { background: var(--plex-dot-hidden, #2ecc71); border: 2px solid var(--plex-dot-hidden, #2ecc71); }
+.plex-handle:hover { transform: scale(1.2); }
 
 /* ---- edge remove button ---- */
 .plex-edge-remove {

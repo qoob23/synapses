@@ -2,6 +2,7 @@ import { computeLayout, NODE } from './layout.js'
 import { computeEdges, drawEdges } from './edges.js'
 import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom.js'
 import { hitTest } from './edge-hit.js'
+import { nodeHandleStates } from './handles.js'
 
 const TRANSITION_MS = 320
 
@@ -109,6 +110,15 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCre
       if (el._zone === 'focus') onOpenMain(el._name)
       else onNavigate(el._name)
     })
+    el._handles = {}
+    for (const [dir, side] of [['parent', 'top'], ['child', 'bottom'], ['jump', 'left']]) {
+      const h = document.createElement('div')
+      h.className = 'plex-handle handle-' + side + ' handle-empty'
+      h._dir = dir
+      el.appendChild(h)
+      el._handles[dir] = h
+    }
+    el._handleStates = { parent: 'empty', child: 'empty', jump: 'empty' }
     return el
   }
 
@@ -118,37 +128,29 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCre
     el._label.textContent = node.name
     el.title =
       node.zone === 'focus' ? `Open "${node.name}" in the main pane` : `Recenter on "${node.name}"`
-    el.className = 'plex-node zone-' + node.zone + (el.classList.contains('has-more') ? ' has-more' : '')
-    el.querySelectorAll('.plex-gate').forEach((g) => g.remove())
-    if (node.zone === 'focus') addFocusGates(el)
-  }
-
-  function addFocusGates(el) {
-    const gates = [
-      ['top', 'parent'],
-      ['bottom', 'child'],
-      ['left', 'jump'],
-    ]
-    for (const [side, role] of gates) {
-      const g = document.createElement('div')
-      g.className = 'plex-gate gate-' + side
-      g.title = 'Add ' + role
-      g.addEventListener('click', (e) => {
-        e.stopPropagation()
-        onCreate(role)
-      })
-      el.appendChild(g)
-    }
+    el.className = 'plex-node zone-' + node.zone
   }
 
   function positionEl(el, p) {
     el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`
   }
 
-  function markMore(moreMap) {
-    for (const el of elements.values()) {
-      if (el._zone === 'focus') continue
-      el.classList.toggle('has-more', !!(moreMap && moreMap[el._name]))
+  function getRenderedNames() {
+    return new Set(elements.keys())
+  }
+
+  function setHandles(adjacency, renderedNames) {
+    for (const [key, el] of elements) {
+      if (!el._handles) continue
+      const states = nodeHandleStates(adjacency[key], renderedNames)
+      if (el._handleStates && states.parent === el._handleStates.parent &&
+          states.child === el._handleStates.child && states.jump === el._handleStates.jump) continue
+      el._handleStates = states
+      for (const dir of ['parent', 'child', 'jump']) {
+        const h = el._handles[dir]
+        h.classList.remove('handle-empty', 'handle-shown', 'handle-more')
+        h.classList.add('handle-' + states[dir])
+      }
     }
   }
 
@@ -250,7 +252,8 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCre
   return {
     setGraph,
     setTheme,
-    markMore,
+    setHandles,
+    getRenderedNames,
     redraw: scheduleDraw,
     getEdges: () => lastEdges,
     destroy() {
