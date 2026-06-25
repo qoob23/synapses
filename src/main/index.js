@@ -4,7 +4,7 @@ import { renderPlexSlot, openPlexSidebar, plexFrameStyle } from './sidebar.js'
 import { buildGraph, nodeDegrees, rebuildIndex } from './graph.js'
 import { readPalette } from './theme.js'
 import { createChild, createParent, createJump, linkExisting, searchPages } from './mutations.js'
-import { createHistory } from './history.js'
+import { createHistory, serialize, deserialize } from './history.js'
 
 function pageNameOf(p) {
   if (!p) return null
@@ -20,7 +20,26 @@ async function getActivePage() {
 
 // Navigation history lives here (durable) so it survives the plex iframe being
 // re-injected when Logseq re-renders the sidebar block.
-const history = createHistory()
+let historyStore = null
+let historySaveTimer = 0
+function saveHistory(state) {
+  if (!historyStore) return
+  if (historySaveTimer) clearTimeout(historySaveTimer)
+  historySaveTimer = setTimeout(() => {
+    historySaveTimer = 0
+    historyStore.setItem('history.json', serialize(state)).catch((e) => console.warn('[plex] history save failed', e))
+  }, 300)
+}
+async function hydrateHistory() {
+  try {
+    const raw = await historyStore.getItem('history.json')
+    const loaded = raw ? deserialize(raw) : null
+    if (loaded) history.load(loaded)
+  } catch (e) {
+    console.warn('[plex] history load failed', e)
+  }
+}
+const history = createHistory(saveHistory)
 const histState = () => history.state()
 const histPush = (name) => history.push(name)
 const histJump = (i) => history.jump(i)
@@ -81,7 +100,9 @@ const settingsSchema = [
   },
 ]
 
-function main() {
+async function main() {
+  historyStore = logseq.Assets.makeSandboxStorage()
+  await hydrateHistory()
   logseq.useSettingsSchema(settingsSchema)
   logseq.provideStyle(plexFrameStyle())
   startBridge(handlers)
