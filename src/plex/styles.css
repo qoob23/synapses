@@ -1,0 +1,290 @@
+:root {
+  --plex-bg: #ffffff;
+  --plex-bg2: #f6f6f7;
+  --plex-text: #232323;
+  --plex-text2: #8a8a8a;
+  --plex-border: #d6d6d6;
+  --plex-accent: #4a90d9;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+body {
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  color: var(--plex-text);
+  background: var(--plex-bg);
+  overflow: hidden;
+}
+
+#plex-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ---- toolbar ---- */
+#plex-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--plex-border);
+  background: var(--plex-bg2);
+}
+.plex-btn {
+  border: 1px solid var(--plex-border);
+  background: var(--plex-bg);
+  color: inherit;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.plex-btn:hover {
+  border-color: var(--plex-accent);
+}
+.plex-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.plex-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plex-add-group {
+  display: flex;
+  gap: 4px;
+}
+.plex-add-group .plex-btn {
+  font-size: 11px;
+  color: var(--plex-text2);
+}
+
+/* ---- stage / canvas / world ---- */
+#plex-stage {
+  position: relative;
+  flex: 1 1 auto;
+  overflow: hidden;
+  cursor: grab;
+  background-image: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--plex-text) 5%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}
+#plex-stage.grabbing {
+  cursor: grabbing;
+}
+#plex-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+#plex-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* ---- nodes ---- */
+.plex-node {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 156px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border: 1px solid var(--plex-border);
+  border-radius: 18px;
+  background: var(--plex-bg2);
+  color: var(--plex-text);
+  cursor: pointer;
+  text-align: center;
+  user-select: none;
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s, border-color 0.15s,
+    opacity 0.28s;
+}
+.plex-node:hover {
+  border-color: var(--plex-accent);
+}
+.plex-node-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plex-node.zone-focus {
+  font-weight: 600;
+  border-width: 2px;
+  border-color: var(--plex-accent);
+  background: color-mix(in srgb, var(--plex-accent) 16%, var(--plex-bg));
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--plex-accent) 12%, transparent);
+}
+.plex-node.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+.plex-node.has-more::after {
+  content: "";
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--plex-accent);
+  opacity: 0.75;
+}
+
+/* ---- gates (on the focus node) ---- */
+.plex-gate {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--plex-bg);
+  border: 2px solid var(--plex-accent);
+  cursor: pointer;
+  opacity: 0.9;
+  transition: transform 0.12s, background 0.12s;
+}
+.plex-gate:hover {
+  background: var(--plex-accent);
+  transform: scale(1.25);
+}
+.gate-top {
+  top: -8px;
+  left: 50%;
+  margin-left: -7px;
+}
+.gate-bottom {
+  bottom: -8px;
+  left: 50%;
+  margin-left: -7px;
+}
+.gate-left {
+  left: -8px;
+  top: 50%;
+  margin-top: -7px;
+}
+
+/* ---- breadcrumb (Past Thought List) ---- */
+#plex-breadcrumb {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 5px 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+  border-top: 1px solid var(--plex-border);
+  background: var(--plex-bg2);
+}
+.plex-crumb {
+  flex: 0 0 auto;
+  max-width: 140px;
+  border: 1px solid var(--plex-border);
+  background: var(--plex-bg);
+  color: var(--plex-text2);
+  border-radius: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plex-crumb.current {
+  color: var(--plex-text);
+  border-color: var(--plex-accent);
+  font-weight: 600;
+}
+
+/* ---- flash (empty / error overlay) ---- */
+.plex-flash {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  color: var(--plex-text2);
+  pointer-events: none;
+}
+
+/* ---- create/link dialog ---- */
+.plex-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 16vh;
+  background: rgba(0, 0, 0, 0.35);
+}
+.plex-dialog {
+  width: min(420px, 92vw);
+  background: var(--plex-bg);
+  color: var(--plex-text);
+  border: 1px solid var(--plex-border);
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.35);
+}
+.plex-dialog-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.plex-dialog-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--plex-border);
+  border-radius: 7px;
+  background: var(--plex-bg2);
+  color: var(--plex-text);
+  font: inherit;
+}
+.plex-dialog-input:focus {
+  outline: none;
+  border-color: var(--plex-accent);
+}
+.plex-dialog-results {
+  max-height: 180px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+.plex-dialog-result {
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.plex-dialog-result:hover {
+  background: color-mix(in srgb, var(--plex-accent) 18%, transparent);
+}
+.plex-dialog-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--plex-text2);
+}
+.plex-dialog-hint.err {
+  color: #c0392b;
+}
