@@ -3,7 +3,7 @@ import { startBridge, connectIframe, notifyPeer } from './bridge-host.js'
 import { renderPlexSlot, openPlexSidebar, plexFrameStyle } from './sidebar.js'
 import { buildGraph, nodeDegrees, rebuildIndex } from './graph.js'
 import { readPalette } from './theme.js'
-import { createChild, createParent, createJump, linkExisting, searchPages } from './mutations.js'
+import { createChild, createParent, createJump, linkExisting, searchPages, removeLink } from './mutations.js'
 import { createHistory, serialize, deserialize } from './history.js'
 
 function pageNameOf(p) {
@@ -71,6 +71,10 @@ const handlers = {
   },
   linkExisting: async (focus, name, role) => {
     await linkExisting(focus, name, role)
+    return true
+  },
+  removeLink: async (focus, name, role) => {
+    await removeLink(focus, name, role)
     return true
   },
   searchPages: (q) => searchPages(q),
