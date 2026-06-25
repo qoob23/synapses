@@ -159,6 +159,23 @@ export function applyEdge(index, focusName, role, targetName) {
   }
 }
 
+export function removeEdge(index, focusName, role, targetName) {
+  const a = String(focusName).toLowerCase()
+  const b = String(targetName).toLowerCase()
+  const ea = index.pages.get(a)
+  const eb = index.pages.get(b)
+  if (role === 'parent') {
+    if (ea) ea.parents.delete(b)
+    if (eb) eb.children.delete(a)
+  } else if (role === 'child') {
+    if (ea) ea.children.delete(b)
+    if (eb) eb.parents.delete(a)
+  } else {
+    if (ea) ea.jumps.delete(b)
+    if (eb) eb.jumps.delete(a)
+  }
+}
+
 export function hasEdge(index, focusName, role, targetName) {
   const e = index.pages.get(String(focusName).toLowerCase())
   if (!e) return false
@@ -195,10 +212,18 @@ async function gatherEntries() {
 export function reconcilePatches(fresh, patches, now, ttl) {
   const keep = []
   for (const op of patches) {
-    if (hasEdge(fresh, op.focus, op.role, op.target)) continue // confirmed by read
-    if (now - op.ts > ttl) continue // settled — let external edits win
-    applyEdge(fresh, op.focus, op.role, op.target)
-    keep.push(op)
+    const present = hasEdge(fresh, op.focus, op.role, op.target)
+    if (op.kind === 'remove') {
+      if (!present) continue // read confirms the removal
+      if (now - op.ts > ttl) continue // settled — let a re-add win
+      removeEdge(fresh, op.focus, op.role, op.target)
+      keep.push(op)
+    } else {
+      if (present) continue // confirmed by read
+      if (now - op.ts > ttl) continue // settled — let external edits win
+      applyEdge(fresh, op.focus, op.role, op.target)
+      keep.push(op)
+    }
   }
   return keep
 }
@@ -240,7 +265,15 @@ export async function buildGraph(focusName) {
 export function patchIndex(focusName, role, targetName) {
   if (String(focusName).toLowerCase() === String(targetName).toLowerCase()) return
   applyEdge(liveIndex, focusName, role, targetName)
-  pendingPatches.push({ focus: focusName, role, target: targetName, ts: Date.now() })
+  pendingPatches.push({ focus: focusName, role, target: targetName, ts: Date.now(), kind: 'add' })
+}
+
+// Apply a freshly-removed relationship to the live index right away (mirror of
+// patchIndex) so the plex reflects the removal before Logseq re-indexes.
+export function patchRemove(focusName, role, targetName) {
+  if (String(focusName).toLowerCase() === String(targetName).toLowerCase()) return
+  removeEdge(liveIndex, focusName, role, targetName)
+  pendingPatches.push({ focus: focusName, role, target: targetName, ts: Date.now(), kind: 'remove' })
 }
 
 // Off-screen-link affordance: connected to more than just the current focus?

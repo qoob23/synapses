@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildIndex, queryGraph, applyEdge, hasEdge, reconcilePatches } from './graph.js'
+import { buildIndex, queryGraph, applyEdge, hasEdge, reconcilePatches, removeEdge } from './graph.js'
 
 const ONT = { parent: ['parent'], child: ['child'], jump: ['jump'] }
 
@@ -113,5 +113,39 @@ describe('reconcilePatches (rebuild replay path)', () => {
     expect(keep).toHaveLength(1)
     expect(hasEdge(fresh, 'A', 'child', 'C')).toBe(true) // replayed onto the fresh index
     expect(hasEdge(fresh, 'C', 'parent', 'A')).toBe(true) // with its reciprocal
+  })
+})
+
+describe('removeEdge', () => {
+  it('removes an edge and its reciprocal from both nodes', () => {
+    const idx = buildIndex([{ name: 'A', props: { child: ['B'] } }], ONT)
+    expect(hasEdge(idx, 'A', 'child', 'B')).toBe(true)
+    removeEdge(idx, 'A', 'child', 'B')
+    expect(hasEdge(idx, 'A', 'child', 'B')).toBe(false)
+    expect(hasEdge(idx, 'B', 'parent', 'A')).toBe(false)
+  })
+})
+
+describe('reconcilePatches with remove ops', () => {
+  const rm = (focus, role, target, ts) => ({ focus, role, target, ts, kind: 'remove' })
+
+  it('re-removes an edge a stale read still shows, and keeps tracking it', () => {
+    const fresh = buildIndex([{ name: 'A', props: { child: ['B'] } }], ONT) // read still has it
+    const keep = reconcilePatches(fresh, [rm('A', 'child', 'B', 1000)], 1500, 4000)
+    expect(keep).toHaveLength(1)
+    expect(hasEdge(fresh, 'A', 'child', 'B')).toBe(false) // removal re-applied
+  })
+
+  it('drops a remove op once the read confirms the edge is gone', () => {
+    const fresh = buildIndex([{ name: 'A', props: {} }], ONT) // read no longer has it
+    const keep = reconcilePatches(fresh, [rm('A', 'child', 'B', 1000)], 1500, 4000)
+    expect(keep).toEqual([])
+  })
+
+  it('drops a stale remove op after TTL (so a re-add can win)', () => {
+    const fresh = buildIndex([{ name: 'A', props: { child: ['B'] } }], ONT)
+    const keep = reconcilePatches(fresh, [rm('A', 'child', 'B', 1000)], 1000 + 4001, 4000)
+    expect(keep).toEqual([])
+    expect(hasEdge(fresh, 'A', 'child', 'B')).toBe(true) // not re-removed
   })
 })
