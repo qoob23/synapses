@@ -188,6 +188,33 @@ body {
   margin-top: -7px;
 }
 
+/* ---- edge remove button ---- */
+.plex-edge-remove {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--plex-border);
+  border-radius: 11px;
+  background: var(--plex-bg);
+  color: #c0392b;
+  font: 600 12px/1 inherit;
+  cursor: pointer;
+}
+.plex-edge-remove:hover {
+  border-color: #c0392b;
+}
+.plex-edge-remove.confirm {
+  background: #c0392b;
+  color: #fff;
+  border-color: #c0392b;
+}
+
 /* ---- breadcrumb (Past Thought List) ---- */
 #plex-breadcrumb {
   flex: 0 0 auto;

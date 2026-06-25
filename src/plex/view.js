@@ -1,6 +1,7 @@
 import { computeLayout, NODE } from './layout.js'
 import { computeEdges, drawEdges } from './edges.js'
-import { attachPanzoom } from './panzoom.js'
+import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom.js'
+import { hitTest } from './edge-hit.js'
 
 const TRANSITION_MS = 320
 
@@ -11,7 +12,7 @@ function defaultTheme() {
 // Renders the plex: HTML <div> nodes in a transformed world + a <canvas> edge
 // layer. Node elements are keyed by name and reused across graphs so positions
 // animate (the clicked neighbor glides to the center on recenter).
-export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCreate }) {
+export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCreate, onRemoveLink }) {
   const ctx = canvas.getContext('2d')
   // Single source of truth for node box size: the layout math (NODE) drives the
   // CSS variables too, so changing NODE keeps the rendered box and the edge
@@ -195,6 +196,56 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onCre
   }
 
   resizeCanvas()
+
+  // Floating "×" to remove the connection under the cursor (parent/child/jump
+  // edges only; siblings are computed). Lives in the stage, positioned in screen
+  // coords from the hovered edge's midpoint.
+  const removeBtn = document.createElement('button')
+  removeBtn.className = 'plex-edge-remove'
+  removeBtn.textContent = '×'
+  removeBtn.style.display = 'none'
+  removeBtn.addEventListener('pointerdown', (e) => e.stopPropagation()) // don't let a click start a stage pan
+  stage.appendChild(removeBtn)
+  let hoveredEdge = null
+
+  function hideRemove() {
+    removeBtn.style.display = 'none'
+    removeBtn.classList.remove('confirm')
+    removeBtn.textContent = '×'
+    hoveredEdge = null
+  }
+
+  stage.addEventListener('mousemove', (e) => {
+    if (removeBtn.classList.contains('confirm')) return // don't move while confirming
+    const rect = stage.getBoundingClientRect()
+    const t = panzoom.getTransform()
+    const world = screenToWorld(t, e.clientX - rect.left, e.clientY - rect.top)
+    const edge = hitTest(world, lastEdges, 8)
+    if (!edge) {
+      if (hoveredEdge) hideRemove()
+      return
+    }
+    hoveredEdge = edge
+    const midWorld = { x: (edge.a.x + edge.b.x) / 2, y: (edge.a.y + edge.b.y) / 2 }
+    const midScreen = worldToScreen(t, midWorld.x, midWorld.y)
+    removeBtn.style.left = midScreen.x + 'px'
+    removeBtn.style.top = midScreen.y + 'px'
+    removeBtn.style.display = 'flex'
+  })
+
+  removeBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    if (!hoveredEdge) return
+    if (!removeBtn.classList.contains('confirm')) {
+      removeBtn.classList.add('confirm') // first click: arm the confirm
+      removeBtn.textContent = 'Remove?'
+      return
+    }
+    const edge = hoveredEdge
+    hideRemove()
+    if (onRemoveLink) onRemoveLink(edge.neighbor, edge.role)
+  })
+  stage.addEventListener('mouseleave', hideRemove)
 
   return {
     setGraph,
