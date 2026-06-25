@@ -188,6 +188,7 @@ function renderBreadcrumb() {
     c.addEventListener('click', () => jumpToIndex(i))
     els.breadcrumb.appendChild(c)
   })
+  // Breadcrumb head-right invariant: most-recent entry is always right-most and visible.
   els.breadcrumb.scrollLeft = els.breadcrumb.scrollWidth
 }
 

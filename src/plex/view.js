@@ -311,7 +311,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     const rect = stage.getBoundingClientRect()
     const t = panzoom.getTransform()
     const world = screenToWorld(t, e.clientX - rect.left, e.clientY - rect.top)
-    const edge = hitTest(world, lastEdges, 8)
+    const edge = hitTest(world, lastEdges, 10)
     if (!edge) {
       if (hoveredEdge) hideRemove()
       return
