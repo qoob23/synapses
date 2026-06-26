@@ -398,7 +398,7 @@ export function createView({
     if (hoveredKey) { hoveredKey = null; scheduleDraw() } // clear the hover highlight
   }
 
-  stage.addEventListener('mousemove', (e) => {
+  const onStageMove = (e: MouseEvent) => {
     if (pending) { hideRemove(); return } // suppress while a handle drag is live
     if (removeActions.classList.contains('confirm')) return // frozen while confirming
     // Don't hit-test connectors while the cursor is over a card — a card sits on
@@ -427,7 +427,8 @@ export function createView({
     removeActions.style.left = atScreen.x + 'px'
     removeActions.style.top = atScreen.y + 'px'
     removeActions.style.display = 'flex'
-  })
+  }
+  stage.addEventListener('mousemove', onStageMove)
 
   removeBtn.addEventListener('click', (e) => {
     e.stopPropagation()
@@ -456,6 +457,9 @@ export function createView({
     getEdges: () => lastEdges,
     destroy() {
       ro.disconnect()
+      if (raf) cancelAnimationFrame(raf)
+      stage.removeEventListener('mousemove', onStageMove)
+      stage.removeEventListener('mouseleave', hideRemove)
     },
   }
 }
