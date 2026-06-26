@@ -41,7 +41,7 @@ export function attachPanzoom(stage, onChange) {
   )
 
   stage.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.plex-node')) return // node handles its own clicks
+    if (e.target.closest('.plex-node')) return // the card handles its own clicks
     dragging = true
     lastX = e.clientX
     lastY = e.clientY
@@ -74,9 +74,9 @@ export function attachPanzoom(stage, onChange) {
     apply()
   }
 
-  // Keep the FOCUS (world origin 0,0) centered in the viewport
-  // and scale so the farthest node in any direction still fits. Centering on the
-  // focus (not the bounding box) avoids the graph drifting to one side when links
+  // Keep the ACTIVE THOUGHT (world origin 0,0) centered in the viewport
+  // and scale so the farthest card in any direction still fits. Centering on the
+  // active thought (not the bounding box) avoids the graph drifting to one side when links
   // are lopsided.
   function fit(bbox, viewport) {
     // padX/padY are the screen-px margins left between the farthest card edge and

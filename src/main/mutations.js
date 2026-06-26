@@ -1,8 +1,8 @@
 import { getPageProps, toNames, patchIndex, patchRemove } from './graph.js'
 import { getOntology, roleForKey } from './ontology.js'
 
-// All edits are written to the FOCUS page's first block as page properties, so a
-// single page changes per action and the relationship is immediately visible.
+// All edits are written to the active thought's first block as page properties, so a
+// single page changes per action and the link is immediately visible.
 
 async function ensurePage(name) {
   let p = await logseq.Editor.getPage(name)
@@ -58,8 +58,8 @@ async function removeRoleLinks(pageName, role, target) {
   }
 }
 
-// Remove a relationship regardless of which side declared it (reciprocity is
-// inferred): strip focus's `role` keys AND the neighbor's reciprocal-role keys.
+// Remove a link regardless of which side declared it (reciprocity is
+// inferred): strip the active thought's `role` keys AND the linked thought's reciprocal-role keys.
 export async function removeLink(focus, target, role) {
   const recip = role === 'parent' ? 'child' : role === 'child' ? 'parent' : 'jump'
   await removeRoleLinks(focus, role, target)

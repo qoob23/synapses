@@ -102,7 +102,7 @@ body {
   will-change: transform;
 }
 
-/* ---- nodes ---- */
+/* ---- cards ---- */
 .plex-node {
   position: absolute;
   left: 0;
@@ -144,7 +144,7 @@ body {
   background: color-mix(in srgb, var(--plex-accent) 22%, transparent);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--plex-accent) 12%, transparent);
 }
-/* Start state for a freshly-added card: invisible at the focus gate; view.js
+/* Start state for a freshly-added card: invisible at the active thought's gate; view.js
    removes this class after a reflow so it fades + grows to its final spot. */
 .plex-node.appearing {
   opacity: 0;
@@ -160,7 +160,7 @@ body {
     transition: background 0.15s, border-color 0.15s;
   }
 }
-/* ---- handles (on every node, 3 directions, 3 states) ---- */
+/* ---- handles (on every card, 3 directions, 3 states) ---- */
 .plex-handle {
   position: absolute;
   width: 12px;

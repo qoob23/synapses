@@ -66,7 +66,7 @@ const view = createView({
   onCreateAt: (fromNode, role, at) => createAt(fromNode, role, at),
 })
 
-// Restore the previous focus + history (e.g. after the iframe was re-injected),
+// Restore the previous active thought + history (e.g. after the iframe was re-injected),
 // otherwise fall back to the currently open Logseq page.
 async function restore() {
   try {
@@ -124,7 +124,7 @@ async function goto(name, opts = {}) {
     .then((adj) => { if (mine === navToken) view.setHandles(adj || {}, names) })
     .catch(() => {})
 
-  // Mirror focus into the main pane unless this navigation came FROM Logseq.
+  // Mirror the active thought into the main pane unless this navigation came FROM Logseq.
   if (!opts.fromLogseq) client.call('navigate', name).catch(() => {})
 }
 

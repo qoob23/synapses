@@ -1,6 +1,6 @@
 import { NODE } from './layout.js'
 
-// Which gate of the focus connects to which gate of the neighbor, per zone.
+// Which gate of the active thought connects to which gate of the linked card, per zone.
 const GATES = {
   parent: { focus: 'top', node: 'bottom' },
   child: { focus: 'bottom', node: 'top' },
@@ -25,7 +25,7 @@ export function gatePoint(node, side) {
   }
 }
 
-// Stable, case-insensitive identity for an edge (role + neighbor) — used to
+// Stable, case-insensitive identity for an edge (its `role` + `neighbor` name) — used to
 // match the hovered edge across re-computed edge lists for the hover highlight.
 export function edgeKey(e) {
   return e ? e.role + ':' + String(e.neighbor || '').toLowerCase() : null
@@ -34,8 +34,8 @@ export function edgeKey(e) {
 // Pure: turn a (live) layout into a retained list of edges with world-space
 // endpoints + metadata, so the same list can be drawn AND hit-tested. Each
 // removable edge carries a `remove` descriptor {from, to, role} naming the
-// relationship to strip — for siblings that's the (shared parent → sibling)
-// child link, not a focus↔sibling link (which is only computed).
+// link to strip — for siblings that's the (shared parent → sibling)
+// child link, not an active-thought↔sibling link (which is only computed).
 export function computeEdges(layout) {
   if (!layout) return []
   const focus = layout.nodes.find((n) => n.zone === 'focus')
@@ -44,7 +44,7 @@ export function computeEdges(layout) {
   for (const n of layout.nodes) {
     if (n.zone === 'focus') continue
 
-    // Siblings connect to their shared PARENT, not the focus.
+    // Siblings connect to their shared PARENT, not the active thought.
     if (n.zone === 'sibling') {
       const parentName = n.via ? String(n.via) : null
       const via =
@@ -82,7 +82,7 @@ function curve(ctx, a, b, zone) {
   ctx.stroke()
 }
 
-// Draw the retained edges in world space (sharing the node transform), plus an
+// Draw the retained edges in world space (sharing the card transform), plus an
 // optional dashed drag-preview line. The edge whose key matches `highlightKey`
 // (the one under the cursor) is drawn thicker in the accent colour. Endpoint
 // dots are superseded by DOM handles.

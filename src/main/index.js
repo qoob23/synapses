@@ -118,7 +118,7 @@ async function main() {
     renderPlexSlot(slot, connectIframe)
   })
 
-  // Keep the plex focused on whatever page the user is viewing.
+  // Keep the active thought in sync with whatever page the user is viewing.
   logseq.App.onRouteChanged(async () => {
     const name = await getActivePage()
     if (name) notifyPeer('recenter', { page: name })

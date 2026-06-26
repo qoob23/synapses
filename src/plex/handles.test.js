@@ -26,7 +26,7 @@ describe('nodeHandleStates', () => {
     expect(nodeHandleStates(undefined, new Set())).toEqual({ parent: 'empty', child: 'empty', jump: 'empty' })
   })
   it('classifies each direction from its neighbor array vs the rendered set', () => {
-    // child set includes the focus AND a sibling-zone node, both rendered -> shown
+    // child set includes `Focus` AND a sibling-zone thought, both rendered -> shown
     const entry = { parents: ['Above'], children: ['Focus', 'Sib'], jumps: ['Far'] }
     const rendered = new Set(['focus', 'sib']) // Above and Far not rendered
     expect(nodeHandleStates(entry, rendered)).toEqual({ parent: 'more', child: 'shown', jump: 'more' })

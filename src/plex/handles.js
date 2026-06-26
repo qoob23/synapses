@@ -2,7 +2,7 @@ import { NODE } from './layout.js'
 
 /** @typedef {'empty'|'shown'|'more'} HandleState */
 
-// total===0 -> 'empty'; every neighbor rendered (shown>=total) -> 'shown';
+// total===0 -> 'empty'; every linked thought rendered (shown>=total) -> 'shown';
 // otherwise (some/all hidden) -> 'more'. shown can never exceed total.
 export function classifyHandle(total, shown) {
   if (total === 0) return 'empty'
@@ -10,7 +10,7 @@ export function classifyHandle(total, shown) {
   return 'more'
 }
 
-// Count of neighbor names present in renderedSet (which holds LOWERCASED names).
+// Count of linked-thought names present in renderedSet (which holds LOWERCASED names).
 export function computeShownCount(neighbors, renderedSet) {
   let n = 0
   for (const name of neighbors || []) if (renderedSet.has(String(name).toLowerCase())) n++

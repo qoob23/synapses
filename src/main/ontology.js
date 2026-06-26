@@ -1,4 +1,4 @@
-// Maps Logseq property names to relationship roles (ExcaliBrain-style).
+// Maps Logseq property names to link roles (ExcaliBrain-style).
 // Defaults are user-overridable via plugin settings.
 
 const DEFAULTS = {

@@ -13,8 +13,8 @@ export function clampDialogPosition(at, box, viewport) {
 
 // A real in-iframe create/link dialog (replaces window.prompt, which is blocked
 // in the sandboxed plugin iframe). Resolves to true if the graph changed.
-// `sourcePage` is the note the new link attaches to (may differ from the plex focus
-// when triggered from a drag handle on a non-focus node).
+// `sourcePage` is the thought the new link attaches to (may differ from the active thought
+// when triggered from a drag handle on a non-active card).
 // `at` is an optional { x, y } screen point; when provided the dialog is positioned
 // with its top-center at that point instead of the default centered layout.
 export function openCreateDialog({ root, role, sourcePage, client, at }) {

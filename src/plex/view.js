@@ -16,14 +16,14 @@ function defaultTheme() {
   return { edge: 'rgba(127,127,127,0.55)', jumpEdge: 'rgba(127,127,127,0.32)', highlight: 'rgba(206,170,92,0.9)' }
 }
 
-// Renders the plex: HTML <div> nodes in a transformed world + a <canvas> edge
-// layer. Node elements are keyed by name and reused across graphs so positions
-// animate (the clicked neighbor glides to the center on recenter).
+// Renders the plex: HTML <div> cards in a transformed world + a <canvas> connector
+// layer. Card elements are keyed by name and reused across graphs so positions
+// animate (the clicked card glides to the center on recenter).
 const DRAG_THRESHOLD = 6
 
 export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRemoveLink, onLinkExisting, onCreateAt }) {
   const ctx = canvas.getContext('2d')
-  // Single source of truth for node box size: the layout math (NODE) drives the
+  // Single source of truth for card box size: the layout math (NODE) drives the
   // CSS variables too, so changing NODE keeps the rendered box and the edge
   // endpoints/bbox in agreement (styles.css falls back to matching literals).
   document.documentElement.style.setProperty('--plex-node-w', NODE.W + 'px')
@@ -80,16 +80,16 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     layout = computeLayout(graph)
     const present = new Set()
 
-    // Newly-appearing cards emerge FROM the activating card (the new focus) at
-    // its current on-screen position, so new relations grow out of the card you
+    // Newly-appearing cards emerge FROM the activating card (the new active thought) at
+    // its current on-screen position, so new links grow out of the card you
     // just clicked. Captured BEFORE the loop below moves it to the center.
     const activatingEl = elements.get(String(graph.focus).toLowerCase())
     const enterFrom = activatingEl ? liveCenterOf(activatingEl) : { x: 0, y: 0 }
 
-    // Disappearing cards collapse INTO the OLD focus card at its NEW position —
+    // Disappearing cards collapse INTO the OLD active thought's card at its NEW position —
     // it usually demotes to a parent/jump/sibling and slides there — so a
-    // dropped relation fades into the card it belonged to, not the new center.
-    // Falls back to the center if the old focus is gone too.
+    // dropped card fades into the card it belonged to, not the new center.
+    // Falls back to the center if the old active thought is gone too.
     let exitInto = { x: 0, y: 0 }
     if (prevFocus) {
       const moved = layout.nodes.find((n) => n.name.toLowerCase() === prevFocus.toLowerCase())
@@ -118,7 +118,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
       positionEl(el, node)
     }
 
-    // Dropped cards: fade out while collapsing into the old focus's new spot.
+    // Dropped cards: fade out while collapsing into the old active thought's new spot.
     for (const [key, el] of elements) {
       if (present.has(key)) continue
       const dead = el
@@ -133,13 +133,13 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     animateFor(TRANSITION_MS + 40)
   }
 
-  // Map each handle direction to the gate side on the node. Jump-position cards
-  // sit to the LEFT of the focus, so their jump edge meets their RIGHT side —
+  // Map each handle direction to the gate side on the card. Jump-position cards
+  // sit to the LEFT of the active thought, so their jump connector meets their RIGHT side —
   // put the jump handle there too so it visually connects to its link.
   const DIR_SIDE = { parent: 'top', child: 'bottom', jump: 'left' }
   const jumpSide = (zone) => (zone === 'jump' ? 'right' : 'left')
 
-  // Get the current world-center of a node element from its live CSS transform.
+  // Get the current world-center of a card element from its live CSS transform.
   function liveCenterOf(el) {
     const t = getComputedStyle(el).transform
     if (t && t !== 'none') {
@@ -153,9 +153,9 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     return { x: 0, y: 0 }
   }
 
-  // Attach drag-to-connect behaviour to a handle element `h` belonging to node `el`.
+  // Attach drag-to-connect behaviour to a handle element `h` belonging to card `el`.
   function attachHandleDrag(h, el) {
-    // Prevent sub-threshold taps from bubbling to the node's click→recenter.
+    // Prevent sub-threshold taps from bubbling to the card's click→activate.
     h.addEventListener('click', (e) => e.stopPropagation())
 
     let drag = null
@@ -199,12 +199,12 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
       scheduleDraw()
 
       if (!wasMoved) {
-        // Sub-threshold tap → open centered create dialog for THIS node (not focus).
+        // Sub-threshold tap → open centered create dialog for THIS card (not the active thought).
         if (onCreateAt) onCreateAt(fromNode, dir, null)
         return
       }
 
-      // Resolve drop target via LIVE DOM (nodes may be mid-transition).
+      // Resolve drop target via LIVE DOM (cards may be mid-transition).
       const tgt = document.elementFromPoint(e.clientX, e.clientY)
       const nodeEl = tgt && tgt.closest('.plex-node')
       const toName = nodeEl && nodeEl._name
@@ -289,8 +289,8 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     }
   }
 
-  // Read each node's CURRENT (mid-transition) world position from its computed
-  // transform, so edges follow nodes during the recenter glide instead of
+  // Read each card's CURRENT (mid-transition) world position from its computed
+  // transform, so connectors follow cards during the recenter glide instead of
   // snapping to the final layout.
   function liveLayout() {
     if (!layout) return null
@@ -334,7 +334,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
 
   resizeCanvas()
 
-  // Floating remove/cancel controls for the connection under the cursor
+  // Floating remove/cancel controls for the connector under the cursor
   // (parent/child/jump edges only; siblings are computed). They live in the
   // stage, positioned in screen coords from the hovered edge's midpoint. The
   // first click on "×" arms a "Remove?" confirm and reveals a "Cancel" button

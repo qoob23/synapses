@@ -1,13 +1,13 @@
-// Fixed banded layout around a focus node, no physics:
+// Fixed banded layout around the active thought, no physics:
 //   parents row above, children row below, jumps column left, siblings column right.
-// All coordinates are "world" units with the focus at (0, 0).
+// All coordinates are "world" units with the active thought at (0, 0).
 
 export const NODE = { W: 208, H: 40 }
 
 const BAND_Y = 210 // vertical distance to the parent/child rows (space BETWEEN groups)
 const BAND_X = 360 // horizontal distance to the jump/sibling columns (space BETWEEN groups)
-const GAP_X = 224 // horizontal gap between nodes in a row (space WITHIN a group; >= NODE.W)
-const GAP_Y = 54 // vertical gap between nodes in a column (space WITHIN a group; >= NODE.H)
+const GAP_X = 224 // horizontal gap between cards in a row (space WITHIN a group; >= NODE.W)
+const GAP_Y = 54 // vertical gap between cards in a column (space WITHIN a group; >= NODE.H)
 const CHILD_COL_GAP = 300 // horizontal gap between the two children columns (> GAP_X for a clear split; >= NODE.W)
 
 function rowPositions(names, y) {

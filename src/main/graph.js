@@ -50,7 +50,7 @@ function emptyNode() {
   return { parents: new Set(), children: new Set(), jumps: new Set() }
 }
 
-// entries: [{ name, props }]. Returns { pages: Map<lower, node>, display: Map<lower, original> }
+// entries: [{ name, props }]. Returns { pages: Map<lower, entry>, display: Map<lower, original> }
 // with reciprocals already applied (declaring one side fills the other).
 export function buildIndex(entries, ont) {
   const pages = new Map()
@@ -259,7 +259,7 @@ export async function buildGraph(focusName) {
   return queryGraph(liveIndex, focusName)
 }
 
-// Apply a freshly-written relationship to the live index right away, so the plex
+// Apply a freshly-written link to the live index right away, so the plex
 // reflects it before Logseq finishes its own indexing. Recorded so subsequent
 // rebuilds don't drop it until a read confirms it.
 export function patchIndex(focusName, role, targetName) {
@@ -268,7 +268,7 @@ export function patchIndex(focusName, role, targetName) {
   pendingPatches.push({ focus: focusName, role, target: targetName, ts: Date.now(), kind: 'add' })
 }
 
-// Apply a freshly-removed relationship to the live index right away (mirror of
+// Apply a freshly-removed link to the live index right away (mirror of
 // patchIndex) so the plex reflects the removal before Logseq re-indexes.
 export function patchRemove(focusName, role, targetName) {
   if (String(focusName).toLowerCase() === String(targetName).toLowerCase()) return
@@ -276,7 +276,7 @@ export function patchRemove(focusName, role, targetName) {
   pendingPatches.push({ focus: focusName, role, target: targetName, ts: Date.now(), kind: 'remove' })
 }
 
-// Per-node neighbor arrays from an index (pure). Keyed by LOWERCASED name;
+// Per-thought arrays of linked thoughts from an index (pure). Keyed by LOWERCASED name;
 // values are DISPLAY-cased. Names absent from the index are omitted.
 export function getAdjacency(index, names) {
   const out = {}
@@ -294,13 +294,13 @@ export function getAdjacency(index, names) {
   return out
 }
 
-// RPC: per-node adjacency for the live index (raw, UNCAPPED).
+// RPC: per-thought adjacency for the live index (raw, UNCAPPED).
 export async function nodeAdjacency(names) {
   await ensureBuilt()
   return getAdjacency(liveIndex, names)
 }
 
-// Off-screen-link affordance: connected to more than just the current focus?
+// Off-screen-link affordance: connected to more than just the active thought?
 export async function nodeDegrees(names) {
   await ensureBuilt()
   const out = {}
