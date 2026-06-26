@@ -2,41 +2,47 @@
 // `{{renderer :synapses}}`; opening that block in the right sidebar fires
 // onMacroRendererSlotted, where we inject the synapses iframe into the slot.
 
+// Type-only: pulls in @logseq/libs's ambient `logseq` global for typechecking,
+// but is fully erased at runtime (verbatimModuleSyntax) so this module — unlike
+// the M entry — doesn't execute @logseq/libs' browser-only bootstrap. That keeps
+// the pure `synapsesFrameStyle` unit test importable under the node test env.
+import type {} from '@logseq/libs'
+
 const HOST_PAGE = 'synapses'
 const MACRO = '{{renderer :synapses}}'
 
-async function ensureHostBlock() {
-  let page = await logseq.Editor.getPage(HOST_PAGE)
+async function ensureHostBlock(): Promise<any> {
+  let page = await (logseq as any).Editor.getPage(HOST_PAGE)
   if (!page) {
-    page = await logseq.Editor.createPage(
+    page = await (logseq as any).Editor.createPage(
       HOST_PAGE,
       {},
       { redirect: false, createFirstBlock: true, journal: false },
     )
   }
-  let tree = await logseq.Editor.getPageBlocksTree(HOST_PAGE)
+  let tree = await (logseq as any).Editor.getPageBlocksTree(HOST_PAGE)
   let block = tree && tree[0]
   if (!block) {
-    block = await logseq.Editor.appendBlockInPage(HOST_PAGE, MACRO)
+    block = await (logseq as any).Editor.appendBlockInPage(HOST_PAGE, MACRO)
   } else if (!String(block.content || '').includes(':synapses')) {
-    await logseq.Editor.updateBlock(block.uuid, MACRO)
+    await (logseq as any).Editor.updateBlock(block.uuid, MACRO)
   }
-  tree = await logseq.Editor.getPageBlocksTree(HOST_PAGE)
+  tree = await (logseq as any).Editor.getPageBlocksTree(HOST_PAGE)
   return tree && tree[0]
 }
 
-export async function openSynapsesSidebar() {
+export async function openSynapsesSidebar(): Promise<void> {
   const block = await ensureHostBlock()
   if (!block) return
-  await logseq.Editor.openInRightSidebar(block.uuid)
+  await (logseq as any).Editor.openInRightSidebar(block.uuid)
   try {
-    await logseq.App.setRightSidebarVisible(true)
+    await (logseq as any).App.setRightSidebarVisible(true)
   } catch (e) {
     /* older API shapes; best-effort */
   }
 }
 
-export function synapsesFrameStyle() {
+export function synapsesFrameStyle(): string {
   return [
     // width:calc(100% + 40px) + negative right margin bleeds the synapses ~40px into
     // the sidebar block's right gutter so it reaches the true panel edge.
@@ -68,7 +74,7 @@ export function synapsesFrameStyle() {
 // Inject our iframe into the macro slot. We prefer the right-sidebar instance,
 // but never hard-block on an unknown sidebar container id: only skip a slot we
 // can positively identify as the main-area duplicate.
-export function renderSynapsesSlot(slot, connect) {
+export function renderSynapsesSlot(slot: string, connect: (el: HTMLIFrameElement) => void): void {
   const host = parent.document.getElementById(slot)
   if (host) {
     const inMain = host.closest('#main-content-container, #center-content-container')
@@ -81,7 +87,7 @@ export function renderSynapsesSlot(slot, connect) {
   // Inject WITHOUT a src so DOMPurify has no URL to sanitize away (a plugin may
   // be served over a non-http scheme); set .src via the DOM API, which isn't
   // sanitized, once we locate the element.
-  logseq.provideUI({
+  ;(logseq as any).provideUI({
     key: 'synapses-ui-' + slot,
     slot,
     reset: true,
@@ -91,7 +97,7 @@ export function renderSynapsesSlot(slot, connect) {
   const synapsesUrl = new URL('synapses.html', location.href).href
   let tries = 0
   const tick = () => {
-    const el = parent.document.getElementById(elId)
+    const el = parent.document.getElementById(elId) as HTMLIFrameElement | null
     if (el) {
       if (!el.src) el.src = synapsesUrl
       connect(el)
@@ -111,12 +117,12 @@ export function renderSynapsesSlot(slot, connect) {
 // document), disable the iframe's pointer events until release so the parent
 // keeps receiving move/up. Installed once, targets all synapses iframes.
 let dragPassthroughInstalled = false
-function installDragPassthrough() {
+function installDragPassthrough(): void {
   if (dragPassthroughInstalled) return
   dragPassthroughInstalled = true
   const pdoc = parent.document
-  const setPE = (val) => {
-    pdoc.querySelectorAll('iframe.synapses-frame').forEach((f) => {
+  const setPE = (val: string) => {
+    pdoc.querySelectorAll<HTMLIFrameElement>('iframe.synapses-frame').forEach((f) => {
       f.style.pointerEvents = val
     })
   }

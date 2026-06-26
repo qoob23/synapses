@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { synapsesFrameStyle } from './sidebar.js'
+import { synapsesFrameStyle } from './sidebar'
 
 describe('synapsesFrameStyle', () => {
   it('widens the synapses frame ~40px past the sidebar block and zeroes its right padding', () => {
