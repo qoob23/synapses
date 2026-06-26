@@ -1,10 +1,10 @@
 import { computeLayout, NODE } from './layout.js'
-import { computeEdges, drawEdges, gatePoint } from './edges.js'
+import { computeEdges, drawEdges, gatePoint, focusGatePoint } from './edges.js'
 import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom.js'
 import { hitTest } from './edge-hit.js'
 import { nodeHandleStates } from './handles.js'
 
-const TRANSITION_MS = 320
+const TRANSITION_MS = 420
 
 function defaultTheme() {
   return { edge: 'rgba(127,127,127,0.55)', jumpEdge: 'rgba(127,127,127,0.32)' }
@@ -75,22 +75,34 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
       const key = node.name.toLowerCase()
       present.add(key)
       let el = elements.get(key)
-      if (!el) {
-        el = makeNode()
-        world.appendChild(el)
-        elements.set(key, el)
-        positionEl(el, { x: 0, y: 0 }) // new nodes fan out from the center
-        void el.offsetWidth // force reflow so the move below transitions
+      if (el) {
+        // Reused card: glide directly from its current spot to the new one.
+        updateNode(el, node)
+        positionEl(el, node)
+        continue
       }
+      // New card: grow out of the focus's gate on its own side while fading in,
+      // so it appears from a place that matches its ontology role (parents from
+      // the focus top, children from its bottom, jumps left, siblings right).
+      el = makeNode()
+      world.appendChild(el)
+      elements.set(key, el)
       updateNode(el, node)
+      el.classList.add('appearing') // opacity:0 until faded in below
+      positionEl(el, focusGatePoint(node.zone))
+      void el.offsetWidth // force reflow so the move + fade below transition
+      el.classList.remove('appearing')
       positionEl(el, node)
     }
 
-    // remove nodes no longer present
+    // remove nodes no longer present: retract back into the focus along their
+    // OLD direction (el._zone is the prior role) while fading — the mirror of
+    // how new cards grow out of the focus.
     for (const [key, el] of elements) {
       if (present.has(key)) continue
-      el.classList.add('leaving')
       const dead = el
+      dead.classList.add('leaving') // opacity:0
+      positionEl(dead, focusGatePoint(dead._zone))
       setTimeout(() => dead.remove(), TRANSITION_MS)
       elements.delete(key)
     }

@@ -122,8 +122,11 @@ body {
   cursor: pointer;
   text-align: center;
   user-select: none;
-  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s, border-color 0.15s,
-    opacity 0.28s;
+  /* Gentle decelerating glide: cards ease out fast then settle slowly, so the
+     graph unfolds rather than snaps. transform + opacity drive the grow-from-
+     focus / retract-to-focus motion (see view.js setGraph). */
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, background 0.15s,
+    border-color 0.15s;
 }
 .plex-node:hover {
   border-color: var(--plex-accent);
@@ -141,9 +144,21 @@ body {
   background: color-mix(in srgb, var(--plex-accent) 22%, transparent);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--plex-accent) 12%, transparent);
 }
+/* Start state for a freshly-added card: invisible at the focus gate; view.js
+   removes this class after a reflow so it fades + grows to its final spot. */
+.plex-node.appearing {
+  opacity: 0;
+}
 .plex-node.leaving {
   opacity: 0;
   pointer-events: none;
+}
+
+/* Respect reduced-motion: no glide/fade, cards just snap to place. */
+@media (prefers-reduced-motion: reduce) {
+  .plex-node {
+    transition: background 0.15s, border-color 0.15s;
+  }
 }
 /* ---- handles (on every node, 3 directions, 3 states) ---- */
 .plex-handle {
