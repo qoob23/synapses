@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { computeEdges, edgeKey } from './edges.js'
-import { NODE } from './layout.js'
+import { computeEdges, edgeKey } from './edges'
+import { NODE } from './layout'
 
 // Minimal hand-placed layout: active thought at origin, one parent above, one child below.
 const layout = {
@@ -16,7 +16,7 @@ describe('computeEdges', () => {
   it('produces one edge per non-focus node with role + endpoints', () => {
     const edges = computeEdges(layout)
     expect(edges.map((e) => e.neighbor).sort()).toEqual(['C', 'P'])
-    const parent = edges.find((e) => e.neighbor === 'P')
+    const parent = edges.find((e) => e.neighbor === 'P')!
     expect(parent.role).toBe('parent')
     // active thought's parent-gate is its top edge; the linked card's child-gate is its bottom edge
     expect(parent.a).toEqual({ x: 0, y: -NODE.H / 2 })
@@ -25,8 +25,8 @@ describe('computeEdges', () => {
 
   it('carries a remove descriptor (focus → neighbor) for parent/child edges', () => {
     const edges = computeEdges(layout)
-    expect(edges.find((e) => e.neighbor === 'P').remove).toEqual({ from: 'F', to: 'P', role: 'parent' })
-    expect(edges.find((e) => e.neighbor === 'C').remove).toEqual({ from: 'F', to: 'C', role: 'child' })
+    expect(edges.find((e) => e.neighbor === 'P')!.remove).toEqual({ from: 'F', to: 'P', role: 'parent' })
+    expect(edges.find((e) => e.neighbor === 'C')!.remove).toEqual({ from: 'F', to: 'C', role: 'child' })
   })
 
   it('returns [] when there is no focus node', () => {
@@ -43,7 +43,7 @@ describe('computeEdges', () => {
       ],
     }
     const edges = computeEdges(siblingLayout)
-    const sibEdge = edges.find((e) => e.neighbor === 'S')
+    const sibEdge = edges.find((e) => e.neighbor === 'S')!
     expect(sibEdge.role).toBe('sibling')
     expect(sibEdge.zone).toBe('child')
     expect(sibEdge.via).toBe(true)
@@ -62,7 +62,7 @@ describe('computeEdges', () => {
         { name: 'S', zone: 'sibling', x: 150, y: 0, via: 'P' },
       ],
     }
-    const sibEdge = computeEdges(detached).find((e) => e.neighbor === 'S')
+    const sibEdge = computeEdges(detached).find((e) => e.neighbor === 'S')!
     expect(sibEdge.via).toBe(false)
     expect(sibEdge.remove).toEqual({ from: 'P', to: 'S', role: 'child' })
   })
@@ -75,7 +75,7 @@ describe('computeEdges', () => {
         { name: 'S', zone: 'sibling', x: 150, y: 0 },
       ],
     }
-    const sibEdge = computeEdges(orphan).find((e) => e.neighbor === 'S')
+    const sibEdge = computeEdges(orphan).find((e) => e.neighbor === 'S')!
     expect(sibEdge.remove).toBeFalsy()
   })
 })

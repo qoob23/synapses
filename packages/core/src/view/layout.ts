@@ -2,6 +2,40 @@
 //   parents row above, children row below, jumps column left, siblings column right.
 // All coordinates are "world" units with the active thought at (0, 0).
 
+import type { Graph } from '../types'
+
+export interface LayoutNode {
+  name: string
+  x: number
+  y: number
+  zone: string
+  via?: string
+}
+
+export interface LayoutBox {
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
+}
+
+export interface LayoutResult {
+  focus: string
+  nodes: LayoutNode[]
+  bbox: LayoutBox
+}
+
+// computeLayout reads only these fields off a Graph; the arrays default to [] when
+// absent, so they're optional here (siblingsTruncated is unused by the layout).
+export type LayoutGraph = Pick<Graph, 'focus'> &
+  Partial<Pick<Graph, 'parents' | 'children' | 'jumps' | 'siblings' | 'siblingParent'>>
+
+export interface GridOptions {
+  cols?: number
+  colGap?: number
+  rowGap?: number
+}
+
 export const NODE = { W: 208, H: 40 }
 
 const BAND_Y = 210 // vertical distance to the parent/child rows (space BETWEEN groups)
@@ -10,17 +44,17 @@ const GAP_X = 224 // horizontal gap between cards in a row (space WITHIN a group
 const GAP_Y = 54 // vertical gap between cards in a column (space WITHIN a group; >= NODE.H)
 const CHILD_COL_GAP = 300 // horizontal gap between the two children columns (> GAP_X for a clear split; >= NODE.W)
 
-function rowPositions(names, y) {
+function rowPositions(names: string[], y: number) {
   const n = names.length
   return names.map((name, i) => ({ name, x: (i - (n - 1) / 2) * GAP_X, y }))
 }
 
-function colPositions(names, x) {
+function colPositions(names: string[], x: number) {
   const n = names.length
   return names.map((name, i) => ({ name, x, y: (i - (n - 1) / 2) * GAP_Y }))
 }
 
-export function gridPositions(names, y0, { cols = 2, colGap = GAP_X, rowGap = NODE.H + 14 } = {}) {
+export function gridPositions(names: string[], y0: number, { cols = 2, colGap = GAP_X, rowGap = NODE.H + 14 }: GridOptions = {}) {
   return names.map((name, i) => {
     const col = i % cols
     const row = Math.floor(i / cols)
@@ -30,8 +64,8 @@ export function gridPositions(names, y0, { cols = 2, colGap = GAP_X, rowGap = NO
   })
 }
 
-export function computeLayout(graph) {
-  const raw = [{ name: graph.focus, x: 0, y: 0, zone: 'focus' }]
+export function computeLayout(graph: LayoutGraph): LayoutResult {
+  const raw: LayoutNode[] = [{ name: graph.focus, x: 0, y: 0, zone: 'focus' }]
   for (const p of rowPositions(graph.parents || [], -BAND_Y)) raw.push({ ...p, zone: 'parent' })
   for (const c of gridPositions(graph.children || [], BAND_Y, { colGap: CHILD_COL_GAP })) raw.push({ ...c, zone: 'child' })
   for (const j of colPositions(graph.jumps || [], -BAND_X)) raw.push({ ...j, zone: 'jump' })
@@ -41,8 +75,8 @@ export function computeLayout(graph) {
   }
 
   // A name should appear once; keep the highest-priority zone (order above).
-  const seen = new Set()
-  const nodes = []
+  const seen = new Set<string>()
+  const nodes: LayoutNode[] = []
   for (const nd of raw) {
     const k = nd.name.toLowerCase()
     if (seen.has(k)) continue
@@ -53,7 +87,7 @@ export function computeLayout(graph) {
   return { focus: graph.focus, nodes, bbox: computeBBox(nodes) }
 }
 
-function computeBBox(nodes) {
+function computeBBox(nodes: LayoutNode[]): LayoutBox {
   let minX = -NODE.W / 2
   let minY = -NODE.H / 2
   let maxX = NODE.W / 2

@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest'
+// @ts-ignore -- node builtin; @types/node is not a dependency of this package
 import { readFileSync } from 'node:fs'
+// @ts-ignore -- node builtin; @types/node is not a dependency of this package
 import { fileURLToPath } from 'node:url'
-import { NODE, computeLayout, gridPositions } from './layout.js'
+import { NODE, computeLayout, gridPositions } from './layout'
 
-const css = readFileSync(fileURLToPath(new URL('./styles.css', import.meta.url)), 'utf8')
+// styles.css moves into view/ in a later task; until then it lives at src/synapses.
+const css = readFileSync(fileURLToPath(new URL('../../../../src/synapses/styles.css', import.meta.url)), 'utf8')
 
 describe('node geometry single source of truth', () => {
   // view.js sets --synapses-node-w/h from NODE at runtime; styles.css carries
@@ -46,7 +49,7 @@ describe('computeLayout', () => {
     const names = layout.nodes.map((n) => n.name.toLowerCase())
     expect(new Set(names).size).toBe(names.length) // no duplicate names
 
-    expect(layout.nodes.find((n) => n.name === 'C').zone).toBe('child') // child beats sibling
+    expect(layout.nodes.find((n) => n.name === 'C')!.zone).toBe('child') // child beats sibling
   })
 
   it('lays children out in two columns growing downward', () => {

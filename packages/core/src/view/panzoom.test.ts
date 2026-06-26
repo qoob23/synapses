@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { worldToScreen, screenToWorld } from './panzoom.js'
+import { worldToScreen, screenToWorld } from './panzoom'
 
 describe('coordinate transforms', () => {
   const t = { s: 2, tx: 100, ty: 50 }

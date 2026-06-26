@@ -1,14 +1,48 @@
-import { NODE } from './layout.js'
+import { NODE } from './layout'
+
+export interface Point {
+  x: number
+  y: number
+}
+
+// The link a removable edge would strip ({from, to, role}).
+export interface EdgeRemove {
+  from: string
+  to: string
+  role: string
+}
+
+export interface Edge {
+  a: Point
+  b: Point
+  neighbor: string
+  role: string
+  zone: string
+  via: boolean
+  remove: EdgeRemove | null
+}
+
+// computeEdges reads only nodes (with their zone/coords/optional via) off a layout.
+export interface EdgeLayoutNode {
+  name: string
+  zone: string
+  x: number
+  y: number
+  via?: string
+}
+export interface EdgeLayout {
+  nodes: EdgeLayoutNode[]
+}
 
 // Which gate of the active thought connects to which gate of the linked card, per zone.
-const GATES = {
+const GATES: Record<string, { focus: string; node: string }> = {
   parent: { focus: 'top', node: 'bottom' },
   child: { focus: 'bottom', node: 'top' },
   jump: { focus: 'left', node: 'right' },
   sibling: { focus: 'right', node: 'left' },
 }
 
-export function gatePoint(node, side) {
+export function gatePoint(node: Point, side: string): Point {
   const hw = NODE.W / 2
   const hh = NODE.H / 2
   switch (side) {
@@ -27,7 +61,7 @@ export function gatePoint(node, side) {
 
 // Stable, case-insensitive identity for an edge (its `role` + `neighbor` name) — used to
 // match the hovered edge across re-computed edge lists for the hover highlight.
-export function edgeKey(e) {
+export function edgeKey(e: { role: string; neighbor?: string | null } | null | undefined): string | null {
   return e ? e.role + ':' + String(e.neighbor || '').toLowerCase() : null
 }
 
@@ -36,11 +70,11 @@ export function edgeKey(e) {
 // removable edge carries a `remove` descriptor {from, to, role} naming the
 // link to strip — for siblings that's the (shared parent → sibling)
 // child link, not an active-thought↔sibling link (which is only computed).
-export function computeEdges(layout) {
+export function computeEdges(layout: EdgeLayout | null | undefined): Edge[] {
   if (!layout) return []
   const focus = layout.nodes.find((n) => n.zone === 'focus')
   if (!focus) return []
-  const edges = []
+  const edges: Edge[] = []
   for (const n of layout.nodes) {
     if (n.zone === 'focus') continue
 
@@ -53,7 +87,7 @@ export function computeEdges(layout) {
           (m) => m.zone === 'parent' && m.name.toLowerCase() === parentName.toLowerCase(),
         )
       // Removable iff we know the shared parent: unlink the sibling FROM it.
-      const remove = parentName ? { from: parentName, to: n.name, role: 'child' } : null
+      const remove: EdgeRemove | null = parentName ? { from: parentName, to: n.name, role: 'child' } : null
       if (via) {
         edges.push({ a: gatePoint(via, 'bottom'), b: gatePoint(n, 'top'), neighbor: n.name, role: 'sibling', zone: 'child', via: true, remove })
       } else {
@@ -69,7 +103,7 @@ export function computeEdges(layout) {
   return edges
 }
 
-function curve(ctx, a, b, zone) {
+function curve(ctx: CanvasRenderingContext2D, a: Point, b: Point, zone: string): void {
   ctx.beginPath()
   ctx.moveTo(a.x, a.y)
   if (zone === 'parent' || zone === 'child') {
@@ -86,7 +120,15 @@ function curve(ctx, a, b, zone) {
 // optional dashed drag-preview line. The edge whose key matches `highlightKey`
 // (the one under the cursor) is drawn thicker in the accent colour. Endpoint
 // dots are superseded by DOM handles.
-export function drawEdges(ctx, edges, transform, theme, dpr, pending, highlightKey) {
+export function drawEdges(
+  ctx: CanvasRenderingContext2D,
+  edges: Edge[] | null | undefined,
+  transform: { s: number; tx: number; ty: number },
+  theme: { edge: string; jumpEdge: string; highlight: string },
+  dpr: number,
+  pending?: { a: Point; b: Point; zone?: string } | null,
+  highlightKey?: string | null,
+): void {
   const canvas = ctx.canvas
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.clearRect(0, 0, canvas.width, canvas.height)

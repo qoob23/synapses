@@ -1,19 +1,25 @@
-function clamp(v, lo, hi) {
+export interface Transform {
+  s: number
+  tx: number
+  ty: number
+}
+
+function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v))
 }
 
 // Pure transform helpers. `t` is the panzoom transform { s, tx, ty }. Screen
 // coords are relative to the stage's top-left.
-export function worldToScreen(t, x, y) {
+export function worldToScreen(t: Transform, x: number, y: number) {
   return { x: x * t.s + t.tx, y: y * t.s + t.ty }
 }
-export function screenToWorld(t, x, y) {
+export function screenToWorld(t: Transform, x: number, y: number) {
   return { x: (x - t.tx) / t.s, y: (y - t.ty) / t.s }
 }
 
 // Wheel-zoom (around the cursor) + drag-to-pan on the stage. Calls onChange with
 // the current {s, tx, ty} whenever it changes.
-export function attachPanzoom(stage, onChange) {
+export function attachPanzoom(stage: HTMLElement, onChange: (t: Transform) => void) {
   let s = 1
   let tx = 0
   let ty = 0
@@ -41,7 +47,7 @@ export function attachPanzoom(stage, onChange) {
   )
 
   stage.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.synapses-node')) return // the card handles its own clicks
+    if ((e.target as Element).closest('.synapses-node')) return // the card handles its own clicks
     dragging = true
     lastX = e.clientX
     lastY = e.clientY
@@ -67,7 +73,7 @@ export function attachPanzoom(stage, onChange) {
   stage.addEventListener('pointerup', end)
   stage.addEventListener('pointercancel', end)
 
-  function set(ns, ntx, nty) {
+  function set(ns: number, ntx: number, nty: number) {
     s = ns
     tx = ntx
     ty = nty
@@ -78,7 +84,7 @@ export function attachPanzoom(stage, onChange) {
   // and scale so the farthest card in any direction still fits. Centering on the
   // active thought (not the bounding box) avoids the graph drifting to one side when links
   // are lopsided.
-  function fit(bbox, viewport) {
+  function fit(bbox: { minX: number; minY: number; maxX: number; maxY: number }, viewport: { w: number; h: number }) {
     // padX/padY are the screen-px margins left between the farthest card edge and
     // the panel edge. padX is kept tight so the (typically wide) graph fills the
     // working space horizontally; padX just needs to clear the cards' left handles.

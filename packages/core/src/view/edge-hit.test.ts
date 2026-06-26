@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { distToSegment, hitTest, pointAtDistanceFromEnd } from './edge-hit.js'
+import { distToSegment, hitTest, pointAtDistanceFromEnd } from './edge-hit'
 
 describe('distToSegment', () => {
   it('measures perpendicular distance to a segment', () => {

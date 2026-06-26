@@ -1,7 +1,21 @@
 // Pure hover hit-testing for the canvas edges: sample each bézier (using the same
-// control points as edges.js curve()) into points, then point-to-polyline distance.
+// control points as edges.ts curve()) into points, then point-to-polyline distance.
 
-export function distToSegment(p, a, b) {
+export interface Point {
+  x: number
+  y: number
+}
+
+// Minimal edge geometry the hit-testing reads (the full edge carries more metadata).
+export interface HitEdge {
+  a: Point
+  b: Point
+  zone: string
+  remove?: unknown
+  neighbor?: string
+}
+
+export function distToSegment(p: Point, a: Point, b: Point): number {
   const dx = b.x - a.x
   const dy = b.y - a.y
   const len2 = dx * dx + dy * dy
@@ -12,7 +26,7 @@ export function distToSegment(p, a, b) {
   return Math.hypot(p.x - cx, p.y - cy)
 }
 
-function cubic(p0, p1, p2, p3, t) {
+function cubic(p0: Point, p1: Point, p2: Point, p3: Point, t: number): Point {
   const u = 1 - t
   return {
     x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
@@ -20,9 +34,9 @@ function cubic(p0, p1, p2, p3, t) {
   }
 }
 
-export function sampleEdge(a, b, zone, n = 16) {
-  let c1
-  let c2
+export function sampleEdge(a: Point, b: Point, zone: string, n = 16): Point[] {
+  let c1: Point
+  let c2: Point
   if (zone === 'parent' || zone === 'child') {
     const midY = (a.y + b.y) / 2
     c1 = { x: a.x, y: midY }
@@ -32,12 +46,12 @@ export function sampleEdge(a, b, zone, n = 16) {
     c1 = { x: midX, y: a.y }
     c2 = { x: midX, y: b.y }
   }
-  const pts = []
+  const pts: Point[] = []
   for (let i = 0; i <= n; i++) pts.push(cubic(a, c1, c2, b, i / n))
   return pts
 }
 
-export function distToEdge(p, edge) {
+export function distToEdge(p: Point, edge: { a: Point; b: Point; zone: string }): number {
   const pts = sampleEdge(edge.a, edge.b, edge.zone)
   let min = Infinity
   for (let i = 0; i < pts.length - 1; i++) {
@@ -52,7 +66,7 @@ export function distToEdge(p, edge) {
 // off that card, ON the connector — not in the gap between cards, not over a
 // card. Clamped to the curve's midpoint so it never crosses toward the active
 // card on short links. `dist` is in world units (callers divide screen px by zoom).
-export function pointAtDistanceFromEnd(edge, dist) {
+export function pointAtDistanceFromEnd(edge: { a: Point; b: Point; zone: string }, dist: number): Point {
   const pts = sampleEdge(edge.a, edge.b, edge.zone, 32)
   let total = 0
   for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
@@ -70,8 +84,8 @@ export function pointAtDistanceFromEnd(edge, dist) {
   return pts[0]
 }
 
-export function hitTest(p, edges, threshold) {
-  let best = null
+export function hitTest(p: Point, edges: HitEdge[] | null | undefined, threshold: number): HitEdge | null {
+  let best: HitEdge | null = null
   let bestD = threshold
   for (const e of edges || []) {
     if (!e.remove) continue // computed/not removable (e.g. parentless sibling)

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { classifyHandle, computeShownCount, nodeHandleStates, hitTestNode } from './handles.js'
-import { NODE } from './layout.js'
+import { classifyHandle, computeShownCount, nodeHandleStates, hitTestNode } from './handles'
+import { NODE } from './layout'
 
 describe('classifyHandle', () => {
   it('maps (total,shown) to empty/shown/more', () => {
