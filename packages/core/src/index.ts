@@ -1,3 +1,4 @@
 export * from './types'
 export * from './ontology'
 export * from './graph/index-pure'
+export * from './graph/link-index'
