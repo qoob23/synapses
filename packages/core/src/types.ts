@@ -11,7 +11,7 @@ export interface Graph {
 }
 
 export interface HistoryState { list: string[]; index: number }
-export interface HistoryJump { name: string; list: string[]; index: number }
+export interface HistoryJump { name: string | null; list: string[]; index: number }
 export type Adjacency = Record<string, { parents: string[]; children: string[]; jumps: string[] }>
 
 export interface Palette {

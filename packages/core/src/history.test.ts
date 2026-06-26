@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pushEntry, jumpTo, serialize, deserialize, createHistory } from './history.js'
+import { pushEntry, jumpTo, serialize, deserialize, createHistory } from './history'
 
 describe('pushEntry', () => {
   it('appends a new entry and points idx at it', () => {
