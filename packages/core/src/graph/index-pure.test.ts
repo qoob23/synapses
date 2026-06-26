@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { buildIndex, queryGraph, applyEdge, hasEdge, reconcilePatches, removeEdge, getAdjacency } from './graph.js'
+import { buildIndex, queryGraph, applyEdge, hasEdge, reconcilePatches, removeEdge, getAdjacency } from './index-pure'
+import type { Patch } from './index-pure'
+import type { OntologyConfig, PropMap, Role } from '../types'
 
-const ONT = { parent: ['parent'], child: ['child'], jump: ['jump'] }
+const ONT: OntologyConfig = { parent: ['parent'], child: ['child'], jump: ['jump'] }
 
 // Mixed-direction fixture: some links declared on the parent (child::), some on
 // the child (parent::), to exercise the reciprocal index.
-const PAGES = {
+const PAGES: Record<string, PropMap> = {
   Philosophy: { child: ['Metaphysics', 'Epistemology'] },
   Ethics: { parent: ['Philosophy'], child: ['Virtue Ethics'], jump: ['Aristotle'] },
   Logic: { parent: ['Philosophy'] },
@@ -22,7 +24,7 @@ const INDEX = buildIndex(
   Object.entries(PAGES).map(([name, props]) => ({ name, props })),
   ONT,
 )
-const build = (focus) => queryGraph(INDEX, focus)
+const build = (focus: string) => queryGraph(INDEX, focus)
 
 describe('relationship index', () => {
   it('merges forward + reciprocal children', () => {
@@ -92,7 +94,7 @@ describe('relationship index', () => {
 })
 
 describe('reconcilePatches (rebuild replay path)', () => {
-  const patch = (focus, role, target, ts) => ({ focus, role, target, ts })
+  const patch = (focus: string, role: Role, target: string, ts: number): Patch => ({ focus, role, target, ts, kind: 'add' })
 
   it('drops a patch the fresh read has already confirmed', () => {
     const fresh = buildIndex([{ name: 'A', props: { child: ['B'] } }], ONT)
@@ -127,7 +129,7 @@ describe('removeEdge', () => {
 })
 
 describe('reconcilePatches with remove ops', () => {
-  const rm = (focus, role, target, ts) => ({ focus, role, target, ts, kind: 'remove' })
+  const rm = (focus: string, role: Role, target: string, ts: number): Patch => ({ focus, role, target, ts, kind: 'remove' })
 
   it('re-removes an edge a stale read still shows, and keeps tracking it', () => {
     const fresh = buildIndex([{ name: 'A', props: { child: ['B'] } }], ONT) // read still has it
