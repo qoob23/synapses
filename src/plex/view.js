@@ -4,7 +4,7 @@ import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom.js'
 import { hitTest } from './edge-hit.js'
 import { nodeHandleStates } from './handles.js'
 
-const TRANSITION_MS = 420
+const TRANSITION_MS = 840
 
 function defaultTheme() {
   return { edge: 'rgba(127,127,127,0.55)', jumpEdge: 'rgba(127,127,127,0.32)' }
