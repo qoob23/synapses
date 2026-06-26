@@ -89,6 +89,6 @@ These are non-obvious and caused real bugs; respect them.
 ## Pointers
 
 - `README.md` — user-facing setup/validation steps.
-- `WORKJOURNAL.md` — dated log of what was built and why (good for recovering rationale).
+- @WORKJOURNAL.md — dated log of what was built and why.
 - Ontology (which property names map to parent/child/jump) is user-configurable via plugin settings;
   defaults are in `src/main/ontology.js`.
