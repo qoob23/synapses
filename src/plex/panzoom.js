@@ -79,11 +79,15 @@ export function attachPanzoom(stage, onChange) {
   // focus (not the bounding box) avoids the graph drifting to one side when links
   // are lopsided.
   function fit(bbox, viewport) {
-    const pad = 52
+    // padX/padY are the screen-px margins left between the farthest card edge and
+    // the panel edge. padX is kept tight so the (typically wide) graph fills the
+    // working space horizontally; padX just needs to clear the cards' left handles.
+    const padX = 16
+    const padY = 52
     const maxX = Math.max(Math.abs(bbox.minX), Math.abs(bbox.maxX), 1)
     const maxY = Math.max(Math.abs(bbox.minY), Math.abs(bbox.maxY), 1)
-    const sx = (viewport.w / 2 - pad) / maxX
-    const sy = (viewport.h / 2 - pad) / maxY
+    const sx = (viewport.w / 2 - padX) / maxX
+    const sy = (viewport.h / 2 - padY) / maxY
     const ns = clamp(Math.min(sx, sy, 1.15), 0.25, 1.15)
     set(ns, viewport.w / 2, viewport.h / 2)
   }

@@ -6,7 +6,10 @@ const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase()
 
 export function pushEntry({ stack, idx }, name, cap = CAP) {
   if (idx >= 0 && same(stack[idx], name)) return { stack: stack.slice(), idx }
-  const next = stack.slice(0, idx + 1)
+  // Drop forward history past the current position, then make the activated note
+  // the right-most (most-recent) entry — de-duping so a re-activated note MOVES
+  // to the right rather than appearing twice.
+  const next = stack.slice(0, idx + 1).filter((s) => !same(s, name))
   next.push(name)
   const overflow = next.length - cap
   const trimmed = overflow > 0 ? next.slice(overflow) : next

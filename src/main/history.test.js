@@ -15,6 +15,12 @@ describe('pushEntry', () => {
     expect(pushEntry({ stack: ['A', 'B', 'C'], idx: 0 }, 'X')).toEqual({ stack: ['A', 'X'], idx: 1 })
   })
 
+  it('moves a re-activated entry to the right-most position (de-dupe)', () => {
+    expect(pushEntry({ stack: ['A', 'B', 'C'], idx: 2 }, 'A')).toEqual({ stack: ['B', 'C', 'A'], idx: 2 })
+    // case-insensitive, keeps the freshly-pushed casing
+    expect(pushEntry({ stack: ['A', 'B', 'C'], idx: 2 }, 'b')).toEqual({ stack: ['A', 'C', 'b'], idx: 2 })
+  })
+
   it('caps the stack length, dropping the oldest', () => {
     const r = pushEntry({ stack: ['A', 'B', 'C'], idx: 2 }, 'D', 3)
     expect(r).toEqual({ stack: ['B', 'C', 'D'], idx: 2 })

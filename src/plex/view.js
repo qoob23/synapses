@@ -288,27 +288,35 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
 
   resizeCanvas()
 
-  // Floating "×" to remove the connection under the cursor (parent/child/jump
-  // edges only; siblings are computed). Lives in the stage, positioned in screen
-  // coords from the hovered edge's midpoint.
+  // Floating remove/cancel controls for the connection under the cursor
+  // (parent/child/jump edges only; siblings are computed). They live in the
+  // stage, positioned in screen coords from the hovered edge's midpoint. The
+  // first click on "×" arms a "Remove?" confirm and reveals a "Cancel" button
+  // alongside it, so the user can dismiss without leaving the iframe.
+  const removeActions = document.createElement('div')
+  removeActions.className = 'plex-edge-actions'
   const removeBtn = document.createElement('button')
   removeBtn.className = 'plex-edge-remove'
   removeBtn.textContent = '×'
-  removeBtn.style.display = 'none'
-  removeBtn.addEventListener('pointerdown', (e) => e.stopPropagation()) // don't let a click start a stage pan
-  stage.appendChild(removeBtn)
+  const cancelBtn = document.createElement('button')
+  cancelBtn.className = 'plex-edge-cancel'
+  cancelBtn.textContent = 'Cancel'
+  removeActions.append(removeBtn, cancelBtn)
+  removeActions.style.display = 'none'
+  removeActions.addEventListener('pointerdown', (e) => e.stopPropagation()) // don't let a click start a stage pan
+  stage.appendChild(removeActions)
   let hoveredEdge = null
 
   function hideRemove() {
-    removeBtn.style.display = 'none'
-    removeBtn.classList.remove('confirm')
+    removeActions.style.display = 'none'
+    removeActions.classList.remove('confirm')
     removeBtn.textContent = '×'
     hoveredEdge = null
   }
 
   stage.addEventListener('mousemove', (e) => {
-    if (pending) { hideRemove(); return } // suppress × while a handle drag is live
-    if (removeBtn.classList.contains('confirm')) return // don't move while confirming
+    if (pending) { hideRemove(); return } // suppress while a handle drag is live
+    if (removeActions.classList.contains('confirm')) return // frozen while confirming
     const rect = stage.getBoundingClientRect()
     const t = panzoom.getTransform()
     const worldPt = screenToWorld(t, e.clientX - rect.left, e.clientY - rect.top)
@@ -320,22 +328,26 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     hoveredEdge = edge
     const midWorld = { x: (edge.a.x + edge.b.x) / 2, y: (edge.a.y + edge.b.y) / 2 }
     const midScreen = worldToScreen(t, midWorld.x, midWorld.y)
-    removeBtn.style.left = midScreen.x + 'px'
-    removeBtn.style.top = midScreen.y + 'px'
-    removeBtn.style.display = 'flex'
+    removeActions.style.left = midScreen.x + 'px'
+    removeActions.style.top = midScreen.y + 'px'
+    removeActions.style.display = 'flex'
   })
 
   removeBtn.addEventListener('click', (e) => {
     e.stopPropagation()
     if (!hoveredEdge) return
-    if (!removeBtn.classList.contains('confirm')) {
-      removeBtn.classList.add('confirm') // first click: arm the confirm
+    if (!removeActions.classList.contains('confirm')) {
+      removeActions.classList.add('confirm') // first click: arm the confirm + reveal Cancel
       removeBtn.textContent = 'Remove?'
       return
     }
     const edge = hoveredEdge
     hideRemove()
     if (onRemoveLink) onRemoveLink(edge.neighbor, edge.role)
+  })
+  cancelBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    hideRemove()
   })
   stage.addEventListener('mouseleave', hideRemove)
 

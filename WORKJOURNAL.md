@@ -33,3 +33,15 @@
     - Final whole-branch review: ready to merge, no Critical/Important findings; all five architecture invariants upheld in the assembled state.
 - Tests 22 → 67; production build clean.
 - **Pending:** manual validation in a live Logseq 0.10.x instance for the live-only features (handle drag end-to-end, remove-on-hover, 3-state rendering, +20px width, history-file persistence) — no headless coverage by design.
+
+## 2026-06-26 — UI nuance/polish pass (post-BACKLOG, on `main`)
+- Live-tuned the look after merging the BACKLOG branch; seven requested nuances plus a spatial-tuning follow-up. Everything lands in CSS or layout/fit constants — no behavioural rewrites.
+- **Cards:** label font moved to a `rem` size (settled at **1.7rem** after live iteration 2→1.5→1.7), corner radius **18→10px**, vertical padding **6→2px** + `line-height:1.1`, and **semi-transparent backgrounds** (`color-mix(… transparent)`; focus is a translucent accent tint kept legible by its border + glow + weight). Cards shortened: `NODE.H` **52→40** with the font sized so content stays under `min-height`, so cards pin to exactly `NODE.H` and the canvas edge-gates still meet their borders.
+- **Handles:** dots now grow **2×** on hover (was 1.2×).
+- **Spatial grouping** (more space *between* zones, less *within*): `BAND_Y` 150→210, `BAND_X` 300→360, `GAP_X` 240→224, `GAP_Y` 72→54, child-grid `rowGap` `NODE.H+28`→`+14`. Inter/intra spacing ratio went ~3×→~10× so parent/child/jump/sibling clusters read as distinct; the no-overlap floors (`GAP_X≥NODE.W`, `GAP_Y≥NODE.H`) still hold and are test-guarded.
+- **Working-space margin:** split `panzoom.fit`'s single `pad=52` into `padX`/`padY`; `padX→16` so the (now wider) graph fills the panel horizontally — the `min(sx,sy,1.15)` clamp still prevents vertical overflow.
+- **Edge-remove UX:** added a **Cancel** button beside "Remove?" (previously only dismissable by leaving the iframe). Restructured the floating control into a `.plex-edge-actions` wrapper, **left-anchored** so arming the confirm expands rightward instead of sliding the just-clicked button out from under the cursor.
+- **History:** re-activating a note now **moves it to the right-most breadcrumb slot** (de-dupe) instead of duplicating — `pushEntry` filters the retained slice before appending; back/forward (`jumpTo`) untouched. +1 unit test.
+- **iframe** right-edge bleed **20→40px**.
+- Verified with a 3-lens adversarial review (coverage / regressions / CSS-geometry): 0 blockers; confirmed each change actually takes effect (e.g. `--plex-node-font` is never set in JS so the CSS fallback is authoritative; the `.confirm` reveal beats `display:none` on specificity; the history de-dupe can't corrupt `idx` or back/forward). Tests **67→68**, production build clean.
+- **Pending (live-only):** eyeball the 40px bleed (could clip the right-most breadcrumb crumb / `↗` button if it overshoots the gutter) and overall density at 1.7rem.

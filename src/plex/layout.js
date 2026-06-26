@@ -2,12 +2,12 @@
 //   parents row above, children row below, jumps column left, siblings column right.
 // All coordinates are "world" units with the focus at (0, 0).
 
-export const NODE = { W: 208, H: 52 }
+export const NODE = { W: 208, H: 40 }
 
-const BAND_Y = 180 // vertical distance to the parent/child rows
-const BAND_X = 300 // horizontal distance to the jump/sibling columns
-const GAP_X = 240 // horizontal gap between nodes in a row
-const GAP_Y = 72 // vertical gap between nodes in a column
+const BAND_Y = 210 // vertical distance to the parent/child rows (space BETWEEN groups)
+const BAND_X = 360 // horizontal distance to the jump/sibling columns (space BETWEEN groups)
+const GAP_X = 224 // horizontal gap between nodes in a row (space WITHIN a group; >= NODE.W)
+const GAP_Y = 54 // vertical gap between nodes in a column (space WITHIN a group; >= NODE.H)
 
 function rowPositions(names, y) {
   const n = names.length
@@ -19,7 +19,7 @@ function colPositions(names, x) {
   return names.map((name, i) => ({ name, x, y: (i - (n - 1) / 2) * GAP_Y }))
 }
 
-export function gridPositions(names, y0, { cols = 2, colGap = GAP_X, rowGap = NODE.H + 28 } = {}) {
+export function gridPositions(names, y0, { cols = 2, colGap = GAP_X, rowGap = NODE.H + 14 } = {}) {
   return names.map((name, i) => {
     const col = i % cols
     const row = Math.floor(i / cols)

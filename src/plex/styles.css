@@ -108,15 +108,16 @@ body {
   left: 0;
   top: 0;
   width: var(--plex-node-w, 208px);
-  min-height: var(--plex-node-h, 52px);
-  font-size: var(--plex-node-font, 22px);
+  min-height: var(--plex-node-h, 40px);
+  font-size: var(--plex-node-font, 1.7rem);
+  line-height: 1.1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 14px;
+  padding: 2px 16px;
   border: 1px solid var(--plex-border);
-  border-radius: 18px;
-  background: var(--plex-bg2);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--plex-bg2) 70%, transparent);
   color: var(--plex-text);
   cursor: pointer;
   text-align: center;
@@ -137,7 +138,7 @@ body {
   font-weight: 600;
   border-width: 2px;
   border-color: var(--plex-accent);
-  background: color-mix(in srgb, var(--plex-accent) 16%, var(--plex-bg));
+  background: color-mix(in srgb, var(--plex-accent) 22%, transparent);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--plex-accent) 12%, transparent);
 }
 .plex-node.leaving {
@@ -169,14 +170,22 @@ body {
 .handle-empty { background: transparent; border: 2px solid var(--plex-accent); }
 .handle-shown { background: var(--plex-accent); border: 2px solid var(--plex-accent); }
 .handle-more  { background: var(--plex-dot-hidden, #2ecc71); border: 2px solid var(--plex-dot-hidden, #2ecc71); }
-.plex-handle:hover { transform: scale(1.2); }
+.plex-handle:hover { transform: scale(2); }
 
-/* ---- edge remove button ---- */
-.plex-edge-remove {
+/* ---- edge remove / cancel buttons ---- */
+.plex-edge-actions {
   position: absolute;
-  transform: translate(-50%, -50%);
+  /* Anchor the "×" on the edge midpoint (its min-width is 20px → -10px centers
+     it) but keep the group LEFT-anchored, so arming "Remove?" + revealing
+     "Cancel" expands rightward instead of sliding the just-clicked button left. */
+  transform: translate(-10px, -50%);
   z-index: 20;
   display: none;
+  gap: 4px;
+  align-items: center;
+}
+.plex-edge-remove,
+.plex-edge-cancel {
   align-items: center;
   justify-content: center;
   min-width: 20px;
@@ -185,17 +194,32 @@ body {
   border: 1px solid var(--plex-border);
   border-radius: 11px;
   background: var(--plex-bg);
-  color: #c0392b;
   font: 600 12px/1 inherit;
   cursor: pointer;
+  white-space: nowrap;
+}
+.plex-edge-remove {
+  display: inline-flex;
+  color: #c0392b;
 }
 .plex-edge-remove:hover {
   border-color: #c0392b;
 }
-.plex-edge-remove.confirm {
+.plex-edge-cancel {
+  display: none;
+  color: var(--plex-text2);
+}
+.plex-edge-cancel:hover {
+  border-color: var(--plex-accent);
+}
+/* armed confirm: turn the remove button red and reveal the cancel button */
+.plex-edge-actions.confirm .plex-edge-remove {
   background: #c0392b;
   color: #fff;
   border-color: #c0392b;
+}
+.plex-edge-actions.confirm .plex-edge-cancel {
+  display: inline-flex;
 }
 
 /* ---- breadcrumb (Past Thought List) ---- */

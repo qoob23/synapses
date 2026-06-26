@@ -14,7 +14,7 @@ describe('node geometry single source of truth', () => {
   })
 
   it('styles.css drives node label size from --plex-node-font', () => {
-    expect(css).toContain('font-size: var(--plex-node-font, 22px)')
+    expect(css).toContain('font-size: var(--plex-node-font, 1.7rem)')
   })
 })
 
