@@ -1,11 +1,5 @@
-import { describe, it, expect, afterEach } from 'vitest'
-import { normalizeKey, roleForKey, getOntology } from './ontology.js'
-
-// getOntology reads the live `logseq.settings`; with no global it returns the
-// built-in DEFAULTS. The settings-driven tests stub a global and clean it up.
-afterEach(() => {
-  delete globalThis.logseq
-})
+import { describe, it, expect } from 'vitest'
+import { normalizeKey, roleForKey, buildOntology } from './ontology'
 
 describe('normalizeKey', () => {
   it('lowercases, trims, and dashes internal whitespace', () => {
@@ -15,32 +9,35 @@ describe('normalizeKey', () => {
   })
 
   it('handles null/undefined without throwing', () => {
+    // @ts-expect-error exercising the runtime null/undefined guard
     expect(normalizeKey(null)).toBe('')
+    // @ts-expect-error exercising the runtime null/undefined guard
     expect(normalizeKey(undefined)).toBe('')
   })
 })
 
-describe('getOntology', () => {
-  it('returns DEFAULTS when no settings are present', () => {
-    const ont = getOntology()
+// buildOntology replaces the old settings-reading getOntology: instead of stubbing
+// `logseq.settings`, callers pass the comma-separated config strings directly. The
+// fallback-to-DEFAULTS behaviour is preserved.
+describe('buildOntology', () => {
+  it('returns DEFAULTS when no config is given', () => {
+    const ont = buildOntology()
     expect(ont.parent).toContain('parent')
     expect(ont.child).toContain('children')
     expect(ont.jump).toContain('friends')
   })
 
-  it('parses comma-separated settings and drops blank entries', () => {
-    globalThis.logseq = { settings: { parentFields: 'a, b, ,  c ' } }
-    expect(getOntology().parent).toEqual(['a', 'b', 'c'])
+  it('parses comma-separated config and drops blank entries', () => {
+    expect(buildOntology({ parent: 'a, b, ,  c ' }).parent).toEqual(['a', 'b', 'c'])
   })
 
-  it('falls back to DEFAULTS when a setting is blank', () => {
-    globalThis.logseq = { settings: { parentFields: '   ' } }
-    expect(getOntology().parent).toEqual(['parent', 'parents', 'up'])
+  it('falls back to DEFAULTS when a config value is blank', () => {
+    expect(buildOntology({ parent: '   ' }).parent).toEqual(['parent', 'parents', 'up'])
   })
 })
 
 describe('roleForKey (against DEFAULTS)', () => {
-  const ont = getOntology()
+  const ont = buildOntology()
 
   it('matches aliases case- and whitespace-insensitively', () => {
     expect(roleForKey('parents', ont)).toBe('parent')
