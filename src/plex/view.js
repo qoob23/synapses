@@ -1,5 +1,5 @@
 import { computeLayout, NODE } from './layout.js'
-import { computeEdges, drawEdges, gatePoint, focusGatePoint } from './edges.js'
+import { computeEdges, drawEdges, gatePoint } from './edges.js'
 import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom.js'
 import { hitTest } from './edge-hit.js'
 import { nodeHandleStates } from './handles.js'
@@ -68,8 +68,25 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   }
 
   function setGraph(graph) {
+    const prevFocus = layout ? layout.focus : null
     layout = computeLayout(graph)
     const present = new Set()
+
+    // Newly-appearing cards emerge FROM the activating card (the new focus) at
+    // its current on-screen position, so new relations grow out of the card you
+    // just clicked. Captured BEFORE the loop below moves it to the center.
+    const activatingEl = elements.get(String(graph.focus).toLowerCase())
+    const enterFrom = activatingEl ? liveCenterOf(activatingEl) : { x: 0, y: 0 }
+
+    // Disappearing cards collapse INTO the OLD focus card at its NEW position —
+    // it usually demotes to a parent/jump/sibling and slides there — so a
+    // dropped relation fades into the card it belonged to, not the new center.
+    // Falls back to the center if the old focus is gone too.
+    let exitInto = { x: 0, y: 0 }
+    if (prevFocus) {
+      const moved = layout.nodes.find((n) => n.name.toLowerCase() === prevFocus.toLowerCase())
+      if (moved) exitInto = { x: moved.x, y: moved.y }
+    }
 
     for (const node of layout.nodes) {
       const key = node.name.toLowerCase()
@@ -81,28 +98,24 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
         positionEl(el, node)
         continue
       }
-      // New card: grow out of the focus's gate on its own side while fading in,
-      // so it appears from a place that matches its ontology role (parents from
-      // the focus top, children from its bottom, jumps left, siblings right).
+      // New card: fade in while moving out from the activating card's position.
       el = makeNode()
       world.appendChild(el)
       elements.set(key, el)
       updateNode(el, node)
       el.classList.add('appearing') // opacity:0 until faded in below
-      positionEl(el, focusGatePoint(node.zone))
+      positionEl(el, enterFrom)
       void el.offsetWidth // force reflow so the move + fade below transition
       el.classList.remove('appearing')
       positionEl(el, node)
     }
 
-    // remove nodes no longer present: retract back into the focus along their
-    // OLD direction (el._zone is the prior role) while fading — the mirror of
-    // how new cards grow out of the focus.
+    // Dropped cards: fade out while collapsing into the old focus's new spot.
     for (const [key, el] of elements) {
       if (present.has(key)) continue
       const dead = el
       dead.classList.add('leaving') // opacity:0
-      positionEl(dead, focusGatePoint(dead._zone))
+      positionEl(dead, exitInto)
       setTimeout(() => dead.remove(), TRANSITION_MS)
       elements.delete(key)
     }

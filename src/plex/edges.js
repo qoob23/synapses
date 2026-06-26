@@ -8,16 +8,6 @@ const GATES = {
   sibling: { focus: 'right', node: 'left' },
 }
 
-// Emergence/retraction origin for a zone: the focus's own gate on that side.
-// New cards grow OUT of this point (and dropped cards retract back INTO it)
-// along their relationship direction — parents from the focus top, children
-// from its bottom, jumps from its left, siblings from its right. Reuses the
-// zone→focus-side mapping in GATES so the origin can never drift from the edge.
-export function focusGatePoint(zone) {
-  const g = GATES[zone]
-  return gatePoint({ x: 0, y: 0 }, g ? g.focus : 'center')
-}
-
 export function gatePoint(node, side) {
   const hw = NODE.W / 2
   const hh = NODE.H / 2

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeEdges, focusGatePoint } from './edges.js'
+import { computeEdges } from './edges.js'
 import { NODE } from './layout.js'
 
 // Minimal hand-placed layout: focus at origin, one parent above, one child below.
@@ -44,21 +44,5 @@ describe('computeEdges', () => {
     // a = P's bottom gate, b = S's top gate
     expect(sibEdge.a).toEqual({ x: 0, y: -150 + NODE.H / 2 })
     expect(sibEdge.b).toEqual({ x: 150, y: -150 - NODE.H / 2 })
-  })
-})
-
-describe('focusGatePoint', () => {
-  // New cards grow out of (and dropped cards retract into) the focus's gate on
-  // their own side, so the origin per zone is the focus's matching gate.
-  it('returns the focus gate matching each zone direction', () => {
-    expect(focusGatePoint('parent')).toEqual({ x: 0, y: -NODE.H / 2 })
-    expect(focusGatePoint('child')).toEqual({ x: 0, y: NODE.H / 2 })
-    expect(focusGatePoint('jump')).toEqual({ x: -NODE.W / 2, y: 0 })
-    expect(focusGatePoint('sibling')).toEqual({ x: NODE.W / 2, y: 0 })
-  })
-
-  it('falls back to the focus center for the focus zone / unknown zones', () => {
-    expect(focusGatePoint('focus')).toEqual({ x: 0, y: 0 })
-    expect(focusGatePoint('nonsense')).toEqual({ x: 0, y: 0 })
   })
 })
