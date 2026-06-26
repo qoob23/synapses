@@ -1,4 +1,4 @@
-// Read Logseq's theme CSS variables from the host document so the plex iframe
+// Read Logseq's theme CSS variables from the host document so the synapses iframe
 // (which does NOT inherit Logseq CSS) can match the active theme.
 
 const VARS = {

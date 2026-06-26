@@ -16,7 +16,7 @@ function defaultTheme() {
   return { edge: 'rgba(127,127,127,0.55)', jumpEdge: 'rgba(127,127,127,0.32)', highlight: 'rgba(206,170,92,0.9)' }
 }
 
-// Renders the plex: HTML <div> cards in a transformed world + a <canvas> connector
+// Renders the synapses: HTML <div> cards in a transformed world + a <canvas> connector
 // layer. Card elements are keyed by name and reused across graphs so positions
 // animate (the clicked card glides to the center on recenter).
 const DRAG_THRESHOLD = 6
@@ -26,8 +26,8 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   // Single source of truth for card box size: the layout math (NODE) drives the
   // CSS variables too, so changing NODE keeps the rendered box and the edge
   // endpoints/bbox in agreement (styles.css falls back to matching literals).
-  document.documentElement.style.setProperty('--plex-node-w', NODE.W + 'px')
-  document.documentElement.style.setProperty('--plex-node-h', NODE.H + 'px')
+  document.documentElement.style.setProperty('--synapses-node-w', NODE.W + 'px')
+  document.documentElement.style.setProperty('--synapses-node-h', NODE.H + 'px')
   const elements = new Map() // nameLower -> element
   let layout = null
   let theme = defaultTheme()
@@ -206,7 +206,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
 
       // Resolve drop target via LIVE DOM (cards may be mid-transition).
       const tgt = document.elementFromPoint(e.clientX, e.clientY)
-      const nodeEl = tgt && tgt.closest('.plex-node')
+      const nodeEl = tgt && tgt.closest('.synapses-node')
       const toName = nodeEl && nodeEl._name
       if (toName && toName !== fromNode) {
         if (onLinkExisting) onLinkExisting(fromNode, toName, dir)
@@ -224,9 +224,9 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
 
   function makeNode() {
     const el = document.createElement('div')
-    el.className = 'plex-node'
+    el.className = 'synapses-node'
     const label = document.createElement('span')
-    label.className = 'plex-node-label'
+    label.className = 'synapses-node-label'
     el.appendChild(label)
     el._label = label
     el.addEventListener('click', (e) => {
@@ -237,7 +237,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     el._handles = {}
     for (const [dir, side] of [['parent', 'top'], ['child', 'bottom'], ['jump', 'left']]) {
       const h = document.createElement('div')
-      h.className = 'plex-handle handle-' + side + ' handle-empty'
+      h.className = 'synapses-handle handle-' + side + ' handle-empty'
       h._dir = dir
       h._side = side // current gate side; the jump handle flips per zone (updateNode)
       el.appendChild(h)
@@ -254,7 +254,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     el._label.textContent = node.name
     el.title =
       node.zone === 'focus' ? `Open "${node.name}" in the main pane` : `Recenter on "${node.name}"`
-    el.className = 'plex-node zone-' + node.zone
+    el.className = 'synapses-node zone-' + node.zone
     // Keep the jump handle on the side its link actually meets (right for cards
     // shown at jump position, left otherwise).
     const jh = el._handles && el._handles.jump
@@ -340,12 +340,12 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   // first click on "×" arms a "Remove?" confirm and reveals a "Cancel" button
   // alongside it, so the user can dismiss without leaving the iframe.
   const removeActions = document.createElement('div')
-  removeActions.className = 'plex-edge-actions'
+  removeActions.className = 'synapses-edge-actions'
   const removeBtn = document.createElement('button')
-  removeBtn.className = 'plex-edge-remove'
+  removeBtn.className = 'synapses-edge-remove'
   removeBtn.textContent = '×'
   const cancelBtn = document.createElement('button')
-  cancelBtn.className = 'plex-edge-cancel'
+  cancelBtn.className = 'synapses-edge-cancel'
   cancelBtn.textContent = 'Cancel'
   removeActions.append(removeBtn, cancelBtn)
   removeActions.style.display = 'none'
@@ -367,7 +367,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     // Don't hit-test connectors while the cursor is over a card — a card sits on
     // top of its own connectors' endpoints, so hovering it would otherwise light
     // up (and arm removal of) a link the user isn't aiming at.
-    if (e.target && e.target.closest && e.target.closest('.plex-node')) {
+    if (e.target && e.target.closest && e.target.closest('.synapses-node')) {
       if (hoveredEdge) hideRemove()
       return
     }

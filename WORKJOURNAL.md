@@ -1,5 +1,9 @@
 # Work Journal
 
+> **Note:** This plugin was built under the working name **"Plex"** and renamed to **"Synapses"** on
+> 2026-06-26 when prepared for public release. Entries below predate the rename and use the old name
+> (`plex`, `:plex`, `src/plex/`, `.plex-*`); they're kept verbatim as a historical record.
+
 ## 2026-06-25
 - Built **logseq-plex**, a TheBrain-style "plex" plugin for the Logseq 0.10.15 Markdown graph (greenfield; Vite + vanilla JS, no React/SVG).
 - Architecture: plex UI runs in an `<iframe>` injected into a right-sidebar `{{renderer :plex}}` slot, talking to the plugin's main context over a postMessage RPC bridge.

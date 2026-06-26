@@ -1,6 +1,6 @@
 import '@logseq/libs'
 import { startBridge, connectIframe, notifyPeer } from './bridge-host.js'
-import { renderPlexSlot, openPlexSidebar, plexFrameStyle } from './sidebar.js'
+import { renderSynapsesSlot, openSynapsesSidebar, synapsesFrameStyle } from './sidebar.js'
 import { buildGraph, nodeDegrees, nodeAdjacency, rebuildIndex } from './graph.js'
 import { readPalette } from './theme.js'
 import { createChild, createParent, createJump, linkExisting, searchPages, removeLink } from './mutations.js'
@@ -18,7 +18,7 @@ async function getActivePage() {
   return pageNameOf(p)
 }
 
-// Navigation history lives here (durable) so it survives the plex iframe being
+// Navigation history lives here (durable) so it survives the synapses iframe being
 // re-injected when Logseq re-renders the sidebar block.
 let historyStore = null
 let historySaveTimer = 0
@@ -27,7 +27,7 @@ function saveHistory(state) {
   if (historySaveTimer) clearTimeout(historySaveTimer)
   historySaveTimer = setTimeout(() => {
     historySaveTimer = 0
-    historyStore.setItem('history.json', serialize(state)).catch((e) => console.warn('[plex] history save failed', e))
+    historyStore.setItem('history.json', serialize(state)).catch((e) => console.warn('[synapses] history save failed', e))
   }, 300)
 }
 async function hydrateHistory() {
@@ -36,7 +36,7 @@ async function hydrateHistory() {
     const loaded = raw ? deserialize(raw) : null
     if (loaded) history.load(loaded)
   } catch (e) {
-    console.warn('[plex] history load failed', e)
+    console.warn('[synapses] history load failed', e)
   }
 }
 const history = createHistory(saveHistory)
@@ -44,7 +44,7 @@ const histState = () => history.state()
 const histPush = (name) => history.push(name)
 const histJump = (i) => history.jump(i)
 
-// Methods callable from the plex iframe over RPC.
+// Methods callable from the synapses iframe over RPC.
 const handlers = {
   getActivePage,
   getTheme: () => readPalette(),
@@ -109,13 +109,13 @@ async function main() {
   historyStore = logseq.Assets.makeSandboxStorage()
   await hydrateHistory()
   logseq.useSettingsSchema(settingsSchema)
-  logseq.provideStyle(plexFrameStyle())
+  logseq.provideStyle(synapsesFrameStyle())
   startBridge(handlers)
 
   logseq.App.onMacroRendererSlotted(({ slot, payload }) => {
     const args = (payload && payload.arguments) || []
-    if (String(args[0] || '').trim() !== ':plex') return
-    renderPlexSlot(slot, connectIframe)
+    if (String(args[0] || '').trim() !== ':synapses') return
+    renderSynapsesSlot(slot, connectIframe)
   })
 
   // Keep the active thought in sync with whatever page the user is viewing.
@@ -140,7 +140,7 @@ async function main() {
       try {
         await rebuildIndex()
       } catch (e) {
-        console.warn('[plex] rebuild failed', e)
+        console.warn('[synapses] rebuild failed', e)
       }
       notifyPeer('refresh')
     }, 400)
@@ -151,28 +151,28 @@ async function main() {
     try {
       await rebuildIndex()
     } catch (e) {
-      console.warn('[plex] rebuild failed', e)
+      console.warn('[synapses] rebuild failed', e)
     }
     notifyPeer('refresh')
   })
 
-  logseq.Editor.registerSlashCommand('Plex: open in sidebar', async () => {
-    await openPlexSidebar()
+  logseq.Editor.registerSlashCommand('Synapses: open in sidebar', async () => {
+    await openSynapsesSidebar()
   })
 
   logseq.provideModel({
-    openPlex() {
-      openPlexSidebar()
+    openSynapses() {
+      openSynapsesSidebar()
     },
   })
   logseq.App.registerUIItem('toolbar', {
-    key: 'plex-open',
+    key: 'synapses-open',
     template:
-      '<a class="button" data-on-click="openPlex" title="Open Plex">' +
+      '<a class="button" data-on-click="openSynapses" title="Open Synapses">' +
       '<span style="font-size:18px">🧠</span></a>',
   })
 
-  console.log('[plex] plugin ready')
+  console.log('[synapses] plugin ready')
 }
 
 logseq.ready(main).catch(console.error)

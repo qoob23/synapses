@@ -1,7 +1,7 @@
 import { startServer } from '../shared/rpc.js'
 
 // The RPC server lives in the plugin main context (M), which holds `logseq`.
-// We inject the plex iframe into the sidebar slot, then hand its window to the
+// We inject the synapses iframe into the sidebar slot, then hand its window to the
 // server so it can complete the handshake.
 
 let server = null

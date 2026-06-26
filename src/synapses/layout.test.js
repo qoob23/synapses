@@ -6,15 +6,15 @@ import { NODE, computeLayout, gridPositions } from './layout.js'
 const css = readFileSync(fileURLToPath(new URL('./styles.css', import.meta.url)), 'utf8')
 
 describe('node geometry single source of truth', () => {
-  // view.js sets --plex-node-w/h from NODE at runtime; styles.css carries
+  // view.js sets --synapses-node-w/h from NODE at runtime; styles.css carries
   // matching fallback literals. This guards them from silently diverging.
   it('styles.css fallback literals match NODE', () => {
-    expect(css).toContain(`var(--plex-node-w, ${NODE.W}px)`)
-    expect(css).toContain(`var(--plex-node-h, ${NODE.H}px)`)
+    expect(css).toContain(`var(--synapses-node-w, ${NODE.W}px)`)
+    expect(css).toContain(`var(--synapses-node-h, ${NODE.H}px)`)
   })
 
-  it('styles.css drives node label size from --plex-node-font', () => {
-    expect(css).toContain('font-size: var(--plex-node-font, 1.7rem)')
+  it('styles.css drives node label size from --synapses-node-font', () => {
+    expect(css).toContain('font-size: var(--synapses-node-font, 1.7rem)')
   })
 })
 

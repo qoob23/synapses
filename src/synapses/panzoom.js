@@ -41,7 +41,7 @@ export function attachPanzoom(stage, onChange) {
   )
 
   stage.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.plex-node')) return // the card handles its own clicks
+    if (e.target.closest('.synapses-node')) return // the card handles its own clicks
     dragging = true
     lastX = e.clientX
     lastY = e.clientY

@@ -5,13 +5,13 @@ import { applyTheme } from './theme.js'
 import './styles.css'
 
 const els = {
-  toolbar: document.getElementById('plex-toolbar'),
-  stage: document.getElementById('plex-stage'),
-  world: document.getElementById('plex-world'),
-  canvas: document.getElementById('plex-canvas'),
-  flash: document.getElementById('plex-flash'),
-  breadcrumb: document.getElementById('plex-breadcrumb'),
-  dialogRoot: document.getElementById('plex-dialog-root'),
+  toolbar: document.getElementById('synapses-toolbar'),
+  stage: document.getElementById('synapses-stage'),
+  world: document.getElementById('synapses-world'),
+  canvas: document.getElementById('synapses-canvas'),
+  flash: document.getElementById('synapses-flash'),
+  breadcrumb: document.getElementById('synapses-breadcrumb'),
+  dialogRoot: document.getElementById('synapses-dialog-root'),
 }
 
 // History is owned by the main context (durable). We keep the last snapshot here
@@ -82,7 +82,7 @@ async function restore() {
   try {
     const active = await client.call('getActivePage')
     if (active) goto(active, { fromLogseq: true })
-    else flash('Open a page in Logseq to see its plex.')
+    else flash('Open a page in Logseq to see its synapses.')
   } catch (e) {
     flash('⚠ ' + ((e && e.message) || e))
   }
@@ -159,12 +159,12 @@ function renderToolbar() {
   fwd.disabled = lastHist.index >= lastHist.list.length - 1
 
   const title = document.createElement('div')
-  title.className = 'plex-title'
+  title.className = 'synapses-title'
   title.textContent = focus || ''
   title.title = focus || ''
 
   const add = document.createElement('div')
-  add.className = 'plex-add-group'
+  add.className = 'synapses-add-group'
   add.append(
     btn('＋child', 'Add child', () => create('child')),
     btn('＋parent', 'Add parent', () => create('parent')),
@@ -182,7 +182,7 @@ function renderBreadcrumb() {
   els.breadcrumb.innerHTML = ''
   lastHist.list.forEach((name, i) => {
     const c = document.createElement('button')
-    c.className = 'plex-crumb' + (i === lastHist.index ? ' current' : '')
+    c.className = 'synapses-crumb' + (i === lastHist.index ? ' current' : '')
     c.textContent = name
     c.title = name
     c.addEventListener('click', () => jumpToIndex(i))
@@ -203,7 +203,7 @@ async function loadTheme() {
 
 function btn(label, title, onClick) {
   const b = document.createElement('button')
-  b.className = 'plex-btn'
+  b.className = 'synapses-btn'
   b.textContent = label
   b.title = title
   b.addEventListener('click', onClick)

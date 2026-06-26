@@ -1,8 +1,8 @@
 {
-  "name": "logseq-plex",
+  "name": "logseq-synapses",
   "version": "0.0.1",
   "type": "module",
-  "description": "Plex view for Logseq note links (Markdown graph)",
+  "description": "Synapses view for Logseq note links (Markdown graph)",
   "main": "dist/index.html",
   "scripts": {
     "dev": "vite build --watch",
@@ -10,8 +10,8 @@
     "test": "vitest run"
   },
   "logseq": {
-    "id": "logseq-plex",
-    "title": "Plex",
+    "id": "logseq-synapses",
+    "title": "Synapses",
     "main": "dist/index.html"
   },
   "dependencies": {

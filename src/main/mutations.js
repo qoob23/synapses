@@ -105,7 +105,7 @@ export async function searchPages(q) {
     const nm = p.originalName || p.name
     if (!nm) continue
     const lower = nm.toLowerCase()
-    if (lower.startsWith('plex/')) continue // hide the plugin's internal host page
+    if (lower === 'synapses') continue // hide the plugin's internal host page
     if (lower.includes(query)) out.push(nm)
     if (out.length >= 20) break
   }

@@ -1,10 +1,10 @@
 :root {
-  --plex-bg: #ffffff;
-  --plex-bg2: #f6f6f7;
-  --plex-text: #232323;
-  --plex-text2: #8a8a8a;
-  --plex-border: #d6d6d6;
-  --plex-accent: #4a90d9;
+  --synapses-bg: #ffffff;
+  --synapses-bg2: #f6f6f7;
+  --synapses-text: #232323;
+  --synapses-text2: #8a8a8a;
+  --synapses-border: #d6d6d6;
+  --synapses-accent: #4a90d9;
 }
 
 * {
@@ -17,30 +17,30 @@ body {
 }
 body {
   font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  color: var(--plex-text);
-  background: var(--plex-bg);
+  color: var(--synapses-text);
+  background: var(--synapses-bg);
   overflow: hidden;
 }
 
-#plex-app {
+#synapses-app {
   display: flex;
   flex-direction: column;
   height: 100vh;
 }
 
 /* ---- toolbar ---- */
-#plex-toolbar {
+#synapses-toolbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
-  border-bottom: 1px solid var(--plex-border);
-  background: var(--plex-bg2);
+  border-bottom: 1px solid var(--synapses-border);
+  background: var(--synapses-bg2);
 }
-.plex-btn {
-  border: 1px solid var(--plex-border);
-  background: var(--plex-bg);
+.synapses-btn {
+  border: 1px solid var(--synapses-border);
+  background: var(--synapses-bg);
   color: inherit;
   border-radius: 6px;
   padding: 3px 8px;
@@ -49,14 +49,14 @@ body {
   line-height: 1.1;
   white-space: nowrap;
 }
-.plex-btn:hover {
-  border-color: var(--plex-accent);
+.synapses-btn:hover {
+  border-color: var(--synapses-accent);
 }
-.plex-btn:disabled {
+.synapses-btn:disabled {
   opacity: 0.4;
   cursor: default;
 }
-.plex-title {
+.synapses-title {
   flex: 1;
   min-width: 0;
   font-weight: 600;
@@ -64,37 +64,37 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.plex-add-group {
+.synapses-add-group {
   display: flex;
   gap: 4px;
 }
-.plex-add-group .plex-btn {
+.synapses-add-group .synapses-btn {
   font-size: 11px;
-  color: var(--plex-text2);
+  color: var(--synapses-text2);
 }
 
 /* ---- stage / canvas / world ---- */
-#plex-stage {
+#synapses-stage {
   position: relative;
   flex: 1 1 auto;
   overflow: hidden;
   cursor: grab;
   background-image: radial-gradient(
     circle at center,
-    color-mix(in srgb, var(--plex-text) 5%, transparent) 1px,
+    color-mix(in srgb, var(--synapses-text) 5%, transparent) 1px,
     transparent 1px
   );
   background-size: 22px 22px;
 }
-#plex-stage.grabbing {
+#synapses-stage.grabbing {
   cursor: grabbing;
 }
-#plex-canvas {
+#synapses-canvas {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
-#plex-world {
+#synapses-world {
   position: absolute;
   left: 0;
   top: 0;
@@ -103,22 +103,22 @@ body {
 }
 
 /* ---- cards ---- */
-.plex-node {
+.synapses-node {
   position: absolute;
   left: 0;
   top: 0;
-  width: var(--plex-node-w, 208px);
-  min-height: var(--plex-node-h, 40px);
-  font-size: var(--plex-node-font, 1.7rem);
+  width: var(--synapses-node-w, 208px);
+  min-height: var(--synapses-node-h, 40px);
+  font-size: var(--synapses-node-font, 1.7rem);
   line-height: 1.1;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2px 16px;
-  border: 1px solid var(--plex-border);
+  border: 1px solid var(--synapses-border);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--plex-bg2) 70%, transparent);
-  color: var(--plex-text);
+  background: color-mix(in srgb, var(--synapses-bg2) 70%, transparent);
+  color: var(--synapses-text);
   cursor: pointer;
   text-align: center;
   user-select: none;
@@ -128,40 +128,40 @@ body {
   transition: transform 0.84s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.6s ease, background 0.15s,
     border-color 0.15s;
 }
-.plex-node:hover {
-  border-color: var(--plex-accent);
+.synapses-node:hover {
+  border-color: var(--synapses-accent);
 }
-.plex-node-label {
+.synapses-node-label {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.plex-node.zone-focus {
+.synapses-node.zone-focus {
   font-weight: 600;
   border-width: 2px;
-  border-color: var(--plex-accent);
-  background: color-mix(in srgb, var(--plex-accent) 22%, transparent);
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--plex-accent) 12%, transparent);
+  border-color: var(--synapses-accent);
+  background: color-mix(in srgb, var(--synapses-accent) 22%, transparent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--synapses-accent) 12%, transparent);
 }
 /* Start state for a freshly-added card: invisible at the active thought's gate; view.js
    removes this class after a reflow so it fades + grows to its final spot. */
-.plex-node.appearing {
+.synapses-node.appearing {
   opacity: 0;
 }
-.plex-node.leaving {
+.synapses-node.leaving {
   opacity: 0;
   pointer-events: none;
 }
 
 /* Respect reduced-motion: no glide/fade, cards just snap to place. */
 @media (prefers-reduced-motion: reduce) {
-  .plex-node {
+  .synapses-node {
     transition: background 0.15s, border-color 0.15s;
   }
 }
 /* ---- handles (on every card, 3 directions, 3 states) ---- */
-.plex-handle {
+.synapses-handle {
   position: absolute;
   width: 12px;
   height: 12px;
@@ -172,7 +172,7 @@ body {
   /* Short, springy grow on hover (slight overshoot) instead of an instant jump. */
   transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.plex-handle::before { /* enlarged invisible grab/hover radius */
+.synapses-handle::before { /* enlarged invisible grab/hover radius */
   content: "";
   position: absolute;
   left: 50%;
@@ -185,20 +185,20 @@ body {
 .handle-bottom { bottom: -6px; left: 50%; margin-left: -6px; }
 .handle-left   { left: -6px; top: 50%;  margin-top: -6px; }
 .handle-right  { right: -6px; top: 50%;  margin-top: -6px; }
-.handle-empty { background: transparent; border: 2px solid var(--plex-accent); }
-.handle-shown { background: var(--plex-accent); border: 2px solid var(--plex-accent); }
-.handle-more  { background: var(--plex-dot-hidden, #2ecc71); border: 2px solid var(--plex-dot-hidden, #2ecc71); }
-.plex-handle:hover { transform: scale(2); }
+.handle-empty { background: transparent; border: 2px solid var(--synapses-accent); }
+.handle-shown { background: var(--synapses-accent); border: 2px solid var(--synapses-accent); }
+.handle-more  { background: var(--synapses-dot-hidden, #2ecc71); border: 2px solid var(--synapses-dot-hidden, #2ecc71); }
+.synapses-handle:hover { transform: scale(2); }
 /* Reduced-motion: snap the hover scale (placed AFTER the base rule so it wins on
    equal specificity). */
 @media (prefers-reduced-motion: reduce) {
-  .plex-handle {
+  .synapses-handle {
     transition: none;
   }
 }
 
 /* ---- edge remove / cancel buttons ---- */
-.plex-edge-actions {
+.synapses-edge-actions {
   position: absolute;
   /* Center the group on the anchor point: at rest the lone "×" sits on it, and
      arming "Remove?" + revealing "Cancel" grows symmetrically so the pair stays
@@ -209,75 +209,75 @@ body {
   gap: 4px;
   align-items: center;
 }
-.plex-edge-remove,
-.plex-edge-cancel {
+.synapses-edge-remove,
+.synapses-edge-cancel {
   align-items: center;
   justify-content: center;
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border: 1px solid var(--plex-border);
+  border: 1px solid var(--synapses-border);
   border-radius: 11px;
-  background: var(--plex-bg);
+  background: var(--synapses-bg);
   font: 600 12px/1 inherit;
   cursor: pointer;
   white-space: nowrap;
 }
-.plex-edge-remove {
+.synapses-edge-remove {
   display: inline-flex;
   color: #c0392b;
 }
-.plex-edge-remove:hover {
+.synapses-edge-remove:hover {
   border-color: #e23b2e;
   color: #e23b2e;
 }
-.plex-edge-cancel {
+.synapses-edge-cancel {
   display: none;
   color: #27ae60;
-  border-color: color-mix(in srgb, #2ecc71 45%, var(--plex-border));
-  background: color-mix(in srgb, #2ecc71 12%, var(--plex-bg));
+  border-color: color-mix(in srgb, #2ecc71 45%, var(--synapses-border));
+  background: color-mix(in srgb, #2ecc71 12%, var(--synapses-bg));
 }
-.plex-edge-cancel:hover {
+.synapses-edge-cancel:hover {
   border-color: #2ecc71;
 }
 /* armed confirm: turn the remove button red and reveal the cancel button */
-.plex-edge-actions.confirm .plex-edge-remove {
+.synapses-edge-actions.confirm .synapses-edge-remove {
   background: #c0392b;
   color: #fff;
   border-color: #c0392b;
 }
-.plex-edge-actions.confirm .plex-edge-cancel {
+.synapses-edge-actions.confirm .synapses-edge-cancel {
   display: inline-flex;
 }
 /* Armed: equal-width buttons spread well apart. The group is centered on the
    old "×" spot, so the cursor lands in the gap BETWEEN the two buttons — the
    user must move deliberately onto Remove? or Cancel, so a stray click on the
    just-armed control can't unlink. */
-.plex-edge-actions.confirm {
+.synapses-edge-actions.confirm {
   gap: 48px;
 }
-.plex-edge-actions.confirm .plex-edge-remove,
-.plex-edge-actions.confirm .plex-edge-cancel {
+.synapses-edge-actions.confirm .synapses-edge-remove,
+.synapses-edge-actions.confirm .synapses-edge-cancel {
   min-width: 72px;
 }
 
 /* ---- breadcrumb (Past Thought List) ---- */
-#plex-breadcrumb {
+#synapses-breadcrumb {
   flex: 0 0 auto;
   display: flex;
   gap: 4px;
   padding: 5px 8px;
   overflow-x: auto;
   white-space: nowrap;
-  border-top: 1px solid var(--plex-border);
-  background: var(--plex-bg2);
+  border-top: 1px solid var(--synapses-border);
+  background: var(--synapses-bg2);
 }
-.plex-crumb {
+.synapses-crumb {
   flex: 0 0 auto;
   max-width: 140px;
-  border: 1px solid var(--plex-border);
-  background: var(--plex-bg);
-  color: var(--plex-text2);
+  border: 1px solid var(--synapses-border);
+  background: var(--synapses-bg);
+  color: var(--synapses-text2);
   border-radius: 10px;
   padding: 2px 8px;
   cursor: pointer;
@@ -285,14 +285,14 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.plex-crumb.current {
-  color: var(--plex-text);
-  border-color: var(--plex-accent);
+.synapses-crumb.current {
+  color: var(--synapses-text);
+  border-color: var(--synapses-accent);
   font-weight: 600;
 }
 
 /* ---- flash (empty / error overlay) ---- */
-.plex-flash {
+.synapses-flash {
   position: absolute;
   inset: 0;
   display: none;
@@ -300,12 +300,12 @@ body {
   justify-content: center;
   text-align: center;
   padding: 24px;
-  color: var(--plex-text2);
+  color: var(--synapses-text2);
   pointer-events: none;
 }
 
 /* ---- create/link dialog ---- */
-.plex-dialog-overlay {
+.synapses-dialog-overlay {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -315,50 +315,50 @@ body {
   padding-top: 16vh;
   background: rgba(0, 0, 0, 0.35);
 }
-.plex-dialog {
+.synapses-dialog {
   width: min(420px, 92vw);
-  background: var(--plex-bg);
-  color: var(--plex-text);
-  border: 1px solid var(--plex-border);
+  background: var(--synapses-bg);
+  color: var(--synapses-text);
+  border: 1px solid var(--synapses-border);
   border-radius: 10px;
   padding: 14px;
   box-shadow: 0 14px 44px rgba(0, 0, 0, 0.35);
 }
-.plex-dialog-title {
+.synapses-dialog-title {
   font-weight: 600;
   margin-bottom: 8px;
 }
-.plex-dialog-input {
+.synapses-dialog-input {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid var(--plex-border);
+  border: 1px solid var(--synapses-border);
   border-radius: 7px;
-  background: var(--plex-bg2);
-  color: var(--plex-text);
+  background: var(--synapses-bg2);
+  color: var(--synapses-text);
   font: inherit;
 }
-.plex-dialog-input:focus {
+.synapses-dialog-input:focus {
   outline: none;
-  border-color: var(--plex-accent);
+  border-color: var(--synapses-accent);
 }
-.plex-dialog-results {
+.synapses-dialog-results {
   max-height: 180px;
   overflow-y: auto;
   margin-top: 8px;
 }
-.plex-dialog-result {
+.synapses-dialog-result {
   padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
 }
-.plex-dialog-result:hover {
-  background: color-mix(in srgb, var(--plex-accent) 18%, transparent);
+.synapses-dialog-result:hover {
+  background: color-mix(in srgb, var(--synapses-accent) 18%, transparent);
 }
-.plex-dialog-hint {
+.synapses-dialog-hint {
   margin-top: 8px;
   font-size: 11px;
-  color: var(--plex-text2);
+  color: var(--synapses-text2);
 }
-.plex-dialog-hint.err {
+.synapses-dialog-hint.err {
   color: #c0392b;
 }

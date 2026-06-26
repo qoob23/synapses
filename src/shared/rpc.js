@@ -1,8 +1,8 @@
 // Minimal postMessage RPC shared by the plugin main context (server) and the
-// plex iframe (client). The injected iframe has no `logseq` global, so it calls
+// synapses iframe (client). The injected iframe has no `logseq` global, so it calls
 // back to the main context, which performs every Logseq read/write.
 
-const TAG = '__plex_rpc__'
+const TAG = '__synapses_rpc__'
 
 // ---- server: runs in the plugin main context (has `logseq`) ----
 export function startServer(handlers) {
@@ -51,7 +51,7 @@ export function startServer(handlers) {
   return { init, notify }
 }
 
-// ---- client: runs inside the plex iframe (no `logseq`) ----
+// ---- client: runs inside the synapses iframe (no `logseq`) ----
 export function createClient({ onConnect, onEvent } = {}) {
   let peer = null
   let seq = 0
@@ -84,7 +84,7 @@ export function createClient({ onConnect, onEvent } = {}) {
 
   function call(method, ...args) {
     return new Promise((resolve, reject) => {
-      if (!peer) return reject(new Error('plex bridge not connected'))
+      if (!peer) return reject(new Error('synapses bridge not connected'))
       const id = ++seq
       pending.set(id, { resolve, reject })
       peer.postMessage({ [TAG]: true, kind: 'req', id, method, args }, '*')

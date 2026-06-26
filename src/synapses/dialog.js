@@ -19,15 +19,15 @@ export function clampDialogPosition(at, box, viewport) {
 // with its top-center at that point instead of the default centered layout.
 export function openCreateDialog({ root, role, sourcePage, client, at }) {
   return new Promise((resolve) => {
-    const overlay = div('plex-dialog-overlay')
-    const box = div('plex-dialog')
-    const title = div('plex-dialog-title')
+    const overlay = div('synapses-dialog-overlay')
+    const box = div('synapses-dialog')
+    const title = div('synapses-dialog-title')
     title.textContent = `Add ${role} of "${sourcePage}"`
     const input = document.createElement('input')
-    input.className = 'plex-dialog-input'
+    input.className = 'synapses-dialog-input'
     input.placeholder = 'Type a note name…'
-    const results = div('plex-dialog-results')
-    const hint = div('plex-dialog-hint')
+    const results = div('synapses-dialog-results')
+    const hint = div('synapses-dialog-hint')
     hint.textContent = 'Enter = create new · click a match = link existing · Esc = cancel'
     box.append(title, input, results, hint)
     overlay.appendChild(box)
@@ -66,7 +66,7 @@ export function openCreateDialog({ root, role, sourcePage, client, at }) {
       if (mine !== token) return
       for (const m of matches || []) {
         if (m.toLowerCase() === sourcePage.toLowerCase()) continue
-        const r = div('plex-dialog-result')
+        const r = div('synapses-dialog-result')
         r.textContent = m
         r.addEventListener('click', () => finish(m, true))
         results.appendChild(r)

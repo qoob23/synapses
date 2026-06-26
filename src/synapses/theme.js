@@ -6,17 +6,17 @@ export function applyTheme(palette) {
 
   const r = document.documentElement
   const map = {
-    '--plex-bg': palette.bg,
-    '--plex-bg2': palette.bg2,
-    '--plex-text': palette.text,
-    '--plex-text2': palette.text2,
-    '--plex-border': palette.border,
-    '--plex-accent': palette.accent,
+    '--synapses-bg': palette.bg,
+    '--synapses-bg2': palette.bg2,
+    '--synapses-text': palette.text,
+    '--synapses-text2': palette.text2,
+    '--synapses-border': palette.border,
+    '--synapses-accent': palette.accent,
   }
   for (const k in map) {
     if (map[k]) r.style.setProperty(k, map[k])
   }
-  document.body.classList.toggle('plex-dark', palette.mode === 'dark')
+  document.body.classList.toggle('synapses-dark', palette.mode === 'dark')
 
   return {
     edge: palette.border || fallback.edge,

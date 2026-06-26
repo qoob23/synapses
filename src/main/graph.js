@@ -190,7 +190,7 @@ async function gatherEntries() {
   try {
     list = await logseq.Editor.getAllPages()
   } catch (e) {
-    console.warn('[plex] getAllPages failed', e)
+    console.warn('[synapses] getAllPages failed', e)
     list = []
   }
   // Always read via getPageProps — getAllPages' inline properties can be stale.
@@ -259,7 +259,7 @@ export async function buildGraph(focusName) {
   return queryGraph(liveIndex, focusName)
 }
 
-// Apply a freshly-written link to the live index right away, so the plex
+// Apply a freshly-written link to the live index right away, so the synapses
 // reflects it before Logseq finishes its own indexing. Recorded so subsequent
 // rebuilds don't drop it until a read confirms it.
 export function patchIndex(focusName, role, targetName) {
@@ -269,7 +269,7 @@ export function patchIndex(focusName, role, targetName) {
 }
 
 // Apply a freshly-removed link to the live index right away (mirror of
-// patchIndex) so the plex reflects the removal before Logseq re-indexes.
+// patchIndex) so the synapses reflects the removal before Logseq re-indexes.
 export function patchRemove(focusName, role, targetName) {
   if (String(focusName).toLowerCase() === String(targetName).toLowerCase()) return
   removeEdge(liveIndex, focusName, role, targetName)

@@ -1,5 +1,5 @@
 // Pure navigation-history reducer + a small stateful factory. Lives in M so
-// history survives the plex iframe being re-injected; T5 persists it to disk.
+// history survives the synapses iframe being re-injected; T5 persists it to disk.
 
 const CAP = 50
 const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase()
