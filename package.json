@@ -8,8 +8,8 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/logseq-plugin --noEmit",
-    "build": "npm run build -w @logseq-synapses/core && npm run build -w logseq-plugin"
+    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/logseq-plugin --noEmit && tsc -p packages/obsidian-plugin --noEmit",
+    "build": "npm run build -w @logseq-synapses/core && npm run build -w logseq-plugin && npm run build -w obsidian-plugin"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
