@@ -42,3 +42,7 @@ npm test         # run the unit tests (vitest)
   centered and its relations fanning out around it, is the inspiration for this plugin's layout.
 - **[Logseq](https://logseq.com)** — the host application this plugin extends; it provides the
   Markdown graph, page properties, and plugin platform everything here is built on.
+
+## License
+
+[MIT](LICENSE) © qoob23

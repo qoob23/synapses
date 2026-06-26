@@ -3,6 +3,24 @@
   "version": "0.0.1",
   "type": "module",
   "description": "Synapses view for Logseq note links (Markdown graph)",
+  "author": "qoob23",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qoob23/logseq-synapses.git"
+  },
+  "homepage": "https://github.com/qoob23/logseq-synapses#readme",
+  "bugs": {
+    "url": "https://github.com/qoob23/logseq-synapses/issues"
+  },
+  "keywords": [
+    "logseq",
+    "logseq-plugin",
+    "graph",
+    "mindmap",
+    "knowledge-graph",
+    "synapses"
+  ],
   "main": "dist/index.html",
   "scripts": {
     "dev": "vite build --watch",
