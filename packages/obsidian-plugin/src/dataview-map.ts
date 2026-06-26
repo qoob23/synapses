@@ -15,7 +15,7 @@ export function valueToNames(v: unknown): string[] {
   const push = (x: unknown) => {
     if (isLink(x)) out.push(linkPathToBasename(x.path))
     else if (typeof x === 'string' && /^\[\[.*\]\]$/.test(x.trim())) {
-      out.push(x.trim().replace(/^\[\[/, '').replace(/\]\]$/, '').trim())
+      out.push(linkPathToBasename(x.trim().replace(/^\[\[/, '').replace(/\]\]$/, '').trim()))
     }
   }
   if (Array.isArray(v)) v.forEach(push)

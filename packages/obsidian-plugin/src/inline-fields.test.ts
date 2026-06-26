@@ -19,6 +19,9 @@ describe('upsertInlineField', () => {
     const t = '---\ntitle: X\n---\nbody'
     expect(upsertInlineField(t, 'child', ['A'])).toBe('---\ntitle: X\n---\nchild:: [[A]]\nbody')
   })
+  it('inserts a separator when the frontmatter fence has no trailing newline', () => {
+    expect(upsertInlineField('---\ntitle: X\n---', 'child', ['A'])).toBe('---\ntitle: X\n---\nchild:: [[A]]\n')
+  })
 })
 
 describe('removeInlineField', () => {

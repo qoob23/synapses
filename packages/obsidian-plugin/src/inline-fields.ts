@@ -23,8 +23,9 @@ export function upsertInlineField(text: string, key: string, targets: string[]):
   if (re.test(text)) return text.replace(re, line)
   const m = text.match(FENCE)
   if (m) {
-    const idx = m[0].length
-    return text.slice(0, idx) + line + '\n' + text.slice(idx)
+    const fence = m[0]
+    const sep = fence.endsWith('\n') ? '' : '\n'
+    return text.slice(0, fence.length) + sep + line + '\n' + text.slice(fence.length)
   }
   return text ? `${line}\n${text}` : `${line}\n`
 }

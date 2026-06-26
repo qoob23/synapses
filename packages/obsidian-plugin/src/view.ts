@@ -12,6 +12,8 @@ export class SynapsesView extends ItemView {
   getDisplayText() { return 'Synapses' }
   getIcon() { return 'brain' }
   async onOpen() {
+    this.teardown?.()
+    this.teardown = null
     const backend = this.plugin.getBackend()
     if (!backend) {
       this.contentEl.empty()

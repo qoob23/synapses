@@ -16,6 +16,7 @@ describe('valueToNames', () => {
   it('maps a bracketed string', () => { expect(valueToNames('[[A]]')).toEqual(['A']) })
   it('ignores a plain (non-link) string', () => { expect(valueToNames('Foo')).toEqual([]) })
   it('ignores numbers/objects', () => { expect(valueToNames(3)).toEqual([]); expect(valueToNames({ x: 1 })).toEqual([]) })
+  it('reduces a bracketed path string to its basename', () => { expect(valueToNames('[[folder/Note.md]]')).toEqual(['Note']) })
 })
 
 describe('pageToPropMap', () => {
