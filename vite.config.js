@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, configDefaults } from 'vitest/config'
 
 // Two HTML entry points:
 //   index.html -> the plugin "main" context (M), registered by Logseq, holds `logseq`.
@@ -15,5 +15,10 @@ export default defineConfig({
         plex: 'plex.html',
       },
     },
+  },
+  test: {
+    // Don't discover tests inside git worktrees (e.g. .claude/worktrees/*),
+    // which hold full duplicate src/ checkouts and would double-count the suite.
+    exclude: [...configDefaults.exclude, '**/.claude/**'],
   },
 })
