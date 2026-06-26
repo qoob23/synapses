@@ -224,9 +224,10 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     els.flash.style.display = 'none'
   }
 
-  // The backend is already connected when mountSynapses is called, so register
-  // event handlers (with the same bodies as the old onEvent switch) and run the
-  // initial restore (the old onConnect body) immediately.
+  // Contract: the caller passes a backend that is ready to take calls. Obsidian's
+  // in-process backend always is; the Logseq proxy is mounted from its onConnect,
+  // after the postMessage handshake. So we register event handlers (same bodies as
+  // the old onEvent switch) and run the initial restore (the old onConnect body) now.
   const unsubs: Array<() => void> = []
   unsubs.push(
     backend.on('recenter', (payload) => {

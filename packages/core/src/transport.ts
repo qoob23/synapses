@@ -147,9 +147,13 @@ export function serveBackend(backend: SynapsesBackend) {
   return server // exposes { init, notify }
 }
 
-export function createBackendProxy(): { backend: SynapsesBackend; client: ReturnType<typeof createClient> } {
+export function createBackendProxy(
+  opts: { onConnect?: () => void } = {},
+): { backend: SynapsesBackend; client: ReturnType<typeof createClient> } {
   let emit: (m: string, p: any) => void = () => {}
-  const client = createClient({ onEvent: (m, p) => emit(m, p) })
+  // The proxy can't take calls until the postMessage handshake completes; surface
+  // `onConnect` so the caller can defer its first calls until the bridge is live.
+  const client = createClient({ onConnect: opts.onConnect, onEvent: (m, p) => emit(m, p) })
   const backend = buildProxy((method, ...args) => client.call(method, ...args), (h) => { emit = h }, BACKEND_METHODS, BACKEND_EVENTS)
   return { backend, client }
 }
