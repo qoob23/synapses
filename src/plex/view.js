@@ -1,17 +1,19 @@
 import { computeLayout, NODE } from './layout.js'
 import { computeEdges, drawEdges, gatePoint, edgeKey } from './edges.js'
 import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom.js'
-import { hitTest, pointOnEdge } from './edge-hit.js'
+import { hitTest, pointAtDistanceFromEnd } from './edge-hit.js'
 import { nodeHandleStates } from './handles.js'
 
 const TRANSITION_MS = 840
 
-// How far along an edge (focus → neighbor) the unlink control sits: biased toward
-// the non-focus card so the controls of fanned-out edges don't pile up at center.
-const UNLINK_T = 0.78
+// Gap (screen px) between the non-active card's gate and the unlink control,
+// measured along the connector — keeps the × near that card and on the link,
+// not in the gap between cards and not over a card.
+const UNLINK_GAP = 52
 
 function defaultTheme() {
-  return { edge: 'rgba(127,127,127,0.55)', jumpEdge: 'rgba(127,127,127,0.32)', highlight: 'rgba(240,190,30,0.95)' }
+  // `highlight` = the hovered-connector accent; a muted gold (not a glaring yellow).
+  return { edge: 'rgba(127,127,127,0.55)', jumpEdge: 'rgba(127,127,127,0.32)', highlight: 'rgba(206,170,92,0.9)' }
 }
 
 // Renders the plex: HTML <div> nodes in a transformed world + a <canvas> edge
@@ -362,6 +364,13 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   stage.addEventListener('mousemove', (e) => {
     if (pending) { hideRemove(); return } // suppress while a handle drag is live
     if (removeActions.classList.contains('confirm')) return // frozen while confirming
+    // Don't hit-test connectors while the cursor is over a card — a card sits on
+    // top of its own connectors' endpoints, so hovering it would otherwise light
+    // up (and arm removal of) a link the user isn't aiming at.
+    if (e.target && e.target.closest && e.target.closest('.plex-node')) {
+      if (hoveredEdge) hideRemove()
+      return
+    }
     const rect = stage.getBoundingClientRect()
     const t = panzoom.getTransform()
     const worldPt = screenToWorld(t, e.clientX - rect.left, e.clientY - rect.top)
@@ -373,8 +382,9 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     hoveredEdge = edge
     const key = edgeKey(edge)
     if (key !== hoveredKey) { hoveredKey = key; scheduleDraw() } // highlight the hovered link
-    // Anchor the control toward the non-focus card (UNLINK_T along the curve).
-    const at = pointOnEdge(edge, UNLINK_T)
+    // Anchor the control a fixed gap back from the non-active card, along the
+    // connector (UNLINK_GAP is screen px → divide by zoom for world units).
+    const at = pointAtDistanceFromEnd(edge, UNLINK_GAP / t.s)
     const atScreen = worldToScreen(t, at.x, at.y)
     removeActions.style.left = atScreen.x + 'px'
     removeActions.style.top = atScreen.y + 'px'

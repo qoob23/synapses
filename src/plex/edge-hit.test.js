@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { distToSegment, hitTest, pointOnEdge } from './edge-hit.js'
+import { distToSegment, hitTest, pointAtDistanceFromEnd } from './edge-hit.js'
 
 describe('distToSegment', () => {
   it('measures perpendicular distance to a segment', () => {
@@ -33,15 +33,15 @@ describe('hitTest', () => {
   })
 })
 
-describe('pointOnEdge', () => {
+describe('pointAtDistanceFromEnd', () => {
   const edge = { a: { x: 0, y: 0 }, b: { x: 0, y: 100 }, zone: 'child' }
-  it('returns the start at t=0 and the end at t=1', () => {
-    expect(pointOnEdge(edge, 0)).toEqual({ x: 0, y: 0 })
-    expect(pointOnEdge(edge, 1)).toEqual({ x: 0, y: 100 })
+  it('returns a point the given distance back from b, toward a', () => {
+    const p = pointAtDistanceFromEnd(edge, 20)
+    expect(p.x).toBeCloseTo(0)
+    expect(p.y).toBeCloseTo(80) // 20 back from b=(0,100)
   })
-  it('biases toward the b endpoint for t > 0.5', () => {
-    const p = pointOnEdge(edge, 0.78)
-    expect(p.y).toBeGreaterThan(50) // closer to b than to a
-    expect(p.y).toBeLessThan(100)
+  it('clamps to the curve midpoint for distances past halfway', () => {
+    const p = pointAtDistanceFromEnd(edge, 1000)
+    expect(p.y).toBeCloseTo(50) // never crosses the middle toward a
   })
 })

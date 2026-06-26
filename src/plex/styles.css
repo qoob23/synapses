@@ -200,10 +200,10 @@ body {
 /* ---- edge remove / cancel buttons ---- */
 .plex-edge-actions {
   position: absolute;
-  /* Anchor the "×" on the edge midpoint (its min-width is 20px → -10px centers
-     it) but keep the group LEFT-anchored, so arming "Remove?" + revealing
-     "Cancel" expands rightward instead of sliding the just-clicked button left. */
-  transform: translate(-10px, -50%);
+  /* Center the group on the anchor point: at rest the lone "×" sits on it, and
+     arming "Remove?" + revealing "Cancel" grows symmetrically so the pair stays
+     centered on where the "×" was. */
+  transform: translate(-50%, -50%);
   z-index: 20;
   display: none;
   gap: 4px;
@@ -228,14 +228,17 @@ body {
   color: #c0392b;
 }
 .plex-edge-remove:hover {
-  border-color: #c0392b;
+  border-color: #e23b2e;
+  color: #e23b2e;
 }
 .plex-edge-cancel {
   display: none;
-  color: var(--plex-text2);
+  color: #27ae60;
+  border-color: color-mix(in srgb, #2ecc71 45%, var(--plex-border));
+  background: color-mix(in srgb, #2ecc71 12%, var(--plex-bg));
 }
 .plex-edge-cancel:hover {
-  border-color: var(--plex-accent);
+  border-color: #2ecc71;
 }
 /* armed confirm: turn the remove button red and reveal the cancel button */
 .plex-edge-actions.confirm .plex-edge-remove {
@@ -245,6 +248,17 @@ body {
 }
 .plex-edge-actions.confirm .plex-edge-cancel {
   display: inline-flex;
+}
+/* Armed: equal-width buttons spread well apart. The group is centered on the
+   old "×" spot, so the cursor lands in the gap BETWEEN the two buttons — the
+   user must move deliberately onto Remove? or Cancel, so a stray click on the
+   just-armed control can't unlink. */
+.plex-edge-actions.confirm {
+  gap: 48px;
+}
+.plex-edge-actions.confirm .plex-edge-remove,
+.plex-edge-actions.confirm .plex-edge-cancel {
+  min-width: 72px;
 }
 
 /* ---- breadcrumb (Past Thought List) ---- */

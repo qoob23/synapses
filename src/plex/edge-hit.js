@@ -47,23 +47,27 @@ export function distToEdge(p, edge) {
   return min
 }
 
-// The point on an edge's bézier at parameter t (same control points as the
-// drawn curve). Used to anchor the floating unlink control toward the non-focus
-// card (t > 0.5) instead of at the straight midpoint where edges bunch up.
-export function pointOnEdge(edge, t) {
-  let c1
-  let c2
-  const { a, b, zone } = edge
-  if (zone === 'parent' || zone === 'child') {
-    const midY = (a.y + b.y) / 2
-    c1 = { x: a.x, y: midY }
-    c2 = { x: b.x, y: midY }
-  } else {
-    const midX = (a.x + b.x) / 2
-    c1 = { x: midX, y: a.y }
-    c2 = { x: midX, y: b.y }
+// The world point a fixed arc-distance `dist` back from the edge's `b` endpoint
+// (the non-active card's gate) along its bézier. Anchors the unlink control just
+// off that card, ON the connector — not in the gap between cards, not over a
+// card. Clamped to the curve's midpoint so it never crosses toward the active
+// card on short links. `dist` is in world units (callers divide screen px by zoom).
+export function pointAtDistanceFromEnd(edge, dist) {
+  const pts = sampleEdge(edge.a, edge.b, edge.zone, 32)
+  let total = 0
+  for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
+  let remaining = Math.min(dist, total / 2)
+  for (let i = pts.length - 1; i > 0; i--) {
+    const p = pts[i]
+    const q = pts[i - 1]
+    const seg = Math.hypot(p.x - q.x, p.y - q.y)
+    if (seg >= remaining) {
+      const f = seg ? remaining / seg : 0
+      return { x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f }
+    }
+    remaining -= seg
   }
-  return cubic(a, c1, c2, b, t)
+  return pts[0]
 }
 
 export function hitTest(p, edges, threshold) {
