@@ -1,21 +1,19 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { NODE, computeLayout, gridPositions } from './layout'
-
-// styles.css now lives alongside the view modules.
-const css = readFileSync(fileURLToPath(new URL('./styles.css', import.meta.url)), 'utf8')
+// Read the CSS via Vite's ?raw import (no node builtins) so core source stays
+// editor-agnostic and typechecks under tsconfig's `types: []`.
+import cssText from './styles.css?raw'
 
 describe('node geometry single source of truth', () => {
   // view.js sets --synapses-node-w/h from NODE at runtime; styles.css carries
   // matching fallback literals. This guards them from silently diverging.
   it('styles.css fallback literals match NODE', () => {
-    expect(css).toContain(`var(--synapses-node-w, ${NODE.W}px)`)
-    expect(css).toContain(`var(--synapses-node-h, ${NODE.H}px)`)
+    expect(cssText).toContain(`var(--synapses-node-w, ${NODE.W}px)`)
+    expect(cssText).toContain(`var(--synapses-node-h, ${NODE.H}px)`)
   })
 
   it('styles.css drives node label size from --synapses-node-font', () => {
-    expect(css).toContain('font-size: var(--synapses-node-font, 1.7rem)')
+    expect(cssText).toContain('font-size: var(--synapses-node-font, 1.7rem)')
   })
 })
 
