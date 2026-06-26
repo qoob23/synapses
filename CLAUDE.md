@@ -4,10 +4,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`logseq-plex` — a Logseq plugin that lays out thoughts spatially: the focused note centered, with
-parents above, children below, jumps/siblings to the sides, and click-to-recenter navigation, rendered
-in the **right sidebar**. Target is the **Logseq 0.10.x Markdown/file graph** — NOT the DB version (the
+`logseq-plex` — a Logseq plugin that lays out thoughts spatially: the active thought centered, with
+parents above, children below, jumps to the left and siblings to the right, and click-a-card-to-activate
+navigation, rendered in the **right sidebar**. Target is the **Logseq 0.10.x Markdown/file graph** — NOT the DB version (the
 DB version reworked properties and the datascript schema). Plain JS (no React, no SVG, no d3) by design.
+
+## Terminology
+
+Canonical vocabulary for this project — use these terms in docs, comments, and UI copy. Many
+**code symbols predate this glossary and keep their old names**; the mapping is called out so you can
+connect prose to code.
+
+- **Thought** — a piece of the user's content: a Logseq page or journal, backed by a file on disk. The
+  central noun. (Older prose says *note*. "Page" still refers to the underlying Logseq substrate — page
+  properties, the page's first block, `getPage`.)
+- **Card** — the on-screen box that represents a thought. (Code says *node*: `NODE` geometry,
+  `nodeAdjacency`, the `<div>` elements.)
+- **Link** — a connection between two thoughts. Each link **kind** is a many-to-many relationship,
+  declared one direction via page properties; reciprocals are inferred and siblings computed. The
+  in-memory index of all links is the **link index** (`src/main/graph.js`; historically the
+  *relationship index*).
+- **Connector** — the line drawn on the `<canvas>` for a link. (Code says *edge*: `edges.js`,
+  `computeEdges`/`drawEdges`, `edge-hit.js`.) Link is to connector as thought is to card — the relation
+  vs. its drawing.
+- **Active thought** — the thought currently centered; only the active thought's links are shown. (Code
+  says *focus*: `focusGatePoint`, `GATES[zone].focus`.)
+- **Activate** — to make a thought the active one: click its card, open its page in the Logseq editor,
+  or create a new thought. (Older prose says *navigate* / *follow*.)
+- **Recenter** — the camera glide that plays when you activate a different thought (the motion, not the
+  action).
+
+The four **link kinds**, named by where their cards sit relative to the active thought:
+
+| Kind | Position | Detail |
+|------|----------|-------|
+| **Parent** | above | |
+| **Child** | below, in two columns | |
+| **Jump** | left | association link |
+| **Sibling** | right | computed — the children of the active thought's parents (never declared directly) |
 
 ## Commands
 
@@ -49,14 +83,14 @@ P  src/plex/*   the plex UI, injected as an <iframe> into a right-sidebar slot �
   `onMacroRendererSlotted`, where M `provideUI`s an `<iframe>` (its `src` is set via the DOM, not the
   template, so DOMPurify can't strip it). Full-sidebar width is enforced with `:has()` **CSS** in
   `plexFrameStyle()`.
-- **Relationship index (`src/main/graph.js`) — the core, and the source of most subtlety.** A note's
-  relations come from page **properties** (`parent:: / child:: / jump::`), declared one direction;
+- **Link index (`src/main/graph.js`) — the core, and the source of most subtlety.** A thought's
+  links come from page **properties** (`parent:: / child:: / jump::`), declared one direction;
   reciprocals (parent↔child) and symmetric jumps are inferred, siblings are computed. These live in an
   in-memory reciprocal index (`buildIndex`/`queryGraph`). The index is built once, **patched
   immediately** on plugin writes (`patchIndex`), and **rebuilt debounced** on `logseq.DB.onChanged`.
-- **Rendering (`src/plex/`):** `view.js` manages absolutely-positioned `<div>` nodes (keyed by name so
-  positions tween) over a `<canvas>` edge layer (`edges.js`); `layout.js` is banded arithmetic;
-  `panzoom.js` centers on the **focus** (not the bounding box). `main.js` is the orchestrator
+- **Rendering (`src/plex/`):** `view.js` manages absolutely-positioned `<div>` cards (keyed by name so
+  positions tween) over a `<canvas>` connector layer (`edges.js`); `layout.js` is banded arithmetic;
+  `panzoom.js` centers on the **active thought** (the `focus` in code, not the bounding box). `main.js` is the orchestrator
   (navigation, history, create dialog, theme).
 - **History lives in M** (`histPush`/`histJump` in `index.js`), not P, so it survives the iframe being
   re-injected when Logseq re-renders the sidebar.
@@ -67,7 +101,7 @@ These are non-obvious and caused real bugs; respect them.
 
 - **Logseq reads are stale right after a write.** Both `:block/refs` (datascript) and
   `getPage().properties` lag for seconds after `upsertBlockProperty` until Logseq re-indexes. Therefore:
-  - Reverse relationships are derived from page **properties**, never from datascript `:block/refs`.
+  - Reverse links are derived from page **properties**, never from datascript `:block/refs`.
   - Never do an immediate index rebuild after a write — it reads stale data and clobbers the patch.
     `rebuildIndex` **replays unconfirmed `pendingPatches`** onto each fresh build and only drops a patch
     once a read confirms it (or after `PATCH_TTL_MS`, so external removals eventually win). Keep
