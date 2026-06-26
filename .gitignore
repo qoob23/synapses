@@ -1,5 +1,9 @@
 node_modules/
 dist/
+# obsidian-plugin build artifacts (esbuild emits to the package root; rebuildable from src)
+packages/obsidian-plugin/main.js
+packages/obsidian-plugin/main.css
+packages/obsidian-plugin/styles.css
 *.tsbuildinfo
 *.log
 .DS_Store
