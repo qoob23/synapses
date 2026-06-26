@@ -1,11 +1,17 @@
-function div(cls) {
+import type { Role, SynapsesBackend } from '../types'
+
+function div(cls: string) {
   const d = document.createElement('div')
   d.className = cls
   return d
 }
 
 // Position a dialog box with its top-center at `at`, clamped fully on-screen.
-export function clampDialogPosition(at, box, viewport) {
+export function clampDialogPosition(
+  at: { x: number; y: number },
+  box: { w: number; h: number },
+  viewport: { w: number; h: number },
+) {
   const left = Math.max(0, Math.min(at.x - box.w / 2, viewport.w - box.w))
   const top = Math.max(0, Math.min(at.y, viewport.h - box.h))
   return { left, top }
@@ -17,7 +23,19 @@ export function clampDialogPosition(at, box, viewport) {
 // when triggered from a drag handle on a non-active card).
 // `at` is an optional { x, y } screen point; when provided the dialog is positioned
 // with its top-center at that point instead of the default centered layout.
-export function openCreateDialog({ root, role, sourcePage, client, at }) {
+export function openCreateDialog({
+  root,
+  role,
+  sourcePage,
+  backend,
+  at,
+}: {
+  root: HTMLElement
+  role: Role
+  sourcePage: string
+  backend: SynapsesBackend
+  at?: { x: number; y: number } | null
+}): Promise<boolean> {
   return new Promise((resolve) => {
     const overlay = div('synapses-dialog-overlay')
     const box = div('synapses-dialog')
@@ -57,9 +75,9 @@ export function openCreateDialog({ root, role, sourcePage, client, at }) {
       const mine = ++token
       results.innerHTML = ''
       if (!q) return
-      let matches = []
+      let matches: string[] = []
       try {
-        matches = await client.call('searchPages', q)
+        matches = await backend.searchPages(q)
       } catch (e) {
         /* ignore */
       }
@@ -73,29 +91,31 @@ export function openCreateDialog({ root, role, sourcePage, client, at }) {
       }
     }
 
-    async function finish(name, existing) {
+    async function finish(name: string, existing: boolean) {
       try {
         if (existing) {
-          await client.call('linkExisting', sourcePage, name, role)
+          await backend.linkExisting(sourcePage, name, role)
+        } else if (role === 'parent') {
+          await backend.createParent(sourcePage, name)
+        } else if (role === 'jump') {
+          await backend.createJump(sourcePage, name)
         } else {
-          const method =
-            role === 'parent' ? 'createParent' : role === 'jump' ? 'createJump' : 'createChild'
-          await client.call(method, sourcePage, name)
+          await backend.createChild(sourcePage, name)
         }
         close(true)
-      } catch (e) {
+      } catch (e: any) {
         hint.textContent = 'Failed: ' + ((e && e.message) || e)
         hint.classList.add('err')
       }
     }
 
-    function close(changed) {
+    function close(changed: boolean) {
       overlay.remove()
       document.removeEventListener('keydown', onKey, true)
       resolve(changed)
     }
 
-    function onKey(e) {
+    function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault()
         close(false)

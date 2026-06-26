@@ -1,11 +1,12 @@
-// Apply a palette (read from Logseq by the main context) onto the iframe's CSS
-// variables, and return edge colors for the canvas layer.
-export function applyTheme(palette) {
+import type { Palette } from '../types'
+
+// Apply a palette (read from the editor by the main context) onto the root
+// container's CSS variables, and return edge colors for the canvas layer.
+export function applyTheme(root: HTMLElement, palette: Palette) {
   const fallback = { edge: 'rgba(127,127,127,0.55)', jumpEdge: 'rgba(127,127,127,0.32)' }
   if (!palette) return fallback
 
-  const r = document.documentElement
-  const map = {
+  const map: Record<string, string | undefined> = {
     '--synapses-bg': palette.bg,
     '--synapses-bg2': palette.bg2,
     '--synapses-text': palette.text,
@@ -14,9 +15,9 @@ export function applyTheme(palette) {
     '--synapses-accent': palette.accent,
   }
   for (const k in map) {
-    if (map[k]) r.style.setProperty(k, map[k])
+    if (map[k]) root.style.setProperty(k, map[k] as string)
   }
-  document.body.classList.toggle('synapses-dark', palette.mode === 'dark')
+  root.classList.toggle('synapses-dark', palette.mode === 'dark')
 
   return {
     edge: palette.border || fallback.edge,

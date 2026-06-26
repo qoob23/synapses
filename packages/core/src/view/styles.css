@@ -1,25 +1,27 @@
-:root {
+/* All global selectors are scoped under `.synapses-root` so the same stylesheet
+   works inside Logseq's isolated iframe AND inside Obsidian's shared DOM without
+   leaking onto the host page. */
+.synapses-root {
   --synapses-bg: #ffffff;
   --synapses-bg2: #f6f6f7;
   --synapses-text: #232323;
   --synapses-text2: #8a8a8a;
   --synapses-border: #d6d6d6;
   --synapses-accent: #4a90d9;
-}
 
-* {
-  box-sizing: border-box;
-}
-html,
-body {
+  /* folded from the former html,body + body rules */
   margin: 0;
   height: 100%;
-}
-body {
   font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   color: var(--synapses-text);
   background: var(--synapses-bg);
   overflow: hidden;
+}
+
+.synapses-root *,
+.synapses-root *::before,
+.synapses-root *::after {
+  box-sizing: border-box;
 }
 
 #synapses-app {

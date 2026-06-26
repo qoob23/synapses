@@ -12,6 +12,7 @@
     "build": "npm run build -w @logseq-synapses/core && npm run build -w logseq-plugin"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "typescript": "^5.6.0",
     "vite": "^8.1.0",
     "vitest": "^4.1.9"

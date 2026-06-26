@@ -1,12 +1,10 @@
 import { describe, it, expect } from 'vitest'
-// @ts-ignore -- node builtin; @types/node is not a dependency of this package
 import { readFileSync } from 'node:fs'
-// @ts-ignore -- node builtin; @types/node is not a dependency of this package
 import { fileURLToPath } from 'node:url'
 import { NODE, computeLayout, gridPositions } from './layout'
 
-// styles.css moves into view/ in a later task; until then it lives at src/synapses.
-const css = readFileSync(fileURLToPath(new URL('../../../../src/synapses/styles.css', import.meta.url)), 'utf8')
+// styles.css now lives alongside the view modules.
+const css = readFileSync(fileURLToPath(new URL('./styles.css', import.meta.url)), 'utf8')
 
 describe('node geometry single source of truth', () => {
   // view.js sets --synapses-node-w/h from NODE at runtime; styles.css carries

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampDialogPosition } from './dialog.js'
+import { clampDialogPosition } from './dialog'
 
 describe('clampDialogPosition', () => {
   const box = { w: 420, h: 200 }

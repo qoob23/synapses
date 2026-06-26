@@ -1,8 +1,10 @@
-import { computeLayout, NODE } from './layout.js'
-import { computeEdges, drawEdges, gatePoint, edgeKey } from './edges.js'
-import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom.js'
-import { hitTest, pointAtDistanceFromEnd } from './edge-hit.js'
-import { nodeHandleStates } from './handles.js'
+import { computeLayout, NODE } from './layout'
+import { computeEdges, drawEdges, gatePoint, edgeKey } from './edges'
+import type { Edge, EdgeRemove } from './edges'
+import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom'
+import { hitTest, pointAtDistanceFromEnd } from './edge-hit'
+import { nodeHandleStates } from './handles'
+import type { Graph } from '../types'
 
 const TRANSITION_MS = 840
 
@@ -16,34 +18,69 @@ function defaultTheme() {
   return { edge: 'rgba(127,127,127,0.55)', jumpEdge: 'rgba(127,127,127,0.32)', highlight: 'rgba(206,170,92,0.9)' }
 }
 
+// A card <div> with the ad-hoc bookkeeping props the view attaches at runtime.
+interface CardEl extends HTMLDivElement {
+  _name: string
+  _zone: string
+  _label: HTMLElement
+  _handles: Record<string, HandleEl>
+  _handleStates: Record<string, string>
+}
+interface HandleEl extends HTMLDivElement {
+  _dir: string
+  _side: string
+}
+
+type Pt = { x: number; y: number }
+
 // Renders the synapses: HTML <div> cards in a transformed world + a <canvas> connector
 // layer. Card elements are keyed by name and reused across graphs so positions
 // animate (the clicked card glides to the center on recenter).
 const DRAG_THRESHOLD = 6
 
-export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRemoveLink, onLinkExisting, onCreateAt }) {
-  const ctx = canvas.getContext('2d')
+export function createView({
+  root,
+  world,
+  canvas,
+  stage,
+  onNavigate,
+  onOpenMain,
+  onRemoveLink,
+  onLinkExisting,
+  onCreateAt,
+}: {
+  root: HTMLElement
+  world: HTMLElement
+  canvas: HTMLCanvasElement
+  stage: HTMLElement
+  onNavigate: (name: string) => void
+  onOpenMain: (name: string) => void
+  onRemoveLink?: (remove: EdgeRemove) => void
+  onLinkExisting?: (from: string, to: string, role: string) => void
+  onCreateAt?: (fromNode: string, dir: string, at: Pt | null) => void
+}) {
+  const ctx = canvas.getContext('2d')!
   // Single source of truth for card box size: the layout math (NODE) drives the
   // CSS variables too, so changing NODE keeps the rendered box and the edge
   // endpoints/bbox in agreement (styles.css falls back to matching literals).
-  document.documentElement.style.setProperty('--synapses-node-w', NODE.W + 'px')
-  document.documentElement.style.setProperty('--synapses-node-h', NODE.H + 'px')
-  const elements = new Map() // nameLower -> element
-  let layout = null
-  let theme = defaultTheme()
+  root.style.setProperty('--synapses-node-w', NODE.W + 'px')
+  root.style.setProperty('--synapses-node-h', NODE.H + 'px')
+  const elements = new Map<string, CardEl>() // nameLower -> element
+  let layout: any = null
+  let theme: { edge: string; jumpEdge: string; highlight: string } = defaultTheme()
   let dpr = window.devicePixelRatio || 1
   let raf = 0
   let animUntil = 0
-  let lastEdges = []
-  let pending = null
-  let hoveredKey = null // identity of the edge under the cursor, for the hover highlight
+  let lastEdges: Edge[] = []
+  let pending: { a: Pt; b: Pt; zone: string } | null = null
+  let hoveredKey: string | null = null // identity of the edge under the cursor, for the hover highlight
 
   const panzoom = attachPanzoom(stage, (t) => {
     applyTransform(t)
     scheduleDraw()
   })
 
-  function applyTransform(t) {
+  function applyTransform(t: { s: number; tx: number; ty: number }) {
     world.style.transform = `translate(${t.tx}px, ${t.ty}px) scale(${t.s})`
   }
 
@@ -69,16 +106,16 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   const ro = new ResizeObserver(resizeCanvas)
   ro.observe(stage)
 
-  function setTheme(t) {
+  function setTheme(t: any) {
     theme = { ...defaultTheme(), ...(t || {}) }
     scheduleDraw()
   }
 
-  function setGraph(graph) {
+  function setGraph(graph: Graph) {
     hideRemove() // drop any stale hover highlight / unlink control from the old graph
     const prevFocus = layout ? layout.focus : null
     layout = computeLayout(graph)
-    const present = new Set()
+    const present = new Set<string>()
 
     // Newly-appearing cards emerge FROM the activating card (the new active thought) at
     // its current on-screen position, so new links grow out of the card you
@@ -92,7 +129,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     // Falls back to the center if the old active thought is gone too.
     let exitInto = { x: 0, y: 0 }
     if (prevFocus) {
-      const moved = layout.nodes.find((n) => n.name.toLowerCase() === prevFocus.toLowerCase())
+      const moved = layout.nodes.find((n: any) => n.name.toLowerCase() === prevFocus.toLowerCase())
       if (moved) exitInto = { x: moved.x, y: moved.y }
     }
 
@@ -136,11 +173,11 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   // Map each handle direction to the gate side on the card. Jump-position cards
   // sit to the LEFT of the active thought, so their jump connector meets their RIGHT side —
   // put the jump handle there too so it visually connects to its link.
-  const DIR_SIDE = { parent: 'top', child: 'bottom', jump: 'left' }
-  const jumpSide = (zone) => (zone === 'jump' ? 'right' : 'left')
+  const DIR_SIDE: Record<string, string> = { parent: 'top', child: 'bottom', jump: 'left' }
+  const jumpSide = (zone: string) => (zone === 'jump' ? 'right' : 'left')
 
   // Get the current world-center of a card element from its live CSS transform.
-  function liveCenterOf(el) {
+  function liveCenterOf(el: any): Pt {
     const t = getComputedStyle(el).transform
     if (t && t !== 'none') {
       try {
@@ -154,11 +191,11 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   }
 
   // Attach drag-to-connect behaviour to a handle element `h` belonging to card `el`.
-  function attachHandleDrag(h, el) {
+  function attachHandleDrag(h: HandleEl, el: CardEl) {
     // Prevent sub-threshold taps from bubbling to the card's click→activate.
     h.addEventListener('click', (e) => e.stopPropagation())
 
-    let drag = null
+    let drag: any = null
 
     h.addEventListener('pointerdown', (e) => {
       e.stopPropagation() // unconditional — prevents panzoom drag starting
@@ -206,7 +243,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
 
       // Resolve drop target via LIVE DOM (cards may be mid-transition).
       const tgt = document.elementFromPoint(e.clientX, e.clientY)
-      const nodeEl = tgt && tgt.closest('.synapses-node')
+      const nodeEl = (tgt && tgt.closest('.synapses-node')) as CardEl | null
       const toName = nodeEl && nodeEl._name
       if (toName && toName !== fromNode) {
         if (onLinkExisting) onLinkExisting(fromNode, toName, dir)
@@ -222,8 +259,8 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     })
   }
 
-  function makeNode() {
-    const el = document.createElement('div')
+  function makeNode(): CardEl {
+    const el = document.createElement('div') as CardEl
     el.className = 'synapses-node'
     const label = document.createElement('span')
     label.className = 'synapses-node-label'
@@ -236,7 +273,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     })
     el._handles = {}
     for (const [dir, side] of [['parent', 'top'], ['child', 'bottom'], ['jump', 'left']]) {
-      const h = document.createElement('div')
+      const h = document.createElement('div') as HandleEl
       h.className = 'synapses-handle handle-' + side + ' handle-empty'
       h._dir = dir
       h._side = side // current gate side; the jump handle flips per zone (updateNode)
@@ -248,7 +285,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     return el
   }
 
-  function updateNode(el, node) {
+  function updateNode(el: CardEl, node: any) {
     el._name = node.name
     el._zone = node.zone
     el._label.textContent = node.name
@@ -266,7 +303,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     }
   }
 
-  function positionEl(el, p) {
+  function positionEl(el: CardEl, p: Pt) {
     el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`
   }
 
@@ -274,7 +311,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     return new Set(elements.keys())
   }
 
-  function setHandles(adjacency, renderedNames) {
+  function setHandles(adjacency: Record<string, any>, renderedNames: Set<string>) {
     for (const [key, el] of elements) {
       if (!el._handles) continue
       const states = nodeHandleStates(adjacency[key], renderedNames)
@@ -294,7 +331,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   // snapping to the final layout.
   function liveLayout() {
     if (!layout) return null
-    const nodes = layout.nodes.map((n) => {
+    const nodes = layout.nodes.map((n: any) => {
       let x = n.x
       let y = n.y
       const el = elements.get(n.name.toLowerCase())
@@ -327,7 +364,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     draw()
     if (performance.now() < animUntil) scheduleDraw()
   }
-  function animateFor(ms) {
+  function animateFor(ms: number) {
     animUntil = performance.now() + ms
     scheduleDraw()
   }
@@ -351,7 +388,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   removeActions.style.display = 'none'
   removeActions.addEventListener('pointerdown', (e) => e.stopPropagation()) // don't let a click start a stage pan
   stage.appendChild(removeActions)
-  let hoveredEdge = null
+  let hoveredEdge: Edge | null = null
 
   function hideRemove() {
     removeActions.style.display = 'none'
@@ -367,14 +404,15 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     // Don't hit-test connectors while the cursor is over a card — a card sits on
     // top of its own connectors' endpoints, so hovering it would otherwise light
     // up (and arm removal of) a link the user isn't aiming at.
-    if (e.target && e.target.closest && e.target.closest('.synapses-node')) {
+    const tgt: any = e.target
+    if (tgt && tgt.closest && tgt.closest('.synapses-node')) {
       if (hoveredEdge) hideRemove()
       return
     }
     const rect = stage.getBoundingClientRect()
     const t = panzoom.getTransform()
     const worldPt = screenToWorld(t, e.clientX - rect.left, e.clientY - rect.top)
-    const edge = hitTest(worldPt, lastEdges, 10)
+    const edge = hitTest(worldPt, lastEdges, 10) as Edge | null
     if (!edge) {
       if (hoveredEdge) hideRemove()
       return
