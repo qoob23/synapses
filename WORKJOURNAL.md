@@ -4,6 +4,18 @@
 > 2026-06-26 when prepared for public release. Entries below predate the rename and use the old name
 > (`plex`, `:plex`, `src/plex/`, `.plex-*`); they're kept verbatim as a historical record.
 
+## 2026-06-26 — Phase 1: monorepo + TypeScript + editor-agnostic core (worktree → merge)
+- Restructured the project from a single Vite/JS tree into an **npm-workspaces monorepo** and migrated the codebase to **TypeScript (strict)**. Two packages: `@logseq-synapses/core` (editor-agnostic engine + view) and a thin `logseq-plugin` (the Logseq adapter).
+- **Extracted a fully editor-agnostic `@logseq-synapses/core`:** the graph link-index + race/patch machinery (pure index, debounced rebuild, `reconcilePatches` replay), ontology, history reducer, mutations, the generic transport, the entire view layer (cards/canvas/layout/panzoom/edges/edge-hit/handles/dialog/theme + scoped styles), and `mountSynapses`. The Logseq plugin now just wires this up.
+- **Two-seam architecture** — the design that makes a second editor cheap:
+    - The **view** consumes a high-level **`SynapsesBackend`** (query graph, mutate, history, events) and knows nothing about any editor.
+    - Each editor implements two low-level seams: a **`DataSource`** (read pages/properties, write properties, page-change events) and **`EditorServices`** (theme palette, asset storage, navigation).
+    - The shared **`createCoreBackend(dataSource, services)`** implements `SynapsesBackend` over those seams — so the link-index lifecycle, mutations, history, debounce, and event fan-out are written **once** and run identically in every editor. A new editor only supplies `DataSource` + `EditorServices`.
+- **Logseq behaviour unchanged.** The iframe/postMessage M↔P split is now a **generic transport in core** (`startServer`/`createClient` over a pluggable message channel); the Logseq plugin keeps its two-document split (registered "main" + injected sidebar iframe) and reuses it verbatim.
+- **Tests 77 → 88** (14 files): added link-index, mutations-orchestration, transport-wiring, and backend-assembly suites. Dead `nodeDegrees` dropped (had no test, no count change). Core source is **node-free AND editor-SDK-free at typecheck**, enforced by guard greps (`@logseq/libs` / `obsidian` / `node:` all clean in `packages/core/src`); the CSS↔NODE parity guard reads `styles.css` via a Vite `?raw` import instead of `node:fs` so core stays node-free.
+- **Cutover:** deleted the old `src/` tree, root `index.html` / `synapses.html` / `vite.config.js`. `npm test` (88), `npm run typecheck` (both projects), and `npm run build` (core `tsc -b` + `logseq-plugin` Vite → `dist/{index,synapses}.html`) all clean.
+- **Pending (live-only, no headless harness):** validate the rebuilt Logseq plugin (`packages/logseq-plugin`) in a real Logseq 0.10.x instance — follow/activate, history + breadcrumb, create/link/remove, theme + dark mode, sidebar width/drag. **Phase 2** (an Obsidian backend via Dataview — a second `DataSource` + `EditorServices` against the same core) is next: designed-in by the two-seam split, not yet built.
+
 ## 2026-06-25
 - Built **logseq-plex**, a TheBrain-style "plex" plugin for the Logseq 0.10.15 Markdown graph (greenfield; Vite + vanilla JS, no React/SVG).
 - Architecture: plex UI runs in an `<iframe>` injected into a right-sidebar `{{renderer :plex}}` slot, talking to the plugin's main context over a postMessage RPC bridge.
