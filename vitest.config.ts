@@ -7,7 +7,7 @@ export default defineConfig({
     // CSS<->NODE parity guard read styles.css without node:fs, keeping core
     // source editor-agnostic / node-free at typecheck.
     css: true,
-    include: ['src/**/*.test.{js,ts}', 'packages/**/src/**/*.test.ts'],
+    include: ['packages/**/src/**/*.test.ts'],
     exclude: [...configDefaults.exclude, '**/.claude/**', '**/dist/**'],
   },
 })

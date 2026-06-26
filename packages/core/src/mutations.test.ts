@@ -42,6 +42,25 @@ describe('createMutations', () => {
     expect(patch).toHaveBeenCalledWith('A', 'child', 'B')
   })
 
+  it('createChild merges onto an existing child list, keeping the originals', async () => {
+    const ds = spyDataSource({ A: { child: ['B'] } })
+    const patch = vi.fn()
+    const mut = createMutations(ds, { patchIndex: patch, patchRemove: vi.fn() } as any, () => ONT)
+    await mut.createChild('A', 'C')
+    expect(ds.sets).toContainEqual(['A', 'child', ['B', 'C']]) // merged, original kept
+    expect(patch).toHaveBeenCalledWith('A', 'child', 'C')
+  })
+
+  it('removeLink rewrites the key with the remainder when other targets remain', async () => {
+    const ds = spyDataSource({ A: { child: ['B', 'C'] } })
+    const patchRemove = vi.fn()
+    const mut = createMutations(ds, { patchIndex: vi.fn(), patchRemove } as any, () => ONT)
+    await mut.removeLink('A', 'B', 'child')
+    expect(ds.sets).toContainEqual(['A', 'child', ['C']]) // rewrite with the remainder
+    expect(ds.removes).not.toContainEqual(['A', 'child']) // NOT removed wholesale
+    expect(patchRemove).toHaveBeenCalledWith('A', 'child', 'B')
+  })
+
   it('removeLink strips the alias key on both sides and patches removal', async () => {
     const ds = spyDataSource({ A: { up: ['P'] }, P: { child: ['A'] } })
     const patchRemove = vi.fn()

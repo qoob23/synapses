@@ -105,13 +105,21 @@ export function createClient(
 
 // ---- typed SynapsesBackend serve/proxy layer ----
 
-export const BACKEND_METHODS: (keyof SynapsesBackend)[] = [
+export const BACKEND_METHODS = [
   'getActivePage', 'getTheme', 'buildGraph', 'nodeAdjacency', 'histState', 'histPush', 'histJump',
   'navigate', 'createChild', 'createParent', 'createJump', 'linkExisting', 'removeLink', 'searchPages',
-]
-export const BACKEND_EVENTS: BackendEvent[] = ['recenter', 'theme', 'refresh']
+] as const satisfies readonly Exclude<keyof SynapsesBackend, 'on'>[]
 
-export function buildHandlerMap(backend: SynapsesBackend, methods: (keyof SynapsesBackend)[]) {
+// Compile-time completeness: every SynapsesBackend method (except `on`) MUST be listed above.
+// If a method is added to SynapsesBackend but not to BACKEND_METHODS, this line fails to compile.
+type _BackendMethodsAreComplete =
+  Exclude<keyof SynapsesBackend, 'on'> extends (typeof BACKEND_METHODS)[number] ? true : never
+const _backendMethodsAreComplete: _BackendMethodsAreComplete = true
+void _backendMethodsAreComplete
+
+export const BACKEND_EVENTS = ['recenter', 'theme', 'refresh'] as const satisfies readonly BackendEvent[]
+
+export function buildHandlerMap(backend: SynapsesBackend, methods: readonly (keyof SynapsesBackend)[]) {
   const map: Record<string, (...a: any[]) => any> = {}
   for (const m of methods) map[m as string] = (...args: any[]) => (backend[m] as any)(...args)
   return map
@@ -120,8 +128,8 @@ export function buildHandlerMap(backend: SynapsesBackend, methods: (keyof Synaps
 export function buildProxy(
   call: (method: string, ...args: any[]) => Promise<any>,
   onEventRegister: (handler: (m: string, p: any) => void) => void,
-  methods: (keyof SynapsesBackend)[],
-  events: BackendEvent[],
+  methods: readonly (keyof SynapsesBackend)[],
+  events: readonly BackendEvent[],
 ): SynapsesBackend {
   const listeners = new Map<BackendEvent, Set<(p?: any) => void>>(events.map((e) => [e, new Set()]))
   onEventRegister((m, p) => { const s = listeners.get(m as BackendEvent); if (s) s.forEach((fn) => fn(p)) })
