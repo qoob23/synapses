@@ -4,6 +4,8 @@ dist/
 packages/obsidian-plugin/main.js
 packages/obsidian-plugin/main.css
 packages/obsidian-plugin/styles.css
+# Obsidian writes plugin runtime data (settings/history) into the plugin dir at runtime
+packages/obsidian-plugin/data.json
 *.tsbuildinfo
 *.log
 .DS_Store
