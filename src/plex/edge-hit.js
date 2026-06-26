@@ -47,11 +47,30 @@ export function distToEdge(p, edge) {
   return min
 }
 
+// The point on an edge's bézier at parameter t (same control points as the
+// drawn curve). Used to anchor the floating unlink control toward the non-focus
+// card (t > 0.5) instead of at the straight midpoint where edges bunch up.
+export function pointOnEdge(edge, t) {
+  let c1
+  let c2
+  const { a, b, zone } = edge
+  if (zone === 'parent' || zone === 'child') {
+    const midY = (a.y + b.y) / 2
+    c1 = { x: a.x, y: midY }
+    c2 = { x: b.x, y: midY }
+  } else {
+    const midX = (a.x + b.x) / 2
+    c1 = { x: midX, y: a.y }
+    c2 = { x: midX, y: b.y }
+  }
+  return cubic(a, c1, c2, b, t)
+}
+
 export function hitTest(p, edges, threshold) {
   let best = null
   let bestD = threshold
   for (const e of edges || []) {
-    if (e.role === 'sibling') continue // computed; not directly removable
+    if (!e.remove) continue // computed/not removable (e.g. parentless sibling)
     const d = distToEdge(p, e)
     if (d <= bestD) {
       bestD = d

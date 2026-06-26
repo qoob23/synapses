@@ -8,6 +8,7 @@ const BAND_Y = 210 // vertical distance to the parent/child rows (space BETWEEN 
 const BAND_X = 360 // horizontal distance to the jump/sibling columns (space BETWEEN groups)
 const GAP_X = 224 // horizontal gap between nodes in a row (space WITHIN a group; >= NODE.W)
 const GAP_Y = 54 // vertical gap between nodes in a column (space WITHIN a group; >= NODE.H)
+const CHILD_COL_GAP = 300 // horizontal gap between the two children columns (> GAP_X for a clear split; >= NODE.W)
 
 function rowPositions(names, y) {
   const n = names.length
@@ -32,7 +33,7 @@ export function gridPositions(names, y0, { cols = 2, colGap = GAP_X, rowGap = NO
 export function computeLayout(graph) {
   const raw = [{ name: graph.focus, x: 0, y: 0, zone: 'focus' }]
   for (const p of rowPositions(graph.parents || [], -BAND_Y)) raw.push({ ...p, zone: 'parent' })
-  for (const c of gridPositions(graph.children || [], BAND_Y)) raw.push({ ...c, zone: 'child' })
+  for (const c of gridPositions(graph.children || [], BAND_Y, { colGap: CHILD_COL_GAP })) raw.push({ ...c, zone: 'child' })
   for (const j of colPositions(graph.jumps || [], -BAND_X)) raw.push({ ...j, zone: 'jump' })
   const siblingParent = graph.siblingParent || {}
   for (const s of colPositions(graph.siblings || [], BAND_X)) {

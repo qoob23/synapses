@@ -25,8 +25,17 @@ export function gatePoint(node, side) {
   }
 }
 
+// Stable, case-insensitive identity for an edge (role + neighbor) — used to
+// match the hovered edge across re-computed edge lists for the hover highlight.
+export function edgeKey(e) {
+  return e ? e.role + ':' + String(e.neighbor || '').toLowerCase() : null
+}
+
 // Pure: turn a (live) layout into a retained list of edges with world-space
-// endpoints + metadata, so the same list can be drawn AND hit-tested.
+// endpoints + metadata, so the same list can be drawn AND hit-tested. Each
+// removable edge carries a `remove` descriptor {from, to, role} naming the
+// relationship to strip — for siblings that's the (shared parent → sibling)
+// child link, not a focus↔sibling link (which is only computed).
 export function computeEdges(layout) {
   if (!layout) return []
   const focus = layout.nodes.find((n) => n.zone === 'focus')
@@ -37,22 +46,25 @@ export function computeEdges(layout) {
 
     // Siblings connect to their shared PARENT, not the focus.
     if (n.zone === 'sibling') {
+      const parentName = n.via ? String(n.via) : null
       const via =
-        n.via &&
+        parentName &&
         layout.nodes.find(
-          (m) => m.zone === 'parent' && m.name.toLowerCase() === String(n.via).toLowerCase(),
+          (m) => m.zone === 'parent' && m.name.toLowerCase() === parentName.toLowerCase(),
         )
+      // Removable iff we know the shared parent: unlink the sibling FROM it.
+      const remove = parentName ? { from: parentName, to: n.name, role: 'child' } : null
       if (via) {
-        edges.push({ a: gatePoint(via, 'bottom'), b: gatePoint(n, 'top'), neighbor: n.name, role: 'sibling', zone: 'child', via: true })
+        edges.push({ a: gatePoint(via, 'bottom'), b: gatePoint(n, 'top'), neighbor: n.name, role: 'sibling', zone: 'child', via: true, remove })
       } else {
-        edges.push({ a: gatePoint(focus, 'right'), b: gatePoint(n, 'left'), neighbor: n.name, role: 'sibling', zone: 'sibling', via: false })
+        edges.push({ a: gatePoint(focus, 'right'), b: gatePoint(n, 'left'), neighbor: n.name, role: 'sibling', zone: 'sibling', via: false, remove })
       }
       continue
     }
 
     const g = GATES[n.zone]
     if (!g) continue
-    edges.push({ a: gatePoint(focus, g.focus), b: gatePoint(n, g.node), neighbor: n.name, role: n.zone, zone: n.zone, via: false })
+    edges.push({ a: gatePoint(focus, g.focus), b: gatePoint(n, g.node), neighbor: n.name, role: n.zone, zone: n.zone, via: false, remove: { from: focus.name, to: n.name, role: n.zone } })
   }
   return edges
 }
@@ -71,8 +83,10 @@ function curve(ctx, a, b, zone) {
 }
 
 // Draw the retained edges in world space (sharing the node transform), plus an
-// optional dashed drag-preview line. Endpoint dots are superseded by DOM handles.
-export function drawEdges(ctx, edges, transform, theme, dpr, pending) {
+// optional dashed drag-preview line. The edge whose key matches `highlightKey`
+// (the one under the cursor) is drawn thicker in the accent colour. Endpoint
+// dots are superseded by DOM handles.
+export function drawEdges(ctx, edges, transform, theme, dpr, pending, highlightKey) {
   const canvas = ctx.canvas
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -80,14 +94,20 @@ export function drawEdges(ctx, edges, transform, theme, dpr, pending) {
   const { s, tx, ty } = transform
   ctx.setTransform(s * dpr, 0, 0, s * dpr, tx * dpr, ty * dpr)
 
-  ctx.lineWidth = 1.5
   for (const e of edges || []) {
-    ctx.strokeStyle = e.role === 'jump' || e.role === 'sibling' ? theme.jumpEdge : theme.edge
+    const hot = highlightKey && edgeKey(e) === highlightKey
+    ctx.lineWidth = hot ? 2.5 : 1.5
+    ctx.strokeStyle = hot
+      ? theme.highlight
+      : e.role === 'jump' || e.role === 'sibling'
+        ? theme.jumpEdge
+        : theme.edge
     curve(ctx, e.a, e.b, e.zone)
   }
 
   if (pending) {
     ctx.save()
+    ctx.lineWidth = 1.5
     ctx.strokeStyle = theme.edge
     ctx.setLineDash([6, 4])
     curve(ctx, pending.a, pending.b, pending.zone || 'jump')

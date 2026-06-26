@@ -72,6 +72,14 @@ describe('computeLayout', () => {
     expect(kids[1].x - kids[0].x).toBeGreaterThanOrEqual(NODE.W)
   })
 
+  it('children columns are spaced wider than adjacent in-row parents', () => {
+    const g = { focus: 'F', parents: ['p1', 'p2'], children: ['c1', 'c2'], jumps: [], siblings: [], siblingParent: {} }
+    const nodes = computeLayout(g).nodes
+    const kids = nodes.filter((n) => n.zone === 'child').sort((a, b) => a.x - b.x)
+    const parents = nodes.filter((n) => n.zone === 'parent').sort((a, b) => a.x - b.x)
+    expect(kids[1].x - kids[0].x).toBeGreaterThan(parents[1].x - parents[0].x)
+  })
+
   it('adjacent jumps (sorted by y) are at least NODE.H apart (no vertical overlap)', () => {
     const g = { focus: 'F', parents: [], children: [], jumps: ['j1', 'j2', 'j3'], siblings: [], siblingParent: {} }
     const jumps = computeLayout(g).nodes.filter((n) => n.zone === 'jump').sort((a, b) => a.y - b.y)

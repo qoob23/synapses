@@ -1,13 +1,17 @@
 import { computeLayout, NODE } from './layout.js'
-import { computeEdges, drawEdges, gatePoint } from './edges.js'
+import { computeEdges, drawEdges, gatePoint, edgeKey } from './edges.js'
 import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom.js'
-import { hitTest } from './edge-hit.js'
+import { hitTest, pointOnEdge } from './edge-hit.js'
 import { nodeHandleStates } from './handles.js'
 
 const TRANSITION_MS = 840
 
+// How far along an edge (focus → neighbor) the unlink control sits: biased toward
+// the non-focus card so the controls of fanned-out edges don't pile up at center.
+const UNLINK_T = 0.78
+
 function defaultTheme() {
-  return { edge: 'rgba(127,127,127,0.55)', jumpEdge: 'rgba(127,127,127,0.32)' }
+  return { edge: 'rgba(127,127,127,0.55)', jumpEdge: 'rgba(127,127,127,0.32)', highlight: 'rgba(240,190,30,0.95)' }
 }
 
 // Renders the plex: HTML <div> nodes in a transformed world + a <canvas> edge
@@ -30,6 +34,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   let animUntil = 0
   let lastEdges = []
   let pending = null
+  let hoveredKey = null // identity of the edge under the cursor, for the hover highlight
 
   const panzoom = attachPanzoom(stage, (t) => {
     applyTransform(t)
@@ -68,6 +73,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
   }
 
   function setGraph(graph) {
+    hideRemove() // drop any stale hover highlight / unlink control from the old graph
     const prevFocus = layout ? layout.focus : null
     layout = computeLayout(graph)
     const present = new Set()
@@ -125,8 +131,11 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     animateFor(TRANSITION_MS + 40)
   }
 
-  // Map each handle direction to the gate side on the node.
+  // Map each handle direction to the gate side on the node. Jump-position cards
+  // sit to the LEFT of the focus, so their jump edge meets their RIGHT side —
+  // put the jump handle there too so it visually connects to its link.
   const DIR_SIDE = { parent: 'top', child: 'bottom', jump: 'left' }
+  const jumpSide = (zone) => (zone === 'jump' ? 'right' : 'left')
 
   // Get the current world-center of a node element from its live CSS transform.
   function liveCenterOf(el) {
@@ -153,7 +162,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
       e.stopPropagation() // unconditional — prevents panzoom drag starting
       h.setPointerCapture(e.pointerId)
       const center = liveCenterOf(el)
-      const anchorWorld = gatePoint(center, DIR_SIDE[h._dir])
+      const anchorWorld = gatePoint(center, h._side || DIR_SIDE[h._dir])
       drag = {
         pointerId: e.pointerId,
         startX: e.clientX,
@@ -228,6 +237,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
       const h = document.createElement('div')
       h.className = 'plex-handle handle-' + side + ' handle-empty'
       h._dir = dir
+      h._side = side // current gate side; the jump handle flips per zone (updateNode)
       el.appendChild(h)
       el._handles[dir] = h
       attachHandleDrag(h, el)
@@ -243,6 +253,15 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     el.title =
       node.zone === 'focus' ? `Open "${node.name}" in the main pane` : `Recenter on "${node.name}"`
     el.className = 'plex-node zone-' + node.zone
+    // Keep the jump handle on the side its link actually meets (right for cards
+    // shown at jump position, left otherwise).
+    const jh = el._handles && el._handles.jump
+    const side = jumpSide(node.zone)
+    if (jh && jh._side !== side) {
+      jh.classList.remove('handle-' + jh._side)
+      jh.classList.add('handle-' + side)
+      jh._side = side
+    }
   }
 
   function positionEl(el, p) {
@@ -296,7 +315,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
 
   function draw() {
     lastEdges = computeEdges(liveLayout())
-    drawEdges(ctx, lastEdges, panzoom.getTransform(), theme, dpr, pending)
+    drawEdges(ctx, lastEdges, panzoom.getTransform(), theme, dpr, pending, hoveredKey)
   }
   function scheduleDraw() {
     if (!raf) raf = requestAnimationFrame(loop)
@@ -337,6 +356,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     removeActions.classList.remove('confirm')
     removeBtn.textContent = '×'
     hoveredEdge = null
+    if (hoveredKey) { hoveredKey = null; scheduleDraw() } // clear the hover highlight
   }
 
   stage.addEventListener('mousemove', (e) => {
@@ -351,10 +371,13 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
       return
     }
     hoveredEdge = edge
-    const midWorld = { x: (edge.a.x + edge.b.x) / 2, y: (edge.a.y + edge.b.y) / 2 }
-    const midScreen = worldToScreen(t, midWorld.x, midWorld.y)
-    removeActions.style.left = midScreen.x + 'px'
-    removeActions.style.top = midScreen.y + 'px'
+    const key = edgeKey(edge)
+    if (key !== hoveredKey) { hoveredKey = key; scheduleDraw() } // highlight the hovered link
+    // Anchor the control toward the non-focus card (UNLINK_T along the curve).
+    const at = pointOnEdge(edge, UNLINK_T)
+    const atScreen = worldToScreen(t, at.x, at.y)
+    removeActions.style.left = atScreen.x + 'px'
+    removeActions.style.top = atScreen.y + 'px'
     removeActions.style.display = 'flex'
   })
 
@@ -368,7 +391,7 @@ export function createView({ world, canvas, stage, onNavigate, onOpenMain, onRem
     }
     const edge = hoveredEdge
     hideRemove()
-    if (onRemoveLink) onRemoveLink(edge.neighbor, edge.role)
+    if (onRemoveLink && edge.remove) onRemoveLink(edge.remove)
   })
   cancelBtn.addEventListener('click', (e) => {
     e.stopPropagation()

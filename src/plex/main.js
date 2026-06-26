@@ -53,9 +53,9 @@ const view = createView({
   stage: els.stage,
   onNavigate: (name) => goto(name),
   onOpenMain: (name) => client.call('navigate', name).catch(() => {}),
-  onRemoveLink: (neighbor, role) =>
+  onRemoveLink: ({ from, to, role }) =>
     client
-      .call('removeLink', focus, neighbor, role)
+      .call('removeLink', from, to, role)
       .then(() => goto(focus, { noHistory: true }))
       .catch(() => {}),
   onLinkExisting: (fromNode, toNode, role) =>

@@ -169,6 +169,8 @@ body {
   box-sizing: border-box;
   cursor: pointer;
   z-index: 5;
+  /* Short, springy grow on hover (slight overshoot) instead of an instant jump. */
+  transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .plex-handle::before { /* enlarged invisible grab/hover radius */
   content: "";
@@ -182,10 +184,18 @@ body {
 .handle-top    { top: -6px;  left: 50%; margin-left: -6px; }
 .handle-bottom { bottom: -6px; left: 50%; margin-left: -6px; }
 .handle-left   { left: -6px; top: 50%;  margin-top: -6px; }
+.handle-right  { right: -6px; top: 50%;  margin-top: -6px; }
 .handle-empty { background: transparent; border: 2px solid var(--plex-accent); }
 .handle-shown { background: var(--plex-accent); border: 2px solid var(--plex-accent); }
 .handle-more  { background: var(--plex-dot-hidden, #2ecc71); border: 2px solid var(--plex-dot-hidden, #2ecc71); }
 .plex-handle:hover { transform: scale(2); }
+/* Reduced-motion: snap the hover scale (placed AFTER the base rule so it wins on
+   equal specificity). */
+@media (prefers-reduced-motion: reduce) {
+  .plex-handle {
+    transition: none;
+  }
+}
 
 /* ---- edge remove / cancel buttons ---- */
 .plex-edge-actions {
