@@ -44,7 +44,7 @@
 - **Terminology pass (docs):** canonical glossary in `CLAUDE.md` — thought / card / link / connector / active thought / activate / recenter; `edge` kept as code term; code symbols preserved verbatim. Comments swept to match.
 - Process: heavy use of subagent-driven TDD + multi-agent adversarial reviews. Build clean throughout; tests 22→106 across the day.
 
-## 2026-06-27 — Obsidian breadcrumb fixes
-- Both fixes in **shared core**, so Logseq inherits them:
+## 2026-06-27 — Obsidian breadcrumb fixes + Logseq bridge/theme fix + BRAT release workflow
+- Both breadcrumb fixes in **shared core**, so Logseq inherits them:
     - **Breadcrumb was clipped in Obsidian** — `#synapses-app { height: 100vh }` overflowed the leaf `contentEl` (a rendering, not data, bug). Fixed by filling the **container** (`height: 100%`) + `html,body{height:100%}` in `synapses.html` so the `%` chain resolves.
     - **Crumb click now re-activates** (move-to-rightmost) instead of highlighting in place; back/forward arrows stay pointer-move.

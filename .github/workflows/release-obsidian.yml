@@ -1,0 +1,55 @@
+name: Release Obsidian plugin
+
+on:
+  push:
+    tags:
+      - '[0-9]*'    # e.g. 0.0.1
+
+permissions:
+  contents: write   # required to create the GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build core + obsidian plugin
+        run: |
+          npm run build -w @logseq-synapses/core
+          npm run build -w obsidian-plugin
+
+      - name: Verify release assets exist
+        working-directory: packages/obsidian-plugin
+        run: |
+          for f in manifest.json main.js styles.css; do
+            test -f "$f" || { echo "::error::missing build artifact: $f"; exit 1; }
+          done
+
+      - name: Verify tag matches manifest version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./packages/obsidian-plugin/manifest.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag '$GITHUB_REF_NAME' (=$tag) does not match manifest version '$version'. Bump packages/obsidian-plugin/manifest.json or retag."
+            exit 1
+          fi
+
+      - name: Publish GitHub Release with plugin assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Synapses Obsidian plugin $GITHUB_REF_NAME. Install or update via BRAT (add this repository), or copy manifest.json + main.js + styles.css into your vault's .obsidian/plugins/synapses/ folder." \
+            packages/obsidian-plugin/manifest.json \
+            packages/obsidian-plugin/main.js \
+            packages/obsidian-plugin/styles.css
