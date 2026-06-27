@@ -1,33 +1,20 @@
 # Backlog
 
-## Card distribution should adapt to the panel aspect ratio (esp. tall/narrow panels)
+## ✅ Card distribution adapts to the panel aspect ratio — DONE (2026-06-27)
 
-**Status:** later (flagged 2026-06-27 with desired-vs-actual screenshots).
+Reworked the responsive layout into **zoned vertical bands**: parents TOP, jumps/siblings
+MIDDLE (centred on the focus, hugging the L/R edges), children BOTTOM. Because the four
+directional zones are Y-separated, they can't overlap however wide the cards get — which
+also frees the children grid to spread wide without pushing the side columns off-screen.
+Children keep a 2-column grid with a responsive `childGap`. See `computeSpacing` in
+`packages/core/src/view/layout.ts`; covered by the "keeps the four zones from overlapping"
+tests.
 
-**Desired** (ExcaliBrain-style): cards spread to use the *whole* canvas — active thought
-centered, parent(s) above, jumps balanced down the left, children/siblings balanced down
-the right, vertical AND horizontal space filled, no overlaps.
-
-**Actual** (Obsidian sidebar, a tall/narrow portrait panel): the four zones (parents = top
-row, children = bottom grid, jumps = left column, siblings = right column) don't have
-enough *horizontal* room, so:
-- The left jump column (pulled in to `minBandX` on a narrow panel) and the bottom child
-  grid's left column land in overlapping screen regions → **cards overlap** (e.g.
-  "Nicomachean Ethics" / "Ethics" sitting on top of each other).
-- The layout reads lopsided — most cards crammed left, the right half underused — instead
-  of the balanced left/right fill in the desired shot.
-
-**Insight to use:** the panel often has *more vertical than horizontal* space. The current
-responsive spacing fills each axis independently but keeps the fixed top/bottom/left/right
-zone assignment, which fits a landscape panel, not a portrait one.
-
-**Fix directions (decide later):**
-- Make zone placement aspect-ratio-aware: on a portrait panel, give the left/right columns
-  more horizontal separation (or distribute jumps+siblings into taller, well-separated
-  columns) and ensure the child grid can't collide with the side columns.
-- Guarantee no cross-zone overlap (the bottom child grid vs. the side columns) — today
-  only within-zone spacing is collision-checked.
-- Consider matching ExcaliBrain's balanced fill more directly.
-
-Self-contained context lives in the responsive `computeSpacing` in
-`packages/core/src/view/layout.ts` (`bandX`/`bandY`/`step` clamps) — start there.
+### Follow-ups (smaller, later)
+- Tune the constants on real graphs: `MAX_BAND_X/Y`, `MIN/MAX_VGAP`, `MIN/MAX_CHILD_GAP`,
+  `PAD_X/Y`, and the `childGap = vp.w * 0.16` factor.
+- Narrow panel + many wide children: the 2-column grid can exceed the panel width and rely
+  on pan. If that feels bad, consider shrinking `childGap` further (or a 1-column fallback)
+  below a width threshold.
+- Many jumps/siblings on a short panel: `colStep` floors and the column can spill past the
+  middle band (harmless at the edges, but worth revisiting if it ever reaches the children).

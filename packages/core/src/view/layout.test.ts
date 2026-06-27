@@ -194,3 +194,49 @@ describe('computeLayout fills the panel (responsive spacing)', () => {
     expect(big.bbox.maxY - big.bbox.minY).toBe(80)
   })
 })
+
+// Zoned bands: parents top, jumps/siblings middle (centred), children bottom — Y-separated
+// so they can never overlap, and the children keep a clearly-split 2-column grid.
+describe('computeLayout keeps the four zones from overlapping', () => {
+  const cardH = 28
+  // Two NODE.W×cardH boxes overlap iff they're inside each other on BOTH axes.
+  const overlap = (a: any, b: any) =>
+    Math.abs(a.x - b.x) < (a.w + b.w) / 2 - 0.5 && Math.abs(a.y - b.y) < cardH - 0.5
+
+  it('produces no overlapping cards in a tall/narrow (portrait) panel', () => {
+    const g = {
+      focus: 'F', parents: ['P'],
+      children: ['c1', 'c2', 'c3', 'c4'],
+      jumps: ['j1', 'j2', 'j3'], siblings: ['s1', 's2'], siblingParent: {},
+    }
+    const nodes = computeLayout(g, undefined, { viewport: { w: 420, h: 1100 }, cardH }).nodes
+    for (let i = 0; i < nodes.length; i++)
+      for (let j = i + 1; j < nodes.length; j++)
+        expect(overlap(nodes[i], nodes[j])).toBe(false)
+  })
+
+  it('keeps jumps/siblings (middle band) clear of the children (bottom band) by Y', () => {
+    const g = {
+      focus: 'F', parents: [],
+      children: ['c1', 'c2', 'c3', 'c4'],
+      jumps: ['j1', 'j2', 'j3', 'j4'], siblings: ['s1', 's2', 's3', 's4'], siblingParent: {},
+    }
+    const nodes = computeLayout(g, undefined, { viewport: { w: 500, h: 900 }, cardH }).nodes
+    const lowestSide = Math.max(...nodes.filter((n) => n.zone === 'jump' || n.zone === 'sibling').map((n) => n.y))
+    const highestChild = Math.min(...nodes.filter((n) => n.zone === 'child').map((n) => n.y))
+    expect(highestChild - lowestSide).toBeGreaterThanOrEqual(cardH) // a full card-height of clearance
+  })
+
+  it('children stay in two columns and widen their split on a roomy panel', () => {
+    const g = { focus: 'F', children: ['c1', 'c2', 'c3', 'c4'], parents: [], jumps: [], siblings: [], siblingParent: {} }
+    const cols = (w: number) => {
+      const kids = computeLayout(g, undefined, { viewport: { w, h: 900 }, cardH }).nodes.filter((n) => n.zone === 'child')
+      return [...new Set(kids.map((n) => n.x))].sort((a, b) => a - b)
+    }
+    const narrow = cols(520)
+    const wide = cols(1500)
+    expect(narrow.length).toBe(2) // two distinct columns
+    expect(wide.length).toBe(2)
+    expect(wide[1] - wide[0]).toBeGreaterThan(narrow[1] - narrow[0]) // wider split on a roomy panel
+  })
+})
