@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { clampDialogPosition } from './dialog'
+import { clampDialogPosition, nextHighlight } from './dialog'
+
+describe('nextHighlight', () => {
+  it('moves down within range', () => { expect(nextHighlight(0, 3, 1)).toBe(1) })
+  it('clamps at the top', () => { expect(nextHighlight(0, 3, -1)).toBe(0) })
+  it('clamps at the bottom', () => { expect(nextHighlight(2, 3, 1)).toBe(2) })
+  it('moves up within range', () => { expect(nextHighlight(1, 3, -1)).toBe(0) })
+  it('returns -1 for an empty list', () => { expect(nextHighlight(0, 0, 1)).toBe(-1) })
+})
 
 describe('clampDialogPosition', () => {
   const box = { w: 420, h: 200 }

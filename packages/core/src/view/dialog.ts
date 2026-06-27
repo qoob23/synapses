@@ -6,6 +6,15 @@ function div(cls: string) {
   return d
 }
 
+// Clamp a highlight index by `delta` within [0, len-1]; -1 when the list is empty.
+export function nextHighlight(current: number, len: number, delta: number): number {
+  if (len <= 0) return -1
+  const next = current + delta
+  if (next < 0) return 0
+  if (next > len - 1) return len - 1
+  return next
+}
+
 // Position a dialog box with its top-center at `at`, clamped fully on-screen.
 export function clampDialogPosition(
   at: { x: number; y: number },
