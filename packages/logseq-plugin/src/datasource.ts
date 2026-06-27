@@ -47,7 +47,18 @@ export function createLogseqDataSource(): DataSource {
       await (logseq as any).Editor.removeBlockProperty(uuid, key)
     },
     async pageExists(name) {
-      try { return !!(await (logseq as any).Editor.getPage(name)) } catch { return false }
+      // A deleted .md file can leave a lingering datascript page entity behind — Logseq
+      // keeps referenced pages in the DB without a backing file — so getPage() alone
+      // reports phantom existence, the history pruner never fires, and navigating the
+      // dead entry re-materialises an empty file. Treat a page as existing only if it has
+      // a backing file, or failing that any blocks on disk.
+      try {
+        const page: any = await (logseq as any).Editor.getPage(name)
+        if (!page) return false
+        if (page.file) return true
+        const tree = await (logseq as any).Editor.getPageBlocksTree(name)
+        return Array.isArray(tree) && tree.length > 0
+      } catch { return false }
     },
     async searchPages(q) {
       const query = String(q || '').toLowerCase().trim(); if (!query) return []
