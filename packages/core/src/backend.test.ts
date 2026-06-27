@@ -59,26 +59,26 @@ describe('createCoreBackend', () => {
     expect(recenter).toHaveBeenCalledWith({ page: 'Z' })
   })
 
-  it('getZoom returns null when unset', async () => {
+  it('getSize returns null when unset', async () => {
     const { ds, services } = fakes()
     const be = createCoreBackend(ds, services)
-    expect(await be.getZoom()).toBeNull()
+    expect(await be.getSize()).toBeNull()
   })
 
-  it('setZoom then getZoom round-trips through persistence (debounced)', async () => {
+  it('setSize then getSize round-trips the level through persistence (debounced)', async () => {
     const { ds, services } = fakes()
     const be = createCoreBackend(ds, services)
-    await be.setZoom(1.6)
+    await be.setSize(3)
     await vi.advanceTimersByTimeAsync(300)
-    expect(await be.getZoom()).toBe(1.6)
+    expect(await be.getSize()).toBe(3)
   })
 
-  it('setZoom(null) clears the remembered zoom immediately (Reset zoom)', async () => {
+  it('setSize(null) clears the remembered size immediately (reset to default)', async () => {
     const { ds, services } = fakes()
     const be = createCoreBackend(ds, services)
-    await be.setZoom(1.6)
+    await be.setSize(3)
     await vi.advanceTimersByTimeAsync(300)
-    await be.setZoom(null) // immediate, no debounce
-    expect(await be.getZoom()).toBeNull()
+    await be.setSize(null) // immediate, no debounce
+    expect(await be.getSize()).toBeNull()
   })
 })

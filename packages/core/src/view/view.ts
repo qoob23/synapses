@@ -50,8 +50,8 @@ export function createView({
   onRemoveLink,
   onLinkExisting,
   onCreateAt,
-  initialZoom,
-  onZoomChange,
+  initialSize,
+  onSizeChange,
 }: {
   root: HTMLElement
   world: HTMLElement
@@ -62,15 +62,33 @@ export function createView({
   onRemoveLink?: (remove: EdgeRemove) => void
   onLinkExisting?: (from: string, to: string, role: string) => void
   onCreateAt?: (fromNode: string, dir: string, at: Pt | null) => void
-  initialZoom?: number | null
-  onZoomChange?: (s: number) => void
+  initialSize?: number | null
+  onSizeChange?: (level: number) => void
 }) {
   const ctx = canvas.getContext('2d')!
-  // Card HEIGHT is fixed (titles are single-line), so its CSS fallback tracks NODE.H.
-  // Card WIDTH is content-sized (fit-content) up to a generous constant cap in
-  // styles.css (--synapses-node-maxw); past it the label clamps and gets a tooltip.
-  root.style.setProperty('--synapses-node-h', NODE.H + 'px')
+
+  // Discrete size level (replaces zoom): scales card + text together via CSS vars, and
+  // feeds the live card height into the layout. The spacing then re-fills the panel
+  // around the new card size (see relayout). Persisted via onSizeChange.
+  const SIZE_FACTORS = [0.8, 0.9, 1.0, 1.15, 1.3]
+  const BASE_FONT_REM = 1.7 // matches styles.css --synapses-node-font fallback
+  const BASE_MAXW = 480 // matches styles.css --synapses-node-maxw fallback
+  const clampLevel = (l: number) => Math.max(0, Math.min(SIZE_FACTORS.length - 1, Math.round(l)))
+  let sizeLevel = initialSize == null ? SIZE_FACTORS.indexOf(1.0) : clampLevel(initialSize)
+  const sizeFactor = () => SIZE_FACTORS[sizeLevel]
+  const cardHpx = () => Math.round(NODE.H * sizeFactor())
+  // Card WIDTH is content-sized (fit-content) up to a level-scaled cap; past it the
+  // label clamps and gets a tooltip. HEIGHT/FONT/CAP all scale with the size level.
+  function applySizeVars() {
+    const f = sizeFactor()
+    root.style.setProperty('--synapses-node-h', cardHpx() + 'px')
+    root.style.setProperty('--synapses-node-font', (BASE_FONT_REM * f).toFixed(3) + 'rem')
+    root.style.setProperty('--synapses-node-maxw', Math.round(BASE_MAXW * f) + 'px')
+  }
+  applySizeVars()
+
   const elements = new Map<string, CardEl>() // nameLower -> element
+  let lastGraph: Graph | null = null // retained so relayout() can recompute on resize / size step
   let layout: any = null
   let theme: { edge: string; jumpEdge: string; highlight: string } = defaultTheme()
   let dpr = window.devicePixelRatio || 1
@@ -81,16 +99,10 @@ export function createView({
   let pending: { a: Pt; b: Pt; zone: string } | null = null
   let hoveredKey: string | null = null // identity of the edge under the cursor, for the hover highlight
 
-  const panzoom = attachPanzoom(
-    stage,
-    (t) => {
-      applyTransform(t)
-      scheduleDraw()
-    },
-    { onZoomChange },
-  )
-  // Restore the user's remembered zoom so the first fit() honors it as a ceiling.
-  if (initialZoom != null) panzoom.setRememberedScale(initialZoom)
+  const panzoom = attachPanzoom(stage, (t) => {
+    applyTransform(t)
+    scheduleDraw()
+  })
 
   function applyTransform(t: { s: number; tx: number; ty: number }) {
     world.style.transform = `translate(${t.tx}px, ${t.ty}px) scale(${t.s})`
@@ -108,12 +120,10 @@ export function createView({
     canvas.height = Math.max(1, Math.round(vp.h * dpr))
     canvas.style.width = vp.w + 'px'
     canvas.style.height = vp.h + 'px'
-    // keep content framed when the panel is resized
-    if (layout) {
-      panzoom.fit(layout.bbox, vp)
-      applyTransform(panzoom.getTransform())
-    }
-    scheduleDraw()
+    // Re-distribute spacing to the new panel size (zoom is gone — only the gaps change).
+    // Snap (no glide) so cards don't chase a continuous drag-resize.
+    if (lastGraph) relayout(false)
+    else scheduleDraw()
   }
   const ro = new ResizeObserver(resizeCanvas)
   ro.observe(stage)
@@ -139,6 +149,7 @@ export function createView({
   function setGraph(graph: Graph) {
     hideRemove() // drop any stale hover highlight / unlink control from the old graph
     hideTooltip()
+    lastGraph = graph
     const prevFocus = layout ? layout.focus : null
 
     // Identity pass: dedup + zones come from a width-agnostic layout. We need the
@@ -159,7 +170,7 @@ export function createView({
       }
       updateNode(el, node) // sets the label text (required before measuring)
     }
-    layout = computeLayout(graph, measureWidths())
+    layout = computeLayout(graph, measureWidths(), { viewport: viewport(), cardH: cardHpx() })
 
     // Newly-appearing cards emerge FROM the activating card (the new active thought) at
     // its current on-screen position, so new links grow out of the card you just
@@ -203,9 +214,42 @@ export function createView({
       elements.delete(key)
     }
 
-    panzoom.fit(layout.bbox, viewport())
+    panzoom.center(viewport())
     applyTransform(panzoom.getTransform())
     animateFor(TRANSITION_MS + 40)
+  }
+
+  // Recompute the layout for the SAME graph against the current panel size + size level
+  // and reposition the present cards. Used on panel resize (animate=false → snap) and on
+  // a size step (animate=true → grow/shrink glide). No enter/exit: the card set is
+  // unchanged, only spacing/size moves.
+  function relayout(animate: boolean) {
+    if (!lastGraph) return
+    applySizeVars()
+    layout = computeLayout(lastGraph, measureWidths(), { viewport: viewport(), cardH: cardHpx() })
+    if (!animate) world.classList.add('synapses-static') // suppress the CSS transition
+    for (const node of layout.nodes) {
+      const el = elements.get(node.name.toLowerCase())
+      if (el) positionEl(el, node)
+    }
+    panzoom.center(viewport())
+    applyTransform(panzoom.getTransform())
+    if (!animate) {
+      void world.offsetWidth // commit the transition-less move before re-enabling glides
+      world.classList.remove('synapses-static')
+    }
+    if (animate) animateFor(TRANSITION_MS + 40)
+    else scheduleDraw()
+  }
+
+  // Step the card/text size up (+1) or down (−1). Re-fills spacing around the new size
+  // and persists the level (onSizeChange). Clamped to the available levels.
+  function stepSize(delta: number) {
+    const next = clampLevel(sizeLevel + delta)
+    if (next === sizeLevel) return
+    sizeLevel = next
+    relayout(true)
+    onSizeChange?.(sizeLevel)
   }
 
   // Map each handle direction to the gate side on the card. Jump-position cards
@@ -218,13 +262,14 @@ export function createView({
   // transform. Width comes from offsetWidth since cards are content-sized.
   function liveCenterOf(el: any): Pt & { w: number } {
     const w = el.offsetWidth || NODE.W
+    const h = el.offsetHeight || cardHpx() // height scales with the size level
     const t = getComputedStyle(el).transform
     if (t && t !== 'none') {
       try {
         const m = new DOMMatrixReadOnly(t)
         // positionEl uses translate(x,y) translate(-50%,-50%), so m.m41/m.m42 is
         // the translate-to-center offset; add half the box dims to get the center.
-        return { x: m.m41 + w / 2, y: m.m42 + NODE.H / 2, w }
+        return { x: m.m41 + w / 2, y: m.m42 + h / 2, w }
       } catch (e) { /* fall through */ }
     }
     return { x: 0, y: 0, w }
@@ -415,21 +460,23 @@ export function createView({
       let x = n.x
       let y = n.y
       let w = n.w
+      let h = cardHpx() // height scales with the size level; connectors meet the actual edge
       const el = elements.get(n.name.toLowerCase())
       if (el) {
         w = el.offsetWidth || n.w // content-sized; connectors meet the actual edge
+        h = el.offsetHeight || h
         const t = getComputedStyle(el).transform
         if (t && t !== 'none') {
           try {
             const m = new DOMMatrixReadOnly(t)
             x = m.m41 + w / 2 // undo the translate(-50%,-50%) to get the center
-            y = m.m42 + NODE.H / 2
+            y = m.m42 + h / 2
           } catch (e) {
             /* keep layout coords */
           }
         }
       }
-      return { name: n.name, zone: n.zone, x, y, w, via: n.via }
+      return { name: n.name, zone: n.zone, x, y, w, h, via: n.via }
     })
     return { focus: layout.focus, nodes }
   }
@@ -539,16 +586,9 @@ export function createView({
   stage.addEventListener('pointerdown', onStageTooltipHide)
   stage.addEventListener('wheel', onStageTooltipHide, { passive: true })
 
-  // Drop the remembered wheel-zoom ceiling and re-fit the current graph to the
-  // default framing (Reset zoom button). Subsequent navigations stay auto-fit until
-  // the user wheel-zooms again.
-  function resetZoom() {
-    panzoom.setRememberedScale(null)
-    if (layout) {
-      panzoom.fit(layout.bbox, viewport())
-      applyTransform(panzoom.getTransform())
-      scheduleDraw()
-    }
+  // Current size level + how many there are, so the toolbar can disable −/+ at the ends.
+  function sizeInfo() {
+    return { level: sizeLevel, count: SIZE_FACTORS.length }
   }
 
   return {
@@ -557,7 +597,8 @@ export function createView({
     setHandles,
     getRenderedNames,
     redraw: scheduleDraw,
-    resetZoom,
+    stepSize,
+    sizeInfo,
     getEdges: () => lastEdges,
     destroy() {
       ro.disconnect()

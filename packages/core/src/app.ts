@@ -51,8 +51,8 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     return [g.focus.toLowerCase(), s(g.parents), s(g.children), s(g.jumps), s(g.siblings)].join('|')
   }
 
-  // The view is built in boot() below, AFTER the remembered zoom is loaded, so the
-  // first recenter can honor it as a ceiling (computeFit). `view!` is assigned
+  // The view is built in boot() below, AFTER the remembered size level is loaded, so
+  // cards render at the user's chosen size from the first frame. `view!` is assigned
   // before any function that touches it runs (they all run after boot()).
   let view!: ReturnType<typeof createView>
 
@@ -162,16 +162,18 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       btn('＋jump', 'Add jump', () => create('jump')),
     )
 
-    const reset = btn('⛶', 'Reset zoom (fit to view)', () => {
-      view.resetZoom()
-      backend.setZoom(null).catch(() => {}) // forget the remembered zoom across notes/reloads
-    })
+    // −/+ step the card + text size (zoom was removed; layout fills the panel either way).
+    const { level, count } = view.sizeInfo()
+    const minus = btn('−', 'Smaller cards & text', () => { view.stepSize(-1); renderToolbar() })
+    minus.disabled = level <= 0
+    const plus = btn('+', 'Larger cards & text', () => { view.stepSize(1); renderToolbar() })
+    plus.disabled = level >= count - 1
 
     const open = btn('↗', 'Open this note in the main pane', () => {
       if (focus) backend.navigate(focus).catch(() => {})
     })
 
-    els.toolbar.append(back, fwd, title, add, reset, open)
+    els.toolbar.append(back, fwd, title, add, minus, plus, open)
   }
 
   function renderBreadcrumb() {
@@ -231,12 +233,12 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   }
 
   async function boot() {
-    // Restore the user's remembered wheel-zoom before building the view so the
-    // first recenter applies it as a ceiling (computeFit). getZoom is a fast
-    // persistence read and the stage DOM is already mounted, so nothing flashes;
-    // an event arriving in this gap is harmless — init() re-syncs theme + page.
-    let initialZoom: number | null = null
-    try { initialZoom = await backend.getZoom() } catch (e) { /* ignore */ }
+    // Restore the user's remembered size level before building the view so cards render
+    // at their chosen size from the first frame. getSize is a fast persistence read and
+    // the stage DOM is already mounted, so nothing flashes; an event arriving in this gap
+    // is harmless — init() re-syncs theme + page.
+    let initialSize: number | null = null
+    try { initialSize = await backend.getSize() } catch (e) { /* ignore */ }
     if (disposed) return
 
     view = createView({
@@ -257,8 +259,8 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
           .then(() => goto(focus, { noHistory: true }))
           .catch(() => {}),
       onCreateAt: (fromNode, dir, at) => createAt(fromNode, dir as Role, at),
-      initialZoom,
-      onZoomChange: (s) => { backend.setZoom(s).catch(() => {}) },
+      initialSize,
+      onSizeChange: (level) => { backend.setSize(level).catch(() => {}) },
     })
 
     unsubs.push(

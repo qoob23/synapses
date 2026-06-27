@@ -5,9 +5,9 @@ import { NODE, computeLayout } from './layout'
 import cssText from './styles.css?raw'
 
 describe('node geometry single source of truth', () => {
-  // Height stays fixed (titles are single-line), so the CSS height fallback must
-  // still track NODE.H. Width is now content-sized, capped by the viewport-derived
-  // max-width var (see the adaptive-width design).
+  // Card size now scales with the size level via CSS vars (height/font/max-width), but
+  // the CSS FALLBACKS must still track the base geometry: height → NODE.H, font → 1.7rem,
+  // max-width → the base cap.
   it('styles.css height fallback matches NODE.H', () => {
     expect(cssText).toContain(`var(--synapses-node-h, ${NODE.H}px)`)
   })
@@ -140,5 +140,57 @@ describe('computeLayout with variable widths (tight reflow)', () => {
     const { bbox } = computeLayout(g, { wide: 600 })
     expect(bbox.minX).toBe(-300) // single parent centered at x=0, half of 600
     expect(bbox.maxX).toBe(300)
+  })
+})
+
+// Zoom was removed: the view renders at true px and only translates, so the SPACING
+// fills the panel. With a viewport, band distances + the vertical step derive from the
+// panel size (clamped); without one, the fixed constants above still apply.
+describe('computeLayout fills the panel (responsive spacing)', () => {
+  const vp = (w: number, h: number) => ({ viewport: { w, h }, cardH: NODE.H })
+
+  it('falls back to the fixed constants when no viewport is given', () => {
+    const g = { focus: 'F', jumps: ['j'], parents: [], children: [], siblings: [], siblingParent: {} }
+    const noVp = computeLayout(g).nodes.find((n) => n.zone === 'jump')!.x
+    const withVp = computeLayout(g, undefined, vp(700, 800)).nodes.find((n) => n.zone === 'jump')!.x
+    expect(noVp).not.toBeCloseTo(withVp) // the responsive path differs from the constant fallback
+  })
+
+  it('pushes columns toward the panel edge, clamped to one max on huge viewports', () => {
+    const g = { focus: 'F', jumps: ['j'], parents: [], children: [], siblings: [], siblingParent: {} }
+    const narrow = computeLayout(g, undefined, vp(700, 800)).nodes.find((n) => n.zone === 'jump')!
+    const wide = computeLayout(g, undefined, vp(4000, 800)).nodes.find((n) => n.zone === 'jump')!
+    const huger = computeLayout(g, undefined, vp(8000, 800)).nodes.find((n) => n.zone === 'jump')!
+    expect(Math.abs(wide.x)).toBeGreaterThan(Math.abs(narrow.x)) // wider panel → columns further out
+    expect(wide.x).toBeCloseTo(huger.x) // ...but clamped to the same MAX (never flies apart)
+  })
+
+  it('never lets a column overlap the focus on a tiny viewport', () => {
+    const g = { focus: 'F', jumps: ['j'], parents: [], children: [], siblings: [], siblingParent: {} }
+    const nodes = computeLayout(g, undefined, vp(280, 360)).nodes
+    const jump = nodes.find((n) => n.zone === 'jump')!
+    const focus = nodes.find((n) => n.zone === 'focus')!
+    const innerEdge = Math.abs(jump.x) - jump.w / 2 // edge facing the focus
+    expect(innerEdge).toBeGreaterThanOrEqual(focus.w / 2) // clears the focus box
+  })
+
+  it('spreads a column to fill height on a tall panel and floors the gap on a short one', () => {
+    const g = { focus: 'F', siblings: ['a', 'b', 'c'], parents: [], children: [], jumps: [], siblingParent: {} }
+    const step = (h: number) => {
+      const sibs = computeLayout(g, undefined, vp(600, h)).nodes
+        .filter((n) => n.zone === 'sibling')
+        .sort((x, y) => x.y - y.y)
+      return sibs[1].y - sibs[0].y
+    }
+    expect(step(1600)).toBeGreaterThan(step(360)) // taller panel → more air
+    expect(step(360)).toBeGreaterThanOrEqual(NODE.H) // ...but never overlapping
+  })
+
+  it('sets the bbox height from cardH (the size level)', () => {
+    const g = { focus: 'F', parents: [], children: [], jumps: [], siblings: [], siblingParent: {} }
+    const small = computeLayout(g, undefined, { viewport: { w: 600, h: 600 }, cardH: 40 })
+    const big = computeLayout(g, undefined, { viewport: { w: 600, h: 600 }, cardH: 80 })
+    expect(small.bbox.maxY - small.bbox.minY).toBe(40)
+    expect(big.bbox.maxY - big.bbox.minY).toBe(80)
   })
 })

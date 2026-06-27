@@ -5,6 +5,13 @@
 // the focus so wider cards grow OUTWARD. With a uniform `w = NODE.W` this reproduces
 // the original fixed-slot coordinates exactly. All coordinates are "world" units with
 // the active thought at (0, 0).
+//
+// There is NO camera scale anymore (zoom was removed): the view renders cards at true
+// px and only translates the world to center the active thought. So the SPACING fills
+// the panel — pass `opts.viewport` (+ the current `cardH` from the size level) and the
+// band distances / vertical step are derived from the live panel size, clamped so cards
+// never collide and never fly apart. Omit `opts.viewport` and it falls back to the old
+// fixed constants (used by the identity pass and the pure unit tests).
 
 import type { Graph } from '../types'
 
@@ -35,23 +42,76 @@ export interface LayoutResult {
 export type LayoutGraph = Pick<Graph, 'focus'> &
   Partial<Pick<Graph, 'parents' | 'children' | 'jumps' | 'siblings' | 'siblingParent'>>
 
-export const NODE = { W: 208, H: 40 }
+export const NODE = { W: 208, H: 40 } // base card size at size level 1.0
 
-// Spacing is tuned for comfortable "air" between cards. Because the view's `fit`
-// normalizes the graph to the panel, what's visible on screen is the RATIO of these
-// gaps to the card size — bigger gaps read as more breathing room (cards render a
-// touch smaller). All are bounded constants so the graph never spreads too far.
-const BAND_Y = 240 // vertical distance to the parent/child rows (space BETWEEN groups)
-const BAND_X = 380 // horizontal distance to the jump/sibling columns (space BETWEEN groups)
+// Fixed fallback spacing — today's constants, used when no viewport is supplied (the
+// identity pass + pure unit tests). With a viewport these are replaced by the
+// responsive `Spacing` below.
+const DEF_BAND_Y = 240 // vertical distance to the parent/child rows (space BETWEEN groups)
+const DEF_BAND_X = 380 // horizontal distance to the jump/sibling columns (space BETWEEN groups)
+const DEF_STEP = 80 // center-to-center vertical step in a column (fallback)
 const ROW_GAP = 40 // horizontal gap between cards in a row (space WITHIN a group)
-const COL_STEP = 80 // center-to-center vertical step in a column (cards are fixed-height)
 const CHILD_GAP = 120 // inner gap between the two children columns (> ROW_GAP for a clear split)
+
+// Responsive bounds (tunable). Spacing fills the panel between these; min bands are
+// computed dynamically (focus/card aware) so groups never overlap the active thought.
+const PAD_X = 24 // screen-px kept between a column's outer edge and the panel edge
+const PAD_Y = 56
+const GAP = 48 // minimum clearance between the focus and a neighbouring group
+const MAX_BAND_X = 620 // cap so columns don't fly apart on a wide monitor
+const MAX_BAND_Y = 360
+const MIN_VGAP = 28 // added to cardH for the tightest vertical step
+const MAX_VGAP = 110 // added to cardH for the airiest vertical step
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v))
+}
+
+export interface LayoutOpts {
+  viewport?: { w: number; h: number }
+  cardH?: number // live card height (size-level derived); defaults to NODE.H
+}
 
 // Per-card width by name (case-insensitive); falls back to NODE.W when unmeasured.
 type Widths = Record<string, number> | undefined
 function widthOf(widths: Widths, name: string): number {
   const w = widths?.[name.toLowerCase()]
   return typeof w === 'number' && w > 0 ? w : NODE.W
+}
+
+interface Spacing {
+  bandY: number
+  bandXLeft: number
+  bandXRight: number
+  step: number
+}
+
+// Derive band distances + vertical step from the live panel size. Columns hug the
+// panel edge (clamped to MAX, and to a focus-aware MIN so they can't overlap the
+// active thought); the step fills the height across the tallest vertical stack, floored
+// to a no-collision gap and capped so a sparse graph stays comfortably grouped.
+function computeSpacing(graph: LayoutGraph, widths: Widths, opts?: LayoutOpts): Spacing {
+  const cardH = opts?.cardH ?? NODE.H
+  const vp = opts?.viewport
+  if (!vp) return { bandY: DEF_BAND_Y, bandXLeft: DEF_BAND_X, bandXRight: DEF_BAND_X, step: DEF_STEP }
+
+  const focusHalf = widthOf(widths, graph.focus) / 2
+  const minBandX = focusHalf + NODE.W / 2 + GAP // keeps the inner edge (bandX − NODE.W/2) clear of the focus
+  const colW = (names: string[] | undefined) =>
+    names && names.length ? Math.max(...names.map((n) => widthOf(widths, n))) : NODE.W
+  const bandXFor = (names: string[] | undefined) =>
+    clamp(vp.w / 2 - PAD_X - colW(names) + NODE.W / 2, minBandX, MAX_BAND_X)
+
+  const bandY = clamp(vp.h / 2 - PAD_Y - cardH / 2, cardH + GAP, MAX_BAND_Y)
+
+  const childRows = Math.ceil((graph.children?.length || 0) / 2)
+  const vSlots = Math.max(graph.jumps?.length || 0, graph.siblings?.length || 0, childRows)
+  const step =
+    vSlots > 1
+      ? clamp((vp.h - 2 * PAD_Y) / (vSlots - 1), cardH + MIN_VGAP, cardH + MAX_VGAP)
+      : cardH + MIN_VGAP
+
+  return { bandY, bandXLeft: bandXFor(graph.jumps), bandXRight: bandXFor(graph.siblings), step }
 }
 
 // A row packed left→right by actual width + ROW_GAP, centered so its midpoint is x=0.
@@ -67,21 +127,21 @@ function rowPositions(names: string[], y: number, widths: Widths) {
   })
 }
 
-// A vertical column whose INNER edge sits a constant gap (BAND_X) from the focus, so
+// A vertical column whose INNER edge sits a constant gap (bandX) from the focus, so
 // wider cards grow outward. sign = -1 (jumps, left) or +1 (siblings, right).
-function colPositions(names: string[], sign: number, widths: Widths) {
+function colPositions(names: string[], sign: number, widths: Widths, bandX: number, step: number) {
   const n = names.length
   return names.map((name, i) => {
     const w = widthOf(widths, name)
-    const x = sign * (BAND_X + (w - NODE.W) / 2)
-    const y = (i - (n - 1) / 2) * COL_STEP
+    const x = sign * (bandX + (w - NODE.W) / 2)
+    const y = (i - (n - 1) / 2) * step
     return { name, x, y, w }
   })
 }
 
 // Children fill two columns row-major; each column is centered on its own center,
 // sized to its widest card, with the pair centered on x=0 and rows stacking downward.
-function childPositions(names: string[], y0: number, widths: Widths) {
+function childPositions(names: string[], y0: number, widths: Widths, step: number) {
   const cols: string[][] = [[], []]
   names.forEach((name, i) => cols[i % 2].push(name))
   const colWidth = (c: string[]) => (c.length ? Math.max(...c.map((n) => widthOf(widths, n))) : NODE.W)
@@ -89,18 +149,20 @@ function childPositions(names: string[], y0: number, widths: Widths) {
   const rightCenter = CHILD_GAP / 2 + colWidth(cols[1]) / 2
   return names.map((name, i) => {
     const x = i % 2 === 0 ? leftCenter : rightCenter
-    const y = y0 + Math.floor(i / 2) * COL_STEP
+    const y = y0 + Math.floor(i / 2) * step
     return { name, x, y, w: widthOf(widths, name) }
   })
 }
 
-export function computeLayout(graph: LayoutGraph, widths?: Record<string, number>): LayoutResult {
+export function computeLayout(graph: LayoutGraph, widths?: Record<string, number>, opts?: LayoutOpts): LayoutResult {
+  const sp = computeSpacing(graph, widths, opts)
+  const cardH = opts?.cardH ?? NODE.H
   const raw: LayoutNode[] = [{ name: graph.focus, x: 0, y: 0, w: widthOf(widths, graph.focus), zone: 'focus' }]
-  for (const p of rowPositions(graph.parents || [], -BAND_Y, widths)) raw.push({ ...p, zone: 'parent' })
-  for (const c of childPositions(graph.children || [], BAND_Y, widths)) raw.push({ ...c, zone: 'child' })
-  for (const j of colPositions(graph.jumps || [], -1, widths)) raw.push({ ...j, zone: 'jump' })
+  for (const p of rowPositions(graph.parents || [], -sp.bandY, widths)) raw.push({ ...p, zone: 'parent' })
+  for (const c of childPositions(graph.children || [], sp.bandY, widths, sp.step)) raw.push({ ...c, zone: 'child' })
+  for (const j of colPositions(graph.jumps || [], -1, widths, sp.bandXLeft, sp.step)) raw.push({ ...j, zone: 'jump' })
   const siblingParent = graph.siblingParent || {}
-  for (const s of colPositions(graph.siblings || [], 1, widths)) {
+  for (const s of colPositions(graph.siblings || [], 1, widths, sp.bandXRight, sp.step)) {
     raw.push({ ...s, zone: 'sibling', via: siblingParent[s.name] })
   }
 
@@ -114,10 +176,10 @@ export function computeLayout(graph: LayoutGraph, widths?: Record<string, number
     nodes.push(nd)
   }
 
-  return { focus: graph.focus, nodes, bbox: computeBBox(nodes) }
+  return { focus: graph.focus, nodes, bbox: computeBBox(nodes, cardH) }
 }
 
-function computeBBox(nodes: LayoutNode[]): LayoutBox {
+function computeBBox(nodes: LayoutNode[], cardH: number): LayoutBox {
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
@@ -125,9 +187,9 @@ function computeBBox(nodes: LayoutNode[]): LayoutBox {
   for (const n of nodes) {
     minX = Math.min(minX, n.x - n.w / 2)
     maxX = Math.max(maxX, n.x + n.w / 2)
-    minY = Math.min(minY, n.y - NODE.H / 2)
-    maxY = Math.max(maxY, n.y + NODE.H / 2)
+    minY = Math.min(minY, n.y - cardH / 2)
+    maxY = Math.max(maxY, n.y + cardH / 2)
   }
-  if (!isFinite(minX)) return { minX: -NODE.W / 2, minY: -NODE.H / 2, maxX: NODE.W / 2, maxY: NODE.H / 2 }
+  if (!isFinite(minX)) return { minX: -NODE.W / 2, minY: -cardH / 2, maxX: NODE.W / 2, maxY: cardH / 2 }
   return { minX, minY, maxX, maxY }
 }

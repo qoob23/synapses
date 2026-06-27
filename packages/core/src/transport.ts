@@ -108,7 +108,7 @@ export function createClient(
 export const BACKEND_METHODS = [
   'getActivePage', 'getTheme', 'buildGraph', 'nodeAdjacency', 'histState', 'histPush', 'histJump',
   'navigate', 'createChild', 'createParent', 'createJump', 'linkExisting', 'removeLink', 'searchPages',
-  'getZoom', 'setZoom',
+  'getSize', 'setSize',
 ] as const satisfies readonly Exclude<keyof SynapsesBackend, 'on'>[]
 
 // Compile-time completeness: every SynapsesBackend method (except `on`) MUST be listed above.

@@ -36,8 +36,8 @@ export interface SynapsesBackend {
   linkExisting(focus: string, name: string, role: Role): Promise<boolean>
   removeLink(focus: string, name: string, role: Role): Promise<boolean>
   searchPages(q: string): Promise<string[]>
-  getZoom(): Promise<number | null>
-  setZoom(s: number | null): Promise<void> // null clears the remembered zoom (Reset zoom)
+  getSize(): Promise<number | null>
+  setSize(level: number | null): Promise<void> // discrete card/text size level; null resets to default
   on(event: BackendEvent, handler: (payload?: any) => void): () => void
 }
 

@@ -6,9 +6,9 @@ import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, Palette
 
 export const GRAPH_DEBOUNCE_MS = 400
 export const HISTORY_SAVE_DEBOUNCE_MS = 300
-export const ZOOM_SAVE_DEBOUNCE_MS = 300
+export const SIZE_SAVE_DEBOUNCE_MS = 300
 const HISTORY_KEY = 'history.json'
-const ZOOM_KEY = 'zoom'
+const SIZE_KEY = 'size'
 
 export function createCoreBackend(dataSource: DataSource, services: EditorServices): SynapsesBackend {
   const getOntology = () => services.getOntology()
@@ -37,8 +37,8 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
   ])
   const emit = (evt: BackendEvent, payload?: any) => listeners.get(evt)!.forEach((fn) => fn(payload))
 
-  // remembered wheel-zoom scale, persisted with the same debounce shape as history
-  let zoomTimer: ReturnType<typeof setTimeout> | undefined
+  // remembered card/text size level, persisted with the same debounce shape as history
+  let sizeTimer: ReturnType<typeof setTimeout> | undefined
 
   let graphTimer: ReturnType<typeof setTimeout> | undefined
   services.onGraphChange(() => {
@@ -70,25 +70,25 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
     linkExisting: mut.linkExisting,
     removeLink: mut.removeLink,
     searchPages: (q) => dataSource.searchPages(q),
-    getZoom: async () => {
+    getSize: async () => {
       try {
-        const raw = await services.persistence.load(ZOOM_KEY)
+        const raw = await services.persistence.load(SIZE_KEY)
         if (raw == null || raw === '') return null
         const n = Number(raw)
-        return Number.isFinite(n) && n > 0 ? n : null // <=0 / NaN / '' == reset (no remembered zoom)
-      } catch (e) { console.warn('[synapses] zoom load failed', e); return null }
+        return Number.isInteger(n) && n >= 0 ? n : null // '' / NaN / non-int == reset (default size)
+      } catch (e) { console.warn('[synapses] size load failed', e); return null }
     },
-    // s === null clears the remembered zoom (Reset zoom button); a number is debounced
-    // like history. Clearing is immediate so a reset can't be clobbered by a stale save.
-    setZoom: async (s) => {
-      if (zoomTimer) clearTimeout(zoomTimer)
-      if (s == null) {
-        services.persistence.save(ZOOM_KEY, '').catch((e) => console.warn('[synapses] zoom clear failed', e))
+    // level === null resets to the default size; an integer level is debounced like
+    // history. Clearing is immediate so a reset can't be clobbered by a stale save.
+    setSize: async (level) => {
+      if (sizeTimer) clearTimeout(sizeTimer)
+      if (level == null) {
+        services.persistence.save(SIZE_KEY, '').catch((e) => console.warn('[synapses] size clear failed', e))
         return
       }
-      zoomTimer = setTimeout(() => {
-        services.persistence.save(ZOOM_KEY, String(s)).catch((e) => console.warn('[synapses] zoom save failed', e))
-      }, ZOOM_SAVE_DEBOUNCE_MS)
+      sizeTimer = setTimeout(() => {
+        services.persistence.save(SIZE_KEY, String(level)).catch((e) => console.warn('[synapses] size save failed', e))
+      }, SIZE_SAVE_DEBOUNCE_MS)
     },
     on: (event, handler) => { listeners.get(event)!.add(handler); return () => listeners.get(event)!.delete(handler) },
   }
