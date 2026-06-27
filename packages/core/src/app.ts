@@ -1,5 +1,6 @@
 import { createView } from './view/view'
 import { openCreateDialog } from './view/dialog'
+import { openContextMenu } from './view/context-menu'
 import { applyTheme } from './view/theme'
 import type { SynapsesBackend, Graph, HistoryState, Role } from './types'
 
@@ -166,6 +167,34 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     }
   }
 
+  async function removeFromHistory(name: string) {
+    const wasActive = same(name, focus)
+    try {
+      lastHist = await backend.histRemove(name)
+    } catch (e) {
+      return
+    }
+    renderToolbar()
+    renderBreadcrumb()
+    if (!wasActive) return
+    // The removed crumb was the active thought: land on the new current entry and
+    // open it in the editor too (goto without `fromLogseq` runs the navigate mirror).
+    if (lastHist.list.length) {
+      goto(lastHist.list[lastHist.index], { noHistory: true })
+      return
+    }
+    try {
+      const active = await backend.getActivePage()
+      if (active) {
+        goto(active, { fromLogseq: true })
+        return
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    flash('Open a page to see its synapses.')
+  }
+
   async function create(role: Role) {
     const src = focus
     if (!src) return
@@ -221,6 +250,14 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       // not a pointer-move like back/forward — so the activated thought lands at the
       // most-recent (right-most) breadcrumb slot instead of highlighting in place.
       c.addEventListener('click', () => goto(name))
+      c.addEventListener('contextmenu', (e) => {
+        e.preventDefault()
+        openContextMenu({
+          root: els.dialogRoot,
+          at: { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY },
+          items: [{ label: 'Remove from history', onSelect: () => removeFromHistory(name) }],
+        })
+      })
       els.breadcrumb.appendChild(c)
     })
     // Breadcrumb head-right invariant: most-recent entry is always right-most and visible.
