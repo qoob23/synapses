@@ -255,13 +255,15 @@
   /* Short, springy grow on hover (slight overshoot) instead of an instant jump. */
   transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.synapses-handle::before { /* enlarged invisible grab/hover radius */
+.synapses-handle::before { /* invisible grab/hover radius — kept tight (just larger than the
+     hover-grown dot) so it doesn't reach into the card and turn a card-activate click into an
+     accidental link-drag. */
   content: "";
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 24px;
-  height: 24px;
+  width: 14px;
+  height: 14px;
   transform: translate(-50%, -50%);
 }
 .handle-top    { top: -3px;  left: 50%; margin-left: -3px; }
