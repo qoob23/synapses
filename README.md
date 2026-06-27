@@ -1,6 +1,6 @@
-# Synapses for Logseq
+# Synapses for Logseq & Obsidian
 
-A Logseq plugin that lays out your thought links as a focused graph: the active thought sits in the
+An advanced link editor. Lays out your thought links as a focused graph: the active thought sits in the
 center with its **parents above, children below, jumps to the left, siblings to the right**; clicking a
 card **activates** that thought (the view recenters on it). Built for the **Markdown graph (Logseq 0.10.x)**.
 
@@ -16,6 +16,13 @@ jump:: [[Aristotle]]
 
 You only declare one direction — the reciprocal (parent↔child) and symmetric jumps are inferred, and
 siblings are computed.
+
+## Editing properties in place
+
+When Synapses links or unlinks thoughts it edits link properties **in place**. If your note template
+prefills `parent:: / child:: / jump::` — whether as an inline field anywhere in the note (top, middle,
+or bottom) or as a key in the YAML frontmatter — Synapses updates that existing value instead of
+prepending a duplicate at the top. Brand-new properties are added as inline fields.
 
 ## Status
 

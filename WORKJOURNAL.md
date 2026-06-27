@@ -1,6 +1,6 @@
 # Work Journal
 
-## 2026-06-25 — greenfield logseq-plex
+## 2026-06-25
 - Built **logseq-plex**, a TheBrain-style link management for the Logseq 0.10.15 Markdown graph (Vite + vanilla JS, no React/SVG).
 - **Architecture:** UI in an `<iframe>` injected into a right-sidebar `{{renderer :synapses}}` slot, talking to the plugin's main context over a postMessage RPC bridge.
 - **Data model:** ExcaliBrain-style page properties (`parent:: / child:: / jump::`), one-directional declaration with reciprocal inference and computed siblings.
@@ -14,7 +14,7 @@
     - drag passthrough so sidebar resize isn't swallowed by the iframe.
 - Multi-agent adversarial review of the index/race logic — clean. 10 vitest unit tests; seeded a philosophy test graph in `../test_logseq_graph`.
 
-## 2026-06-26 — monorepo/TS migration, Obsidian backend, full BACKLOG + polish
+## 2026-06-26
 - **Phase 1 — monorepo + TypeScript (strict) + editor-agnostic core.**
     - Two packages: `@logseq-synapses/core` (engine + view) and a thin `logseq-plugin`.
     - **Two-seam architecture:** the view consumes a high-level `SynapsesBackend`; each editor supplies only a `DataSource` (read/write properties, change events) + `EditorServices` (theme, assets, navigation); shared `createCoreBackend` implements the index lifecycle/mutations/history/debounce **once**.
@@ -44,7 +44,10 @@
 - **Terminology pass (docs):** canonical glossary in `CLAUDE.md` — thought / card / link / connector / active thought / activate / recenter; `edge` kept as code term; code symbols preserved verbatim. Comments swept to match.
 - Process: heavy use of subagent-driven TDD + multi-agent adversarial reviews. Build clean throughout; tests 22→106 across the day.
 
-## 2026-06-27 — Obsidian breadcrumb fixes + Logseq bridge/theme fix + BRAT release workflow
+## 2026-06-27
 - Both breadcrumb fixes in **shared core**, so Logseq inherits them:
     - **Breadcrumb was clipped in Obsidian** — `#synapses-app { height: 100vh }` overflowed the leaf `contentEl` (a rendering, not data, bug). Fixed by filling the **container** (`height: 100%`) + `html,body{height:100%}` in `synapses.html` so the `%` chain resolves.
     - **Crumb click now re-activates** (move-to-rightmost) instead of highlighting in place; back/forward arrows stay pointer-move.
+- **Remember user zoom** — persist the wheel-zoom scale (core `getZoom`/`setZoom` over the existing persistence seam) and reuse it on recenter via pure `computeFit`, with the auto-fit scale as a ceiling so cards never overflow; both editors inherit it.
+- **Obsidian default folder** — new notes are created in the vault's configured "Default location for new notes" (`getNewFileParent`) instead of always at the root.
+- **Edit properties in place** — Obsidian writes update a prefilled property where it already lives (YAML frontmatter via `processFrontMatter`, or an existing inline `key::` line anywhere in the note) instead of prepending a duplicate; unlink clears both; documented in README.

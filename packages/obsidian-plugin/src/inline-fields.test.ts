@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { upsertInlineField, removeInlineField } from './inline-fields'
+import { upsertInlineField, removeInlineField, hasInlineField } from './inline-fields'
 
 describe('upsertInlineField', () => {
   it('writes into empty text', () => {
@@ -21,6 +21,24 @@ describe('upsertInlineField', () => {
   })
   it('inserts a separator when the frontmatter fence has no trailing newline', () => {
     expect(upsertInlineField('---\ntitle: X\n---', 'child', ['A'])).toBe('---\ntitle: X\n---\nchild:: [[A]]\n')
+  })
+})
+
+describe('hasInlineField', () => {
+  it('detects an inline field at the top', () => {
+    expect(hasInlineField('child:: [[A]]\nbody', 'child')).toBe(true)
+  })
+  it('detects an inline field at the bottom', () => {
+    expect(hasInlineField('# T\nbody\nchild:: [[A]]', 'child')).toBe(true)
+  })
+  it('matches the key case-insensitively', () => {
+    expect(hasInlineField('Child:: [[A]]', 'child')).toBe(true)
+  })
+  it('is false when the key is absent', () => {
+    expect(hasInlineField('# T\nbody', 'child')).toBe(false)
+  })
+  it('does not match a single-colon YAML frontmatter key', () => {
+    expect(hasInlineField('---\nchild: [[A]]\n---\nbody', 'child')).toBe(false)
   })
 })
 

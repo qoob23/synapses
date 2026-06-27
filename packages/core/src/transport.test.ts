@@ -34,9 +34,11 @@ describe('transport wiring', () => {
   })
 
   it('declares the full method + event manifest', () => {
-    expect(BACKEND_METHODS).toHaveLength(14)
+    expect(BACKEND_METHODS).toHaveLength(16)
     expect(BACKEND_METHODS).toContain('buildGraph')
     expect(BACKEND_METHODS).toContain('removeLink')
+    expect(BACKEND_METHODS).toContain('getZoom')
+    expect(BACKEND_METHODS).toContain('setZoom')
     expect(BACKEND_EVENTS).toEqual(['recenter', 'theme', 'refresh'])
   })
 })

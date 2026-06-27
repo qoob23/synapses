@@ -17,6 +17,10 @@ function format(targets: string[]): string {
   return targets.map((t) => `[[${t}]]`).join(', ')
 }
 
+export function hasInlineField(text: string, key: string): boolean {
+  return replaceRegex(key).test(text)
+}
+
 export function upsertInlineField(text: string, key: string, targets: string[]): string {
   const line = `${key}:: ${format(targets)}`
   const re = replaceRegex(key)

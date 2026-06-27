@@ -4,6 +4,7 @@ import type { DataSource, EditorServices, PageEntry } from './types'
 
 function fakes(pages: PageEntry[] = []) {
   const map = new Map(pages.map((p) => [p.name.toLowerCase(), p]))
+  const store = new Map<string, string>()
   let graphCb = () => {}, activeCb = (_: string | null) => {}
   const ds: DataSource = {
     listPages: async () => [...map.values()],
@@ -22,7 +23,10 @@ function fakes(pages: PageEntry[] = []) {
     onGraphChange: (cb) => { graphCb = cb },
     getOntology: () => ({ parent: ['parent'], child: ['child'], jump: ['jump'] }),
     onOntologyChange: () => {},
-    persistence: { load: async () => null, save: vi.fn(async () => {}) },
+    persistence: {
+      load: async (k: string) => store.get(k) ?? null,
+      save: async (k: string, v: string) => { store.set(k, v) },
+    },
   }
   return { ds, services, fireGraph: () => graphCb(), fireActive: (n: string | null) => activeCb(n) }
 }
@@ -53,5 +57,19 @@ describe('createCoreBackend', () => {
     const recenter = vi.fn(); be.on('recenter', recenter)
     fireActive('Z')
     expect(recenter).toHaveBeenCalledWith({ page: 'Z' })
+  })
+
+  it('getZoom returns null when unset', async () => {
+    const { ds, services } = fakes()
+    const be = createCoreBackend(ds, services)
+    expect(await be.getZoom()).toBeNull()
+  })
+
+  it('setZoom then getZoom round-trips through persistence (debounced)', async () => {
+    const { ds, services } = fakes()
+    const be = createCoreBackend(ds, services)
+    await be.setZoom(1.6)
+    await vi.advanceTimersByTimeAsync(300)
+    expect(await be.getZoom()).toBe(1.6)
   })
 })

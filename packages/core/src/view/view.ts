@@ -49,6 +49,8 @@ export function createView({
   onRemoveLink,
   onLinkExisting,
   onCreateAt,
+  initialZoom,
+  onZoomChange,
 }: {
   root: HTMLElement
   world: HTMLElement
@@ -59,6 +61,8 @@ export function createView({
   onRemoveLink?: (remove: EdgeRemove) => void
   onLinkExisting?: (from: string, to: string, role: string) => void
   onCreateAt?: (fromNode: string, dir: string, at: Pt | null) => void
+  initialZoom?: number | null
+  onZoomChange?: (s: number) => void
 }) {
   const ctx = canvas.getContext('2d')!
   // Single source of truth for card box size: the layout math (NODE) drives the
@@ -77,10 +81,16 @@ export function createView({
   let pending: { a: Pt; b: Pt; zone: string } | null = null
   let hoveredKey: string | null = null // identity of the edge under the cursor, for the hover highlight
 
-  const panzoom = attachPanzoom(stage, (t) => {
-    applyTransform(t)
-    scheduleDraw()
-  })
+  const panzoom = attachPanzoom(
+    stage,
+    (t) => {
+      applyTransform(t)
+      scheduleDraw()
+    },
+    { onZoomChange },
+  )
+  // Restore the user's remembered zoom so the first fit() honors it as a ceiling.
+  if (initialZoom != null) panzoom.setRememberedScale(initialZoom)
 
   function applyTransform(t: { s: number; tx: number; ty: number }) {
     world.style.transform = `translate(${t.tx}px, ${t.ty}px) scale(${t.s})`

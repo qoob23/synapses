@@ -6,7 +6,9 @@ import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, Palette
 
 export const GRAPH_DEBOUNCE_MS = 400
 export const HISTORY_SAVE_DEBOUNCE_MS = 300
+export const ZOOM_SAVE_DEBOUNCE_MS = 300
 const HISTORY_KEY = 'history.json'
+const ZOOM_KEY = 'zoom'
 
 export function createCoreBackend(dataSource: DataSource, services: EditorServices): SynapsesBackend {
   const getOntology = () => services.getOntology()
@@ -34,6 +36,9 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
     ['recenter', new Set()], ['theme', new Set()], ['refresh', new Set()],
   ])
   const emit = (evt: BackendEvent, payload?: any) => listeners.get(evt)!.forEach((fn) => fn(payload))
+
+  // remembered wheel-zoom scale, persisted with the same debounce shape as history
+  let zoomTimer: ReturnType<typeof setTimeout> | undefined
 
   let graphTimer: ReturnType<typeof setTimeout> | undefined
   services.onGraphChange(() => {
@@ -65,6 +70,20 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
     linkExisting: mut.linkExisting,
     removeLink: mut.removeLink,
     searchPages: (q) => dataSource.searchPages(q),
+    getZoom: async () => {
+      try {
+        const raw = await services.persistence.load(ZOOM_KEY)
+        if (raw == null) return null
+        const n = Number(raw)
+        return Number.isFinite(n) ? n : null
+      } catch (e) { console.warn('[synapses] zoom load failed', e); return null }
+    },
+    setZoom: async (s) => {
+      if (zoomTimer) clearTimeout(zoomTimer)
+      zoomTimer = setTimeout(() => {
+        services.persistence.save(ZOOM_KEY, String(s)).catch((e) => console.warn('[synapses] zoom save failed', e))
+      }, ZOOM_SAVE_DEBOUNCE_MS)
+    },
     on: (event, handler) => { listeners.get(event)!.add(handler); return () => listeners.get(event)!.delete(handler) },
   }
 }

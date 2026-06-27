@@ -51,25 +51,10 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     return [g.focus.toLowerCase(), s(g.parents), s(g.children), s(g.jumps), s(g.siblings)].join('|')
   }
 
-  const view = createView({
-    root: container,
-    world: els.world,
-    canvas: els.canvas,
-    stage: els.stage,
-    onNavigate: goto,
-    onOpenMain: (name) => backend.navigate(name).catch(() => {}),
-    onRemoveLink: ({ from, to, role }) =>
-      backend
-        .removeLink(from, to, role as Role)
-        .then(() => goto(focus, { noHistory: true }))
-        .catch(() => {}),
-    onLinkExisting: (fromNode, toNode, role) =>
-      backend
-        .linkExisting(fromNode, toNode, role as Role)
-        .then(() => goto(focus, { noHistory: true }))
-        .catch(() => {}),
-    onCreateAt: (fromNode, dir, at) => createAt(fromNode, dir as Role, at),
-  })
+  // The view is built in boot() below, AFTER the remembered zoom is loaded, so the
+  // first recenter can honor it as a ceiling (computeFit). `view!` is assigned
+  // before any function that touches it runs (they all run after boot()).
+  let view!: ReturnType<typeof createView>
 
   // Restore the previous active thought + history (e.g. after the view was re-mounted),
   // otherwise fall back to the currently open page in the editor.
@@ -229,39 +214,73 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
 
   // Contract: the caller passes a backend that is ready to take calls. Obsidian's
   // in-process backend always is; the Logseq proxy is mounted from its onConnect,
-  // after the postMessage handshake. So we register event handlers (same bodies as
-  // the old onEvent switch) and run the initial restore (the old onConnect body) now.
+  // after the postMessage handshake. boot() loads the remembered zoom, builds the
+  // view, registers event handlers (same bodies as the old onEvent switch), and
+  // runs the initial restore (the old onConnect body).
   const unsubs: Array<() => void> = []
-  unsubs.push(
-    backend.on('recenter', (payload) => {
-      if (payload && payload.page) {
-        // ignore the route-change echo of a navigation we initiated ourselves
-        if (!focus || payload.page.toLowerCase() !== focus.toLowerCase()) {
-          goto(payload.page, { fromLogseq: true })
-        }
-      }
-    }),
-  )
-  unsubs.push(
-    backend.on('theme', (payload) => {
-      view.setTheme(applyTheme(container, payload))
-    }),
-  )
-  unsubs.push(
-    backend.on('refresh', () => {
-      if (focus) goto(focus, { noHistory: true, fromLogseq: true, ifChanged: true })
-    }),
-  )
+  let disposed = false
 
   async function init() {
     await loadTheme()
     await restore()
   }
-  void init()
+
+  async function boot() {
+    // Restore the user's remembered wheel-zoom before building the view so the
+    // first recenter applies it as a ceiling (computeFit). getZoom is a fast
+    // persistence read and the stage DOM is already mounted, so nothing flashes;
+    // an event arriving in this gap is harmless — init() re-syncs theme + page.
+    let initialZoom: number | null = null
+    try { initialZoom = await backend.getZoom() } catch (e) { /* ignore */ }
+    if (disposed) return
+
+    view = createView({
+      root: container,
+      world: els.world,
+      canvas: els.canvas,
+      stage: els.stage,
+      onNavigate: goto,
+      onOpenMain: (name) => backend.navigate(name).catch(() => {}),
+      onRemoveLink: ({ from, to, role }) =>
+        backend
+          .removeLink(from, to, role as Role)
+          .then(() => goto(focus, { noHistory: true }))
+          .catch(() => {}),
+      onLinkExisting: (fromNode, toNode, role) =>
+        backend
+          .linkExisting(fromNode, toNode, role as Role)
+          .then(() => goto(focus, { noHistory: true }))
+          .catch(() => {}),
+      onCreateAt: (fromNode, dir, at) => createAt(fromNode, dir as Role, at),
+      initialZoom,
+      onZoomChange: (s) => { backend.setZoom(s).catch(() => {}) },
+    })
+
+    unsubs.push(
+      backend.on('recenter', (payload) => {
+        if (payload && payload.page) {
+          // ignore the route-change echo of a navigation we initiated ourselves
+          if (!focus || payload.page.toLowerCase() !== focus.toLowerCase()) {
+            goto(payload.page, { fromLogseq: true })
+          }
+        }
+      }),
+      backend.on('theme', (payload) => {
+        view.setTheme(applyTheme(container, payload))
+      }),
+      backend.on('refresh', () => {
+        if (focus) goto(focus, { noHistory: true, fromLogseq: true, ifChanged: true })
+      }),
+    )
+
+    await init()
+  }
+  void boot()
 
   return () => {
+    disposed = true
     for (const u of unsubs) u()
-    view.destroy()
+    if (view) view.destroy()
     container.innerHTML = ''
     container.classList.remove('synapses-root')
   }
