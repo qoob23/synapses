@@ -191,7 +191,10 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       c.className = 'synapses-crumb' + (i === lastHist.index ? ' current' : '')
       c.textContent = name
       c.title = name
-      c.addEventListener('click', () => jumpToIndex(i))
+      // Clicking a crumb re-activates the thought (move-to-rightmost via histPush),
+      // not a pointer-move like back/forward — so the activated thought lands at the
+      // most-recent (right-most) breadcrumb slot instead of highlighting in place.
+      c.addEventListener('click', () => goto(name))
       els.breadcrumb.appendChild(c)
     })
     // Breadcrumb head-right invariant: most-recent entry is always right-most and visible.

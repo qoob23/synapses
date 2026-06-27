@@ -27,7 +27,10 @@
 #synapses-app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* Fill the mount container, NOT the viewport. In Logseq the root is an iframe
+     <body> that fills the sidebar; in Obsidian it's a leaf contentEl shorter than
+     the window — `100vh` there overflows the leaf and clips the bottom breadcrumb. */
+  height: 100%;
 }
 
 /* ---- toolbar ---- */
