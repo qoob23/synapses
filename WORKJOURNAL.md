@@ -51,3 +51,6 @@
 - **Remember user zoom** — persist the wheel-zoom scale (core `getZoom`/`setZoom` over the existing persistence seam) and reuse it on recenter via pure `computeFit`, with the auto-fit scale as a ceiling so cards never overflow; both editors inherit it.
 - **Obsidian default folder** — new notes are created in the vault's configured "Default location for new notes" (`getNewFileParent`) instead of always at the root.
 - **Edit properties in place** — Obsidian writes update a prefilled property where it already lives (YAML frontmatter via `processFrontMatter`, or an existing inline `key::` line anywhere in the note) instead of prepending a duplicate; unlink clears both; documented in README.
+- **Layout:** dense, deterministic banded layout — the four directional zones sit in non-overlapping bands that grow outward from the active thought; horizontal fills the panel width, vertical is fixed.
+- **Zoom:** removed entirely — the world only translates to center the active thought (no camera scale), so text stays crisp; replaced by a persisted +/− card/text size control, with drag-to-pan for overflow.
+- **UI tweaks:** content-sized card widths with hover tooltips for clamped titles; px units throughout; tighter cards/handles with a small grab area to avoid accidental links; toolbar button tooltips; dropped the redundant open-in-main-pane button.
