@@ -539,12 +539,25 @@ export function createView({
   stage.addEventListener('pointerdown', onStageTooltipHide)
   stage.addEventListener('wheel', onStageTooltipHide, { passive: true })
 
+  // Drop the remembered wheel-zoom ceiling and re-fit the current graph to the
+  // default framing (Reset zoom button). Subsequent navigations stay auto-fit until
+  // the user wheel-zooms again.
+  function resetZoom() {
+    panzoom.setRememberedScale(null)
+    if (layout) {
+      panzoom.fit(layout.bbox, viewport())
+      applyTransform(panzoom.getTransform())
+      scheduleDraw()
+    }
+  }
+
   return {
     setGraph,
     setTheme,
     setHandles,
     getRenderedNames,
     redraw: scheduleDraw,
+    resetZoom,
     getEdges: () => lastEdges,
     destroy() {
       ro.disconnect()

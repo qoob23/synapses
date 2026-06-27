@@ -37,7 +37,7 @@ export interface SynapsesBackend {
   removeLink(focus: string, name: string, role: Role): Promise<boolean>
   searchPages(q: string): Promise<string[]>
   getZoom(): Promise<number | null>
-  setZoom(s: number): Promise<void>
+  setZoom(s: number | null): Promise<void> // null clears the remembered zoom (Reset zoom)
   on(event: BackendEvent, handler: (payload?: any) => void): () => void
 }
 

@@ -162,11 +162,16 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       btn('＋jump', 'Add jump', () => create('jump')),
     )
 
+    const reset = btn('⛶', 'Reset zoom (fit to view)', () => {
+      view.resetZoom()
+      backend.setZoom(null).catch(() => {}) // forget the remembered zoom across notes/reloads
+    })
+
     const open = btn('↗', 'Open this note in the main pane', () => {
       if (focus) backend.navigate(focus).catch(() => {})
     })
 
-    els.toolbar.append(back, fwd, title, add, open)
+    els.toolbar.append(back, fwd, title, add, reset, open)
   }
 
   function renderBreadcrumb() {

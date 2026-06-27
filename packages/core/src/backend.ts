@@ -73,13 +73,19 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
     getZoom: async () => {
       try {
         const raw = await services.persistence.load(ZOOM_KEY)
-        if (raw == null) return null
+        if (raw == null || raw === '') return null
         const n = Number(raw)
-        return Number.isFinite(n) ? n : null
+        return Number.isFinite(n) && n > 0 ? n : null // <=0 / NaN / '' == reset (no remembered zoom)
       } catch (e) { console.warn('[synapses] zoom load failed', e); return null }
     },
+    // s === null clears the remembered zoom (Reset zoom button); a number is debounced
+    // like history. Clearing is immediate so a reset can't be clobbered by a stale save.
     setZoom: async (s) => {
       if (zoomTimer) clearTimeout(zoomTimer)
+      if (s == null) {
+        services.persistence.save(ZOOM_KEY, '').catch((e) => console.warn('[synapses] zoom clear failed', e))
+        return
+      }
       zoomTimer = setTimeout(() => {
         services.persistence.save(ZOOM_KEY, String(s)).catch((e) => console.warn('[synapses] zoom save failed', e))
       }, ZOOM_SAVE_DEBOUNCE_MS)

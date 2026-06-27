@@ -72,4 +72,13 @@ describe('createCoreBackend', () => {
     await vi.advanceTimersByTimeAsync(300)
     expect(await be.getZoom()).toBe(1.6)
   })
+
+  it('setZoom(null) clears the remembered zoom immediately (Reset zoom)', async () => {
+    const { ds, services } = fakes()
+    const be = createCoreBackend(ds, services)
+    await be.setZoom(1.6)
+    await vi.advanceTimersByTimeAsync(300)
+    await be.setZoom(null) // immediate, no debounce
+    expect(await be.getZoom()).toBeNull()
+  })
 })
