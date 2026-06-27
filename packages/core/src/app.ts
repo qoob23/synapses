@@ -169,11 +169,9 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     const plus = btn('+', 'Larger cards & text', () => { view.stepSize(1); renderToolbar() })
     plus.disabled = level >= count - 1
 
-    const open = btn('↗', 'Open this note in the main pane', () => {
-      if (focus) backend.navigate(focus).catch(() => {})
-    })
-
-    els.toolbar.append(back, fwd, title, add, minus, plus, open)
+    // (No explicit "open in main pane" button — clicking the centred active card already
+    // opens it in the main pane.)
+    els.toolbar.append(back, fwd, title, add, minus, plus)
   }
 
   function renderBreadcrumb() {
