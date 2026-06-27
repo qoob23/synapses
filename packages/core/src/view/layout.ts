@@ -61,7 +61,7 @@ const PAD_Y = 56
 const GAP = 48 // minimum clearance between neighbouring groups
 const MAX_BAND_X = 620 // cap so columns don't fly apart on a wide monitor
 const MAX_BAND_Y = 360
-const V_GAP = 16 // FIXED vertical gap between cards stacked WITHIN a group (columns, child rows)
+const V_GAP = 12 // FIXED vertical gap between cards stacked WITHIN a group (columns, child rows)
 const MIN_CHILD_GAP = 80 // the two children columns stay at least this far apart...
 const MAX_CHILD_GAP = 240 // ...and spread up to this far on a roomy panel
 

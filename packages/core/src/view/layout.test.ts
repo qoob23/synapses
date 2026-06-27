@@ -174,7 +174,7 @@ describe('computeLayout fills the panel (responsive spacing)', () => {
     expect(innerEdge).toBeGreaterThanOrEqual(focus.w / 2) // clears the focus box
   })
 
-  it('uses a fixed within-group vertical gap (cardH + 16px), regardless of panel height', () => {
+  it('uses a fixed within-group vertical gap (cardH + 12px), regardless of panel height', () => {
     const g = { focus: 'F', siblings: ['a', 'b', 'c'], parents: [], children: [], jumps: [], siblingParent: {} }
     const step = (h: number) => {
       const sibs = computeLayout(g, undefined, vp(600, h)).nodes
@@ -183,7 +183,7 @@ describe('computeLayout fills the panel (responsive spacing)', () => {
       return sibs[1].y - sibs[0].y
     }
     expect(step(1600)).toBe(step(360)) // fixed, NOT responsive to panel height
-    expect(step(900)).toBe(NODE.H + 16) // centre-to-centre = cardH + the fixed 16px gap
+    expect(step(900)).toBe(NODE.H + 12) // centre-to-centre = cardH + the fixed 12px gap
   })
 
   it('sets the bbox height from cardH (the size level)', () => {

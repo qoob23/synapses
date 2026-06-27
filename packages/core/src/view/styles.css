@@ -205,8 +205,8 @@
 /* ---- handles (on every card, 3 directions, 3 states) ---- */
 .synapses-handle {
   position: absolute;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   box-sizing: border-box;
   cursor: pointer;
@@ -223,10 +223,10 @@
   height: 24px;
   transform: translate(-50%, -50%);
 }
-.handle-top    { top: -4px;  left: 50%; margin-left: -4px; }
-.handle-bottom { bottom: -4px; left: 50%; margin-left: -4px; }
-.handle-left   { left: -4px; top: 50%;  margin-top: -4px; }
-.handle-right  { right: -4px; top: 50%;  margin-top: -4px; }
+.handle-top    { top: -3px;  left: 50%; margin-left: -3px; }
+.handle-bottom { bottom: -3px; left: 50%; margin-left: -3px; }
+.handle-left   { left: -3px; top: 50%;  margin-top: -3px; }
+.handle-right  { right: -3px; top: 50%;  margin-top: -3px; }
 .handle-empty { background: transparent; border: 2px solid var(--synapses-accent); }
 .handle-shown { background: var(--synapses-accent); border: 2px solid var(--synapses-accent); }
 .handle-more  { background: var(--synapses-dot-hidden, #2ecc71); border: 2px solid var(--synapses-dot-hidden, #2ecc71); }
