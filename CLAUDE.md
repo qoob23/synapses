@@ -4,10 +4,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`logseq-synapses` — a Logseq plugin that lays out thoughts spatially (rendered here as **Synapses**): the active thought centered, with
-parents above, children below, jumps to the left and siblings to the right, and click-a-card-to-activate
-navigation, rendered in the **right sidebar**. Target is the **Logseq 0.10.x Markdown/file graph** — NOT the DB version (the
-DB version reworked properties and the datascript schema). Plain JS (no React, no SVG, no d3) by design.
+`logseq-synapses` — a **Logseq + Obsidian** plugin that lays out thoughts spatially (rendered here as
+**Synapses**): the active thought centered, with parents above, children below, jumps to the left and
+siblings to the right, and click-a-card-to-activate navigation, rendered in the **right sidebar**. The
+Logseq target is the **0.10.x Markdown/file graph** — NOT the DB version (the DB version reworked
+properties and the datascript schema). Plain **TypeScript** (no React, no SVG, no d3) by design.
+
+## Repo layout (TypeScript monorepo)
+
+> Some prose/code below uses older names; **the pre-monorepo `src/main/*` / `src/synapses/*` /
+> `src/shared/rpc.js` paths are gone** — code now lives in npm workspaces under `packages/`.
+
+- `packages/core` (`@logseq-synapses/core`) — editor-agnostic engine + view: graph link-index
+  (`graph/index-pure.ts` + `graph/link-index.ts`), `mutations.ts`, `history.ts`, `ontology.ts`, the
+  generic postMessage `transport.ts`, the view (`view/` — `view.ts`, `edges.ts`, `layout.ts`,
+  `panzoom.ts`, `dialog.ts`, `theme.ts`, `handles.ts`, `edge-hit.ts`, `styles.css`), `app.ts` =
+  `mountSynapses`, `backend.ts` = `createCoreBackend`.
+- `packages/logseq-plugin` — Logseq adapter: M entry `src/index.ts` (has `logseq`), P iframe entry
+  `src/frame.ts`, `sidebar.ts`, `datasource.ts`, `services.ts`.
+- `packages/obsidian-plugin` — Obsidian adapter, **in-process `ItemView` (no iframe)**: `main.ts`,
+  `view.ts`, `datasource.ts`, `services.ts`, `inline-fields.ts`, `dataview-map.ts`, `settings.ts`.
+
+**Two-seam architecture:** the view consumes a high-level `SynapsesBackend`; each editor supplies a
+`DataSource` (read/write properties + change events) + `EditorServices` (theme/assets/nav/ontology);
+`createCoreBackend` implements the index lifecycle, mutations, history, and debounce once. A new editor
+= those two adapters.
+
+### Cross-editor invariants
+- **Keep `packages/core` editor-agnostic:** `grep -rE "@logseq/libs|from 'obsidian'|from 'node:'" packages/core/src`
+  must be empty; `obsidian`/`obsidian-dataview` live only under `packages/obsidian-plugin`.
+- **Logseq mounts only after the postMessage bridge connects** (`frame.ts` → `createBackendProxy({ onConnect })`).
+  Calling the proxy backend before the handshake rejects "synapses bridge not connected" and leaves the
+  theme stuck light. Obsidian's backend is in-process (always ready); `mountSynapses`'s caller must pass a
+  connected backend.
+- **`verbatimModuleSyntax` is on** → type-only imports must use `import { type X }`.
+- **Build artifacts are gitignored/rebuildable:** `packages/obsidian-plugin/{main.js,styles.css}` (esbuild
+  renames `main.css`→`styles.css`), `packages/logseq-plugin/dist/`.
 
 ## Terminology
 
@@ -15,22 +47,22 @@ Canonical vocabulary for this project — use these terms in docs, comments, and
 **code symbols predate this glossary and keep their old names**; the mapping is called out so you can
 connect prose to code.
 
-- **Thought** — a piece of the user's content: a Logseq page or journal, backed by a file on disk. The
-  central noun. (Older prose says *note*. "Page" still refers to the underlying Logseq substrate — page
-  properties, the page's first block, `getPage`.)
+- **Thought** — a piece of the user's content: a Logseq page/journal or an Obsidian note, backed by a
+  file on disk. The central noun. (Older prose says *note*. "Page" still refers to the editor substrate —
+  page properties, the page's first block, `getPage`.)
 - **Card** — the on-screen box that represents a thought. (Code says *node*: `NODE` geometry,
   `nodeAdjacency`, the `<div>` elements.)
 - **Link** — a connection between two thoughts. Each link **kind** is a many-to-many relationship,
   declared one direction via page properties; reciprocals are inferred and siblings computed. The
-  in-memory index of all links is the **link index** (`src/main/graph.js`; historically the
-  *relationship index*).
-- **Connector** — the line drawn on the `<canvas>` for a link. (Code says *edge*: `edges.js`,
-  `computeEdges`/`drawEdges`, `edge-hit.js`.) Link is to connector as thought is to card — the relation
-  vs. its drawing.
+  in-memory index of all links is the **link index** (`packages/core/src/graph/`; historically the
+  *relationship index* / `src/main/graph.js`).
+- **Connector** — the line drawn on the `<canvas>` for a link. (Code says *edge*: `view/edges.ts`,
+  `computeEdges`/`drawEdges`, `view/edge-hit.ts`.) Link is to connector as thought is to card — the
+  relation vs. its drawing.
 - **Active thought** — the thought currently centered; only the active thought's links are shown. (Code
-  says *focus*: `focusGatePoint`, `GATES[zone].focus`.)
-- **Activate** — to make a thought the active one: click its card, open its page in the Logseq editor,
-  or create a new thought. (Older prose says *navigate* / *follow*.)
+  says *focus*: the `focus` field on `Graph`/layout, `GATES[zone].focus`.)
+- **Activate** — to make a thought the active one: click its card, open its page in the editor, or
+  create a new thought. (Older prose says *navigate* / *follow*.)
 - **Recenter** — the camera glide that plays when you activate a different thought (the motion, not the
   action).
 
@@ -45,84 +77,92 @@ The four **link kinds**, named by where their cards sit relative to the active t
 
 ## Commands
 
-- `npm run build` — production build to `dist/` (Vite, two HTML entries).
-- `npm run dev` — `vite build --watch` (rebuild on change). You still must reload the plugin in Logseq.
-- `npm test` — run the vitest suite (`vitest run`).
-- Single test: `npx vitest run src/main/graph.test.js` or filter by name with `-t "<substring>"`.
+- `npm run build` — builds all 3 packages (core `tsc -b`; logseq `vite` → `packages/logseq-plugin/dist/`;
+  obsidian `esbuild` → `packages/obsidian-plugin/{main.js,styles.css}`). Add `-w <pkg>` to build one;
+  `npm run dev -w <pkg>` to watch (reload the plugin in the editor to pick up the new bundle).
+- `npm run typecheck` — tsc across all 3 packages. `npm test` — runs the vitest suite (the count isn't
+  pinned here; run it to get the current number before relying on it). Single test:
+  `npx vitest run <file>` or filter by name with `-t "<substring>"`.
+- The view + the editor seams (datasource/services/iframe) need a live editor; the pure index, ontology,
+  history, mutations, transport, and view geometry are unit-tested in `packages/core`.
 
-Only `src/main/graph.js`'s pure functions (`buildIndex`, `queryGraph`, `applyEdge`, `hasEdge`) are
-unit-testable without Logseq — everything else needs the live `logseq` global.
+## Loading & dev loop (no headless harness for either editor)
 
-## Loading & dev loop in Logseq (0.10.x)
+- **Obsidian** (requires the **Dataview** plugin): build, then symlink `packages/obsidian-plugin` →
+  `<vault>/.obsidian/plugins/synapses`; open via the 🧠 ribbon or "Synapses: open in sidebar".
+  `../test_logseq_graph` doubles as an Obsidian vault (Logseq's first-block `key:: [[X]]` properties are
+  the inline fields Dataview reads).
+- **Logseq (0.10.x):** Settings → Advanced → **Developer mode** on → Plugins → **Load unpacked plugin** →
+  select **`packages/logseq-plugin`** (its `package.json` `logseq.main` → `dist/index.html`). Build first;
+  **reload the plugin** (toggle off/on) after each build. Trigger via the 🧠 toolbar button or
+  `/Synapses: open in sidebar`.
+- **Distribute to Obsidian/BRAT:** push a version tag → `.github/workflows/release-obsidian.yml` builds +
+  publishes a GitHub Release with `manifest.json`/`main.js`/`styles.css` as assets; BRAT installs from them.
 
-1. Logseq → Settings → Advanced → **Developer mode** on.
-2. Plugins → **Load unpacked plugin** → select the **project root** (the dir with `package.json`), NOT
-   `dist/`. (`package.json`'s top-level `logseq.main` points at `dist/index.html`.)
-3. After `npm run build`, **reload the plugin** (toggle it off/on) to pick up the new bundle.
-4. Trigger the synapses with the 🧠 toolbar button or the `/Synapses: open in sidebar` slash command.
-5. Verifying live behavior requires a real Logseq instance; there is no headless harness. A sample
-   philosophy test graph is seeded in `../test_logseq_graph` (sibling dir).
+## Architecture — the Logseq two-document split
 
-## Architecture — the big picture
-
-The plugin runs in **two separate browser documents** bridged by postMessage. Understanding this split
-is essential; almost every file belongs to one side or the other.
+Logseq-specific (Obsidian's `ItemView` runs **in-process**, no iframe/bridge). The Logseq plugin runs in
+**two separate browser documents** bridged by postMessage:
 
 ```
-M  src/main/*   plugin "main" iframe, registered by Logseq → HAS the `logseq` global.
-P  src/synapses/*   the synapses UI, injected as an <iframe> into a right-sidebar slot → NO `logseq` global.
-   src/shared/rpc.js   the postMessage bridge used by both.
+M  packages/logseq-plugin/src/index.ts   plugin "main" context, registered by Logseq → HAS `logseq`.
+P  packages/logseq-plugin/src/frame.ts   the synapses UI (core's mountSynapses + synapses.html), injected
+                                          as an <iframe> into a right-sidebar slot → NO `logseq` global.
+   packages/core/src/transport.ts        the generic postMessage bridge (startServer / createClient / proxy).
 ```
 
-- **Why two contexts:** a manually-injected iframe is not a registered plugin, so `@logseq/libs` will
-  not connect inside it. Therefore **all Logseq reads/writes happen in M**; P is a pure view that calls
-  M over RPC (`createClient`/`startServer` in `src/shared/rpc.js`). To add a capability, add an RPC
-  handler in `src/main/index.js` and call it from P via `client.call('name', ...args)`.
-- **Sidebar embedding (`src/main/sidebar.js`):** Logseq has no plugin-sidebar API. A dedicated host
-  page `synapses/host` holds one block `{{renderer :synapses}}`; opening it via `openInRightSidebar` fires
+- **Why two contexts:** a manually-injected iframe is not a registered plugin, so `@logseq/libs` will not
+  connect inside it. Therefore **all Logseq reads/writes happen in M** (the `DataSource`/`EditorServices`);
+  P is a pure view that calls M over the transport. P must wait for `onConnect` before its first call (see
+  Cross-editor invariants).
+- **Sidebar embedding (`packages/logseq-plugin/src/sidebar.ts`):** Logseq has no plugin-sidebar API. A
+  dedicated host page holds one block `{{renderer :synapses}}`; opening it via `openInRightSidebar` fires
   `onMacroRendererSlotted`, where M `provideUI`s an `<iframe>` (its `src` is set via the DOM, not the
   template, so DOMPurify can't strip it). Full-sidebar width is enforced with `:has()` **CSS** in
   `synapsesFrameStyle()`.
-- **Link index (`src/main/graph.js`) — the core, and the source of most subtlety.** A thought's
-  links come from page **properties** (`parent:: / child:: / jump::`), declared one direction;
-  reciprocals (parent↔child) and symmetric jumps are inferred, siblings are computed. These live in an
-  in-memory reciprocal index (`buildIndex`/`queryGraph`). The index is built once, **patched
-  immediately** on plugin writes (`patchIndex`), and **rebuilt debounced** on `logseq.DB.onChanged`.
-- **Rendering (`src/synapses/`):** `view.js` manages absolutely-positioned `<div>` cards (keyed by name so
-  positions tween) over a `<canvas>` connector layer (`edges.js`); `layout.js` is banded arithmetic;
-  `panzoom.js` centers on the **active thought** (the `focus` in code, not the bounding box). `main.js` is the orchestrator
-  (navigation, history, create dialog, theme).
-- **History lives in M** (`histPush`/`histJump` in `index.js`), not P, so it survives the iframe being
-  re-injected when Logseq re-renders the sidebar.
+- **Link index (`packages/core/src/graph/`) — the engine, and the source of most subtlety.** A thought's
+  links come from page **properties** (`parent:: / child:: / jump::`), declared one direction; reciprocals
+  (parent↔child) and symmetric jumps are inferred, siblings are computed. Built once, **patched immediately**
+  on plugin writes, and **rebuilt debounced** on editor change events — the rebuild **replays unconfirmed
+  patches** (`reconcilePatches` in `link-index.ts`) so a write isn't clobbered by a stale read.
+- **Rendering (`packages/core/src/view/`):** `view.ts` manages absolutely-positioned `<div>` cards (keyed
+  by name so positions tween) over a `<canvas>` connector layer (`edges.ts`); `layout.ts` is banded
+  arithmetic; `panzoom.ts` centers on the **active thought** (the `focus` in code). `app.ts`
+  (`mountSynapses`) is the orchestrator (navigation, history, create dialog, theme).
+- **History is durable** (`history.ts` reducer, persisted via each editor's `EditorServices.persistence`),
+  so it survives the Logseq iframe being re-injected when the sidebar re-renders.
 
 ## Critical invariants & gotchas
 
-These are non-obvious and caused real bugs; respect them.
+These are non-obvious and caused real bugs; respect them. (Several are Logseq-specific; Obsidian's seams
+are `packages/obsidian-plugin/src/{datasource,services}.ts`.)
 
-- **Logseq reads are stale right after a write.** Both `:block/refs` (datascript) and
-  `getPage().properties` lag for seconds after `upsertBlockProperty` until Logseq re-indexes. Therefore:
-  - Reverse links are derived from page **properties**, never from datascript `:block/refs`.
-  - Never do an immediate index rebuild after a write — it reads stale data and clobbers the patch.
-    `rebuildIndex` **replays unconfirmed `pendingPatches`** onto each fresh build and only drops a patch
-    once a read confirms it (or after `PATCH_TTL_MS`, so external removals eventually win). Keep
-    rebuild's replay→swap synchronous (no `await` between them) or the race returns.
-- **`window.prompt`/`alert` are blocked** in the sandboxed synapses iframe — use the in-iframe dialog
-  (`src/synapses/dialog.js`), not native modals.
-- **An iframe in an inline wrapper falls back to its ~300px intrinsic width**, ignoring `width:100%`.
-  Fix width with persistent **CSS** (`:has()` in `synapsesFrameStyle`), not imperative JS — JS mutations get
-  wiped when Logseq re-renders the sidebar on reload.
-- **The iframe swallows mouse events during a sidebar resize drag**; `installDragPassthrough` toggles
-  `pointer-events:none` while a drag started outside the iframe is in flight.
-- **`onMacroRendererSlotted` fires repeatedly and with new slot ids**; `renderSynapsesSlot` dedupes and
-  filters to the sidebar instance. Keep synapses state in M or in P's module scope, never tied to a slot id.
-- **Page properties live on the page's first block** — resolve `getPageBlocksTree(name)[0].uuid` before
-  writing with `upsertBlockProperty`.
+- **Editor reads can be stale right after a write.** Logseq's `getPage().properties` (and datascript
+  `:block/refs`) and Obsidian's Dataview index both lag after a write. Therefore: reverse links are derived
+  from page **properties**, never from datascript refs; never do an immediate index rebuild after a write —
+  `reconcilePatches` replays unconfirmed `pendingPatches` onto each fresh build and only drops a patch once
+  a read confirms it (or after `PATCH_TTL_MS`, so external removals eventually win). Keep the replay→swap
+  synchronous (no `await` between them) or the race returns.
+- **`window.prompt`/`alert` are blocked** in the sandboxed Logseq synapses iframe — use the in-iframe
+  dialog (`packages/core/src/view/dialog.ts`), not native modals.
+- **An iframe in an inline wrapper falls back to its ~300px intrinsic width**, ignoring `width:100%`. Fix
+  width with persistent **CSS** (`:has()` in `synapsesFrameStyle`, `packages/logseq-plugin/src/sidebar.ts`),
+  not imperative JS — JS mutations get wiped when Logseq re-renders the sidebar.
+- **The Logseq iframe swallows mouse events during a sidebar resize drag**; `installDragPassthrough`
+  (`sidebar.ts`) toggles `pointer-events:none` while a drag started outside the iframe is in flight.
+- **`onMacroRendererSlotted` fires repeatedly and with new slot ids**; `renderSynapsesSlot` (`sidebar.ts`)
+  dedupes and filters to the sidebar instance. Keep synapses state in M or in P's module scope, never tied
+  to a slot id.
+- **Logseq page properties live on the page's first block** — the Logseq `DataSource` resolves
+  `getPageBlocksTree(name)[0].uuid` before writing with `upsertBlockProperty`.
 - The synapses skips re-rendering when the graph key is unchanged (anti-flicker on reconcile) — see
-  `graphKey` in `src/synapses/main.js`.
+  `graphKey` in `packages/core/src/app.ts`.
 
 ## Pointers
 
 - `README.md` — user-facing setup/validation steps.
 - @WORKJOURNAL.md — dated log of what was built and why.
-- Ontology (which property names map to parent/child/jump) is user-configurable via plugin settings;
-  defaults are in `src/main/ontology.js`.
+- Ontology (which property names map to parent/child/jump) is user-configurable per editor (Logseq
+  settings schema in `packages/logseq-plugin/src/index.ts`; Obsidian settings tab in
+  `packages/obsidian-plugin/src/settings.ts`); the parser/defaults are `buildOntology` in
+  `packages/core/src/ontology.ts`.
