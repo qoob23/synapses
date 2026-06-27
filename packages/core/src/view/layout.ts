@@ -61,8 +61,7 @@ const PAD_Y = 56
 const GAP = 48 // minimum clearance between neighbouring groups
 const MAX_BAND_X = 620 // cap so columns don't fly apart on a wide monitor
 const MAX_BAND_Y = 360
-const MIN_VGAP = 28 // added to cardH for the tightest vertical step
-const MAX_VGAP = 110 // added to cardH for the airiest vertical step
+const V_GAP = 16 // FIXED vertical gap between cards stacked WITHIN a group (columns, child rows)
 const MIN_CHILD_GAP = 80 // the two children columns stay at least this far apart...
 const MAX_CHILD_GAP = 240 // ...and spread up to this far on a roomy panel
 
@@ -127,25 +126,22 @@ function computeSpacing(graph: LayoutGraph, widths: Widths, opts?: LayoutOpts): 
   const bandXFor = (names: string[] | undefined) =>
     clamp(vp.w / 2 - PAD_X - colW(names) + NODE.W / 2, minBandX, MAX_BAND_X)
 
-  // Vertical: parents near the top; the children grid pushed toward the bottom (its LAST row
-  // near the panel edge). bottomY is the lowest a card centre can sit.
+  // WITHIN a group the vertical gap is FIXED at V_GAP (so columns/child rows have a
+  // consistent rhythm). The zone DISTANCES below stay responsive — that's the air BETWEEN
+  // groups, which still fills the panel height.
+  const colStep = cardH + V_GAP
+  const childStep = cardH + V_GAP
+
+  // Vertical zone distances (responsive air). Parents near the top; the children grid pushed
+  // toward the bottom (its LAST row near the panel edge), but kept below the side columns'
+  // vertical reach so a tall column can't collide with the centred children.
   const bottomY = vp.h / 2 - PAD_Y - cardH / 2
   const bandYTop = clamp(bottomY, cardH + GAP, MAX_BAND_Y)
   const childRows = Math.ceil((graph.children?.length || 0) / 2)
-  const childStep =
-    childRows > 1
-      ? clamp((bottomY - (cardH + GAP)) / (childRows - 1), cardH + MIN_VGAP, cardH + MAX_VGAP)
-      : cardH + MIN_VGAP
-  const bandYBottom = clamp(bottomY - (childRows > 1 ? (childRows - 1) * childStep : 0), cardH + GAP, MAX_BAND_Y)
-
-  // Side columns are centred on the focus and bounded to the MIDDLE band so they clear the
-  // parent row (above) and the first child row (below).
-  const colHalfMax = Math.max(cardH, Math.min(bandYTop, bandYBottom) - cardH - GAP)
   const colSlots = Math.max(graph.jumps?.length || 0, graph.siblings?.length || 0)
-  const colStep =
-    colSlots > 1
-      ? clamp((2 * colHalfMax) / (colSlots - 1), cardH + MIN_VGAP, cardH + MAX_VGAP)
-      : cardH + MIN_VGAP
+  const colHalf = colSlots > 1 ? ((colSlots - 1) / 2) * colStep : 0
+  const pushBottom = clamp(bottomY - (childRows > 1 ? (childRows - 1) * childStep : 0), cardH + GAP, MAX_BAND_Y)
+  const bandYBottom = Math.max(pushBottom, colHalf + cardH + GAP)
 
   const childGap = clamp(vp.w * 0.16, MIN_CHILD_GAP, MAX_CHILD_GAP)
 

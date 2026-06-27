@@ -6,7 +6,7 @@ import cssText from './styles.css?raw'
 
 describe('node geometry single source of truth', () => {
   // Card size now scales with the size level via CSS vars (height/font/max-width), but
-  // the CSS FALLBACKS must still track the base geometry: height → NODE.H, font → 1rem,
+  // the CSS FALLBACKS must still track the base geometry: height → NODE.H, font → 16px,
   // max-width → the base cap.
   it('styles.css height fallback matches NODE.H', () => {
     expect(cssText).toContain(`var(--synapses-node-h, ${NODE.H}px)`)
@@ -16,7 +16,7 @@ describe('node geometry single source of truth', () => {
     expect(cssText).toContain('max-width: var(--synapses-node-maxw')
   })
   it('styles.css drives node label size from --synapses-node-font', () => {
-    expect(cssText).toContain('font-size: var(--synapses-node-font, 1rem)')
+    expect(cssText).toContain('font-size: var(--synapses-node-font, 16px)')
   })
 })
 
@@ -174,7 +174,7 @@ describe('computeLayout fills the panel (responsive spacing)', () => {
     expect(innerEdge).toBeGreaterThanOrEqual(focus.w / 2) // clears the focus box
   })
 
-  it('spreads a column to fill height on a tall panel and floors the gap on a short one', () => {
+  it('uses a fixed within-group vertical gap (cardH + 16px), regardless of panel height', () => {
     const g = { focus: 'F', siblings: ['a', 'b', 'c'], parents: [], children: [], jumps: [], siblingParent: {} }
     const step = (h: number) => {
       const sibs = computeLayout(g, undefined, vp(600, h)).nodes
@@ -182,8 +182,8 @@ describe('computeLayout fills the panel (responsive spacing)', () => {
         .sort((x, y) => x.y - y.y)
       return sibs[1].y - sibs[0].y
     }
-    expect(step(1600)).toBeGreaterThan(step(360)) // taller panel → more air
-    expect(step(360)).toBeGreaterThanOrEqual(NODE.H) // ...but never overlapping
+    expect(step(1600)).toBe(step(360)) // fixed, NOT responsive to panel height
+    expect(step(900)).toBe(NODE.H + 16) // centre-to-centre = cardH + the fixed 16px gap
   })
 
   it('sets the bbox height from cardH (the size level)', () => {

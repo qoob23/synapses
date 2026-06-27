@@ -71,7 +71,7 @@ export function createView({
   // feeds the live card height into the layout. The spacing then re-fills the panel
   // around the new card size (see relayout). Persisted via onSizeChange.
   const SIZE_FACTORS = [0.8, 0.9, 1.0, 1.15, 1.3]
-  const BASE_FONT_REM = 1.0 // matches styles.css --synapses-node-font fallback
+  const BASE_FONT_PX = 16 // matches styles.css --synapses-node-font fallback (px everywhere)
   const BASE_MAXW = 480 // matches styles.css --synapses-node-maxw fallback
   const clampLevel = (l: number) => Math.max(0, Math.min(SIZE_FACTORS.length - 1, Math.round(l)))
   let sizeLevel = initialSize == null ? SIZE_FACTORS.indexOf(1.0) : clampLevel(initialSize)
@@ -82,7 +82,7 @@ export function createView({
   function applySizeVars() {
     const f = sizeFactor()
     root.style.setProperty('--synapses-node-h', cardHpx() + 'px')
-    root.style.setProperty('--synapses-node-font', (BASE_FONT_REM * f).toFixed(3) + 'rem')
+    root.style.setProperty('--synapses-node-font', Math.round(BASE_FONT_PX * f) + 'px')
     root.style.setProperty('--synapses-node-maxw', Math.round(BASE_MAXW * f) + 'px')
   }
   applySizeVars()
