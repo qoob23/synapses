@@ -6,6 +6,7 @@ export const PATCH_TTL_MS = 4000
 
 export interface LinkIndex {
   rebuild(): Promise<void>
+  hardReset(): Promise<void>
   buildGraph(name: string): Promise<Graph>
   nodeAdjacency(names: string[]): Promise<Adjacency>
   patchIndex(focus: string, role: Role, target: string): void
@@ -35,10 +36,24 @@ export function createLinkIndex(dataSource: DataSource, getOntology: () => Ontol
     await building
   }
 
+  // Escape hatch for wedged index state: drop EVERY pending patch and the live
+  // index, then rebuild straight from the editor's current pages. Unlike rebuild(),
+  // which replays unconfirmed patches (so a write isn't clobbered by a stale read),
+  // hardReset trusts the editor unconditionally — used by the toolbar refresh button
+  // to recover when a stuck patch keeps a link from clearing after a manual edit.
+  async function hardReset(): Promise<void> {
+    pendingPatches.length = 0
+    liveIndex = { pages: new Map(), display: new Map() }
+    built = false
+    building = null
+    await rebuild()
+  }
+
   function same(a: string, b: string) { return a.toLowerCase() === b.toLowerCase() }
 
   return {
     rebuild,
+    hardReset,
     async buildGraph(name) { await ensureBuilt(); return queryGraph(liveIndex, name) },
     async nodeAdjacency(names) { await ensureBuilt(); return getAdjacency(liveIndex, names) },
     patchIndex(focus, role, target) {

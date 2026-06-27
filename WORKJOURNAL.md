@@ -54,3 +54,6 @@
 - **Layout:** dense, deterministic banded layout — the four directional zones sit in non-overlapping bands that grow outward from the active thought; horizontal fills the panel width, vertical is fixed.
 - **Zoom:** removed entirely — the world only translates to center the active thought (no camera scale), so text stays crisp; replaced by a persisted +/− card/text size control, with drag-to-pan for overflow.
 - **UI tweaks:** content-sized card widths with hover tooltips for clamped titles; px units throughout; tighter cards/handles with a small grab area to avoid accidental links; toolbar button tooltips; dropped the redundant open-in-main-pane button.
+
+## 2026-06-28
+- **Toolbar ↻ "Rebuild from editor"** — hard-resets the in-memory index + pending patches and rebuilds purely from the editor (new `link-index.hardReset` → backend `rebuildIndex`), forcing a full re-render; the real fix was Logseq-side: `listPages` now gates on `page.file`, so phantom datascript pages: deleted `.md` whose lingering property blocks resurrected dead links no longer re-enter the index without a manual re-index.

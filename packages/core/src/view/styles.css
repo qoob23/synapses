@@ -66,6 +66,13 @@
   opacity: 0.4;
   cursor: default;
 }
+/* The reload glyph (↻) is drawn thin/small in system fonts; scale it up so it reads at
+   the same visual weight as the solid ◀ ▶ triangles. line-height:1 keeps the button from
+   growing taller than its toolbar siblings. */
+.synapses-btn-refresh {
+  font-size: 1em;
+  line-height: 1;
+}
 
 /* Custom hover tooltip for the toolbar icon buttons (text from data-tip). Styled to match
    the card tooltip; appears below the button after a short, deliberate hover. */

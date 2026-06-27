@@ -43,6 +43,16 @@ describe('createCoreBackend', () => {
     expect((await be.buildGraph('A')).children).toEqual(['B'])
   })
 
+  it('rebuildIndex discards pending patches and rebuilds purely from the editor', async () => {
+    const { ds, services } = fakes([{ name: 'A', props: {} }, { name: 'B', props: {} }])
+    const be = createCoreBackend(ds, services)
+    await be.createChild('A', 'B') // writes A.child=[B] in the editor + a pending add-patch
+    expect((await be.buildGraph('A')).children).toEqual(['B'])
+    await ds.removePropertyKey('A', 'child') // user manually deletes the link in the editor
+    await be.rebuildIndex() // hard refresh: editor is the sole source of truth
+    expect((await be.buildGraph('A')).children).toEqual([])
+  })
+
   it('onGraphChange debounces a rebuild then emits refresh', async () => {
     const { ds, services, fireGraph } = fakes([{ name: 'A', props: {} }])
     const be = createCoreBackend(ds, services)

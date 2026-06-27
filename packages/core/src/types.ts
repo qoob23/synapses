@@ -26,6 +26,7 @@ export interface SynapsesBackend {
   getTheme(): Promise<Palette>
   buildGraph(name: string): Promise<Graph>
   nodeAdjacency(names: string[]): Promise<Adjacency>
+  rebuildIndex(): Promise<void> // hard refresh: discard in-memory index + patches, rebuild from the editor
   histState(): Promise<HistoryState>
   histPush(name: string): Promise<HistoryState>
   histJump(i: number): Promise<HistoryJump | null>

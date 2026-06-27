@@ -195,6 +195,27 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     flash('Open a page to see its synapses.')
   }
 
+  // Toolbar "rebuild" action — the escape hatch for wedged internal state. Throws
+  // away the whole in-memory index + pending patches and rebuilds it purely from the
+  // editor, then forces a full re-render (lastRenderKey reset) so the skip-if-unchanged
+  // path can't suppress the redraw.
+  async function hardRefresh() {
+    flash('Rebuilding from editor…')
+    try {
+      await backend.rebuildIndex()
+    } catch (e: any) {
+      flash('⚠ ' + ((e && e.message) || e))
+      return
+    }
+    lastRenderKey = null
+    if (focus) {
+      hideFlash()
+      goto(focus, { noHistory: true, fromLogseq: true })
+    } else {
+      restore() // no active thought yet: re-run the initial restore (manages its own flash)
+    }
+  }
+
   async function create(role: Role) {
     const src = focus
     if (!src) return
@@ -213,6 +234,8 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     back.disabled = lastHist.index <= 0
     const fwd = btn('▶', 'Forward', () => jumpToIndex(lastHist.index + 1))
     fwd.disabled = lastHist.index >= lastHist.list.length - 1
+    const refresh = btn('↻', 'Rebuild from editor', () => hardRefresh())
+    refresh.classList.add('synapses-btn-refresh') // bumps the thin glyph up to the triangles' weight
 
     const title = document.createElement('div')
     title.className = 'synapses-title'
@@ -236,7 +259,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
 
     // (No explicit "open in main pane" button — clicking the centred active card already
     // opens it in the main pane.)
-    els.toolbar.append(back, fwd, title, add, minus, plus)
+    els.toolbar.append(back, fwd, refresh, title, add, minus, plus)
   }
 
   function renderBreadcrumb() {

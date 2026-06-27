@@ -60,6 +60,10 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
     getTheme: async () => services.getTheme(),
     buildGraph: (name) => index.buildGraph(name),
     nodeAdjacency: (names) => index.nodeAdjacency(names),
+    // Hard refresh: blow away the in-memory index + pending patches and rebuild
+    // straight from the editor. The app forces a full re-render after awaiting this,
+    // so we deliberately don't emit 'refresh' (which the view may skip if unchanged).
+    rebuildIndex: () => index.hardReset(),
     histState: async () => { await ready; return history.state() },
     histPush: async (name) => { await ready; return history.push(name) },
     histJump: async (i) => { await ready; return history.jump(i) },

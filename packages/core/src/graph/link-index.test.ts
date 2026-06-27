@@ -44,4 +44,16 @@ describe('createLinkIndex', () => {
     await idx.rebuild() // read still HAS A->B; remove patch replayed
     expect((await idx.buildGraph('A')).children).toEqual([])
   })
+
+  it('hardReset discards ALL pending patches and rebuilds purely from the editor', async () => {
+    const ds = fakeDataSource([{ name: 'A', props: {} }, { name: 'B', props: {} }])
+    const idx = createLinkIndex(ds, () => ONT)
+    await idx.buildGraph('A')
+    idx.patchIndex('A', 'child', 'B')
+    expect((await idx.buildGraph('A')).children).toEqual(['B'])
+    // Unlike rebuild(), which replays unconfirmed patches, hardReset drops them —
+    // the editor (which never had A->B) becomes the sole source of truth.
+    await idx.hardReset()
+    expect((await idx.buildGraph('A')).children).toEqual([])
+  })
 })

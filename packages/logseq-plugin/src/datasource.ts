@@ -6,9 +6,12 @@ import { toNames } from '@logseq-synapses/core'
 // them on the page entity, others only on the block. Raw wiki-link values are
 // mapped to plain target names via core's `toNames`, yielding the ontology-
 // agnostic PropMap the core link index consumes.
-async function getPagePropsRaw(name: string): Promise<PropMap> {
+async function getPagePropsRaw(name: string, page?: any): Promise<PropMap> {
   let props: any = {}
-  try { const page = await (logseq as any).Editor.getPage(name); if (page?.properties) props = page.properties } catch {}
+  try {
+    if (page === undefined) page = await (logseq as any).Editor.getPage(name)
+    if (page?.properties) props = page.properties
+  } catch {}
   if (!Object.keys(props).length) {
     try { const tree = await (logseq as any).Editor.getPageBlocksTree(name); if (tree?.[0]?.properties) props = tree[0].properties } catch {}
   }
@@ -29,7 +32,17 @@ export function createLogseqDataSource(): DataSource {
       try { list = (await (logseq as any).Editor.getAllPages()) || [] } catch (e) { console.warn('[synapses] getAllPages failed', e) }
       const entries = await Promise.all(list.map(async (p) => {
         const name = p?.originalName || p?.name
-        return name ? { name, props: await getPagePropsRaw(name) } : null
+        if (!name) return null
+        // Only file-backed pages are real. After an .md file is deleted, Logseq keeps a
+        // phantom datascript page entity — including its stale property blocks — so
+        // getAllPages still lists it and its declared links re-enter the index, resurrecting
+        // connections that no longer exist on disk (surviving plugin refresh AND restart
+        // until a manual Logseq re-index). Gating on `page.file` keeps the on-disk markdown
+        // the sole source of truth; the fetched entity is reused for props (no extra call).
+        let page: any
+        try { page = await (logseq as any).Editor.getPage(name) } catch { return null }
+        if (!page || !page.file) return null
+        return { name, props: await getPagePropsRaw(name, page) }
       }))
       return entries.filter(Boolean) as PageEntry[]
     },
