@@ -40,6 +40,9 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   // History is owned by the main context (durable). We keep the last snapshot here
   // only to render the toolbar/breadcrumb.
   let lastHist: HistoryState = { list: [], index: -1 }
+
+  const same = (a?: string | null, b?: string | null) =>
+    !!a && !!b && a.toLowerCase() === b.toLowerCase()
   let focus: string | null = null
   let navToken = 0
   let lastRenderKey: string | null = null
@@ -60,11 +63,18 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   // otherwise fall back to the currently open page in the editor.
   async function restore() {
     try {
-      const st = await backend.histState()
+      let st = await backend.histState()
       if (st && st.list && st.list.length) {
-        lastHist = st
-        goto(st.list[st.index], { noHistory: true, fromLogseq: true })
-        return
+        try {
+          st = (await backend.histRemoveMissing(st.list)).state
+        } catch (e) {
+          /* keep the unswept state if the existence check fails */
+        }
+        if (st.list.length) {
+          lastHist = st
+          goto(st.list[st.index], { noHistory: true, fromLogseq: true })
+          return
+        }
       }
     } catch (e) {
       /* ignore */
@@ -99,6 +109,32 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       return
     }
     if (mine !== navToken) return // superseded by a newer navigation
+
+    // An activated thought that renders unlinked may be a file that was deleted on disk.
+    // Only emptiness + a failed existence check prunes — a genuinely-unlinked existing note stays.
+    const unlinked = !(
+      graph.parents.length || graph.children.length || graph.jumps.length || graph.siblings.length
+    )
+    if (unlinked) {
+      try {
+        const { removed } = await backend.histRemoveMissing([name])
+        if (mine !== navToken) return
+        if (removed.length) {
+          lastHist = await backend.histState()
+          renderToolbar()
+          renderBreadcrumb()
+          const active = await backend.getActivePage()
+          if (active && !same(active, name)) {
+            goto(active, { fromLogseq: true })
+            return
+          }
+          flash('This note no longer exists.')
+          return
+        }
+      } catch (e) {
+        /* fall through and render the empty graph */
+      }
+    }
 
     hideFlash()
     // Skip the re-render if nothing visually changed (avoids reconcile flicker).
