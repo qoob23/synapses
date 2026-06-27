@@ -1,6 +1,10 @@
-// Fixed banded layout around the active thought, no physics:
-//   parents row above, children row below, jumps column left, siblings column right.
-// All coordinates are "world" units with the active thought at (0, 0).
+// Banded layout around the active thought, no physics:
+//   parents row above, children grid below, jumps column left, siblings column right.
+// Cards are content-sized (tight reflow): each carries its own width `w`, rows pack
+// by actual width + a gap, and columns anchor their inner edge a constant gap from
+// the focus so wider cards grow OUTWARD. With a uniform `w = NODE.W` this reproduces
+// the original fixed-slot coordinates exactly. All coordinates are "world" units with
+// the active thought at (0, 0).
 
 import type { Graph } from '../types'
 
@@ -8,6 +12,7 @@ export interface LayoutNode {
   name: string
   x: number
   y: number
+  w: number
   zone: string
   via?: string
 }
@@ -30,47 +35,68 @@ export interface LayoutResult {
 export type LayoutGraph = Pick<Graph, 'focus'> &
   Partial<Pick<Graph, 'parents' | 'children' | 'jumps' | 'siblings' | 'siblingParent'>>
 
-export interface GridOptions {
-  cols?: number
-  colGap?: number
-  rowGap?: number
-}
-
 export const NODE = { W: 208, H: 40 }
 
 const BAND_Y = 210 // vertical distance to the parent/child rows (space BETWEEN groups)
 const BAND_X = 360 // horizontal distance to the jump/sibling columns (space BETWEEN groups)
-const GAP_X = 224 // horizontal gap between cards in a row (space WITHIN a group; >= NODE.W)
-const GAP_Y = 54 // vertical gap between cards in a column (space WITHIN a group; >= NODE.H)
-const CHILD_COL_GAP = 300 // horizontal gap between the two children columns (> GAP_X for a clear split; >= NODE.W)
+const ROW_GAP = 16 // horizontal gap between cards in a row (space WITHIN a group)
+const COL_STEP = 54 // center-to-center vertical step in a column (cards are fixed-height)
+const CHILD_GAP = 92 // inner gap between the two children columns (> ROW_GAP for a clear split)
 
-function rowPositions(names: string[], y: number) {
-  const n = names.length
-  return names.map((name, i) => ({ name, x: (i - (n - 1) / 2) * GAP_X, y }))
+// Per-card width by name (case-insensitive); falls back to NODE.W when unmeasured.
+type Widths = Record<string, number> | undefined
+function widthOf(widths: Widths, name: string): number {
+  const w = widths?.[name.toLowerCase()]
+  return typeof w === 'number' && w > 0 ? w : NODE.W
 }
 
-function colPositions(names: string[], x: number) {
-  const n = names.length
-  return names.map((name, i) => ({ name, x, y: (i - (n - 1) / 2) * GAP_Y }))
-}
-
-export function gridPositions(names: string[], y0: number, { cols = 2, colGap = GAP_X, rowGap = NODE.H + 14 }: GridOptions = {}) {
+// A row packed left→right by actual width + ROW_GAP, centered so its midpoint is x=0.
+function rowPositions(names: string[], y: number, widths: Widths) {
+  const ws = names.map((n) => widthOf(widths, n))
+  const total = ws.reduce((a, b) => a + b, 0) + ROW_GAP * Math.max(0, names.length - 1)
+  let cursor = -total / 2
   return names.map((name, i) => {
-    const col = i % cols
-    const row = Math.floor(i / cols)
-    const x = (col - (cols - 1) / 2) * colGap
-    const y = y0 + row * rowGap
-    return { name, x, y }
+    const w = ws[i]
+    const x = cursor + w / 2
+    cursor += w + ROW_GAP
+    return { name, x, y, w }
   })
 }
 
-export function computeLayout(graph: LayoutGraph): LayoutResult {
-  const raw: LayoutNode[] = [{ name: graph.focus, x: 0, y: 0, zone: 'focus' }]
-  for (const p of rowPositions(graph.parents || [], -BAND_Y)) raw.push({ ...p, zone: 'parent' })
-  for (const c of gridPositions(graph.children || [], BAND_Y, { colGap: CHILD_COL_GAP })) raw.push({ ...c, zone: 'child' })
-  for (const j of colPositions(graph.jumps || [], -BAND_X)) raw.push({ ...j, zone: 'jump' })
+// A vertical column whose INNER edge sits a constant gap (BAND_X) from the focus, so
+// wider cards grow outward. sign = -1 (jumps, left) or +1 (siblings, right).
+function colPositions(names: string[], sign: number, widths: Widths) {
+  const n = names.length
+  return names.map((name, i) => {
+    const w = widthOf(widths, name)
+    const x = sign * (BAND_X + (w - NODE.W) / 2)
+    const y = (i - (n - 1) / 2) * COL_STEP
+    return { name, x, y, w }
+  })
+}
+
+// Children fill two columns row-major; each column is centered on its own center,
+// sized to its widest card, with the pair centered on x=0 and rows stacking downward.
+function childPositions(names: string[], y0: number, widths: Widths) {
+  const cols: string[][] = [[], []]
+  names.forEach((name, i) => cols[i % 2].push(name))
+  const colWidth = (c: string[]) => (c.length ? Math.max(...c.map((n) => widthOf(widths, n))) : NODE.W)
+  const leftCenter = -(CHILD_GAP / 2 + colWidth(cols[0]) / 2)
+  const rightCenter = CHILD_GAP / 2 + colWidth(cols[1]) / 2
+  return names.map((name, i) => {
+    const x = i % 2 === 0 ? leftCenter : rightCenter
+    const y = y0 + Math.floor(i / 2) * COL_STEP
+    return { name, x, y, w: widthOf(widths, name) }
+  })
+}
+
+export function computeLayout(graph: LayoutGraph, widths?: Record<string, number>): LayoutResult {
+  const raw: LayoutNode[] = [{ name: graph.focus, x: 0, y: 0, w: widthOf(widths, graph.focus), zone: 'focus' }]
+  for (const p of rowPositions(graph.parents || [], -BAND_Y, widths)) raw.push({ ...p, zone: 'parent' })
+  for (const c of childPositions(graph.children || [], BAND_Y, widths)) raw.push({ ...c, zone: 'child' })
+  for (const j of colPositions(graph.jumps || [], -1, widths)) raw.push({ ...j, zone: 'jump' })
   const siblingParent = graph.siblingParent || {}
-  for (const s of colPositions(graph.siblings || [], BAND_X)) {
+  for (const s of colPositions(graph.siblings || [], 1, widths)) {
     raw.push({ ...s, zone: 'sibling', via: siblingParent[s.name] })
   }
 
@@ -88,15 +114,16 @@ export function computeLayout(graph: LayoutGraph): LayoutResult {
 }
 
 function computeBBox(nodes: LayoutNode[]): LayoutBox {
-  let minX = -NODE.W / 2
-  let minY = -NODE.H / 2
-  let maxX = NODE.W / 2
-  let maxY = NODE.H / 2
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
   for (const n of nodes) {
-    minX = Math.min(minX, n.x - NODE.W / 2)
-    maxX = Math.max(maxX, n.x + NODE.W / 2)
+    minX = Math.min(minX, n.x - n.w / 2)
+    maxX = Math.max(maxX, n.x + n.w / 2)
     minY = Math.min(minY, n.y - NODE.H / 2)
     maxY = Math.max(maxY, n.y + NODE.H / 2)
   }
+  if (!isFinite(minX)) return { minX: -NODE.W / 2, minY: -NODE.H / 2, maxX: NODE.W / 2, maxY: NODE.H / 2 }
   return { minX, minY, maxX, maxY }
 }

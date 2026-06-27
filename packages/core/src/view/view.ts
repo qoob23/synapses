@@ -26,6 +26,7 @@ interface CardEl extends HTMLDivElement {
   _label: HTMLElement
   _handles: Record<string, HandleEl>
   _handleStates: Record<string, string>
+  _clamped: boolean // label is truncated (full title shown via the hover tooltip)
 }
 interface HandleEl extends HTMLDivElement {
   _dir: string
@@ -65,13 +66,18 @@ export function createView({
   onZoomChange?: (s: number) => void
 }) {
   const ctx = canvas.getContext('2d')!
-  // Single source of truth for card box size: the layout math (NODE) drives the
-  // CSS variables too, so changing NODE keeps the rendered box and the edge
-  // endpoints/bbox in agreement (styles.css falls back to matching literals).
-  root.style.setProperty('--synapses-node-w', NODE.W + 'px')
+  // Card HEIGHT is fixed (titles are single-line), so its CSS fallback tracks NODE.H.
+  // Card WIDTH is content-sized (fit-content), capped at CLAMP_FRACTION of the panel
+  // width via --synapses-node-maxw; past the cap the label clamps and gets a tooltip.
   root.style.setProperty('--synapses-node-h', NODE.H + 'px')
+  const CLAMP_FRACTION = 0.4
+  function applyMaxWidth() {
+    const maxw = Math.max(120, Math.round(viewport().w * CLAMP_FRACTION))
+    root.style.setProperty('--synapses-node-maxw', maxw + 'px')
+  }
   const elements = new Map<string, CardEl>() // nameLower -> element
   let layout: any = null
+  let lastGraph: Graph | null = null
   let theme: { edge: string; jumpEdge: string; highlight: string } = defaultTheme()
   let dpr = window.devicePixelRatio || 1
   let raf = 0
@@ -108,6 +114,8 @@ export function createView({
     canvas.height = Math.max(1, Math.round(vp.h * dpr))
     canvas.style.width = vp.w + 'px'
     canvas.style.height = vp.h + 'px'
+    applyMaxWidth() // the width cap tracks the panel; a narrower panel re-clamps titles
+    if (lastGraph) relayout() // re-measure + reposition for the new cap (instant, no glide)
     // keep content framed when the panel is resized
     if (layout) {
       panzoom.fit(layout.bbox, vp)
@@ -123,15 +131,63 @@ export function createView({
     scheduleDraw()
   }
 
+  // Read each present card's rendered width (cards live in the scaled world, so
+  // offsetWidth is already in world units) and whether its label is clamped (full
+  // title then shown via the hover tooltip). Returns a name→width map for the layout.
+  function measureWidths(): Record<string, number> {
+    const widths: Record<string, number> = {}
+    for (const [key, el] of elements) {
+      widths[key] = el.offsetWidth || NODE.W
+      el._clamped = el._label.scrollWidth > el._label.clientWidth + 1
+      el.title = el._clamped ? '' : hintFor(el) // clamped → rely on the custom tooltip
+    }
+    return widths
+  }
+
+  // Recompute positions for the current graph against freshly-measured widths and
+  // snap cards into place WITHOUT the recenter glide (used on panel resize).
+  function relayout() {
+    if (!lastGraph) return
+    layout = computeLayout(lastGraph, measureWidths())
+    root.classList.add('synapses-snapping') // suppress the transform transition
+    for (const node of layout.nodes) {
+      const el = elements.get(node.name.toLowerCase())
+      if (el) positionEl(el, node)
+    }
+    void world.offsetWidth // commit the snapped positions before re-enabling transitions
+    root.classList.remove('synapses-snapping')
+    scheduleDraw()
+  }
+
   function setGraph(graph: Graph) {
     hideRemove() // drop any stale hover highlight / unlink control from the old graph
+    hideTooltip()
+    lastGraph = graph
     const prevFocus = layout ? layout.focus : null
-    layout = computeLayout(graph)
+
+    // Identity pass: dedup + zones come from a width-agnostic layout. We need the
+    // elements present (with their text set) before we can measure widths, so create
+    // /update them first, then lay out for real against the measured widths.
+    const ids = computeLayout(graph)
     const present = new Set<string>()
+    const created = new Set<string>()
+    for (const node of ids.nodes) {
+      const key = node.name.toLowerCase()
+      present.add(key)
+      let el = elements.get(key)
+      if (!el) {
+        el = makeNode()
+        world.appendChild(el)
+        elements.set(key, el)
+        created.add(key)
+      }
+      updateNode(el, node) // sets the label text (required before measuring)
+    }
+    layout = computeLayout(graph, measureWidths())
 
     // Newly-appearing cards emerge FROM the activating card (the new active thought) at
-    // its current on-screen position, so new links grow out of the card you
-    // just clicked. Captured BEFORE the loop below moves it to the center.
+    // its current on-screen position, so new links grow out of the card you just
+    // clicked. Captured BEFORE the loop below moves anything to the center.
     const activatingEl = elements.get(String(graph.focus).toLowerCase())
     const enterFrom = activatingEl ? liveCenterOf(activatingEl) : { x: 0, y: 0 }
 
@@ -139,7 +195,7 @@ export function createView({
     // it usually demotes to a parent/jump/sibling and slides there — so a
     // dropped card fades into the card it belonged to, not the new center.
     // Falls back to the center if the old active thought is gone too.
-    let exitInto = { x: 0, y: 0 }
+    let exitInto: Pt = { x: 0, y: 0 }
     if (prevFocus) {
       const moved = layout.nodes.find((n: any) => n.name.toLowerCase() === prevFocus.toLowerCase())
       if (moved) exitInto = { x: moved.x, y: moved.y }
@@ -147,19 +203,13 @@ export function createView({
 
     for (const node of layout.nodes) {
       const key = node.name.toLowerCase()
-      present.add(key)
-      let el = elements.get(key)
-      if (el) {
+      const el = elements.get(key)!
+      if (!created.has(key)) {
         // Reused card: glide directly from its current spot to the new one.
-        updateNode(el, node)
         positionEl(el, node)
         continue
       }
       // New card: fade in while moving out from the activating card's position.
-      el = makeNode()
-      world.appendChild(el)
-      elements.set(key, el)
-      updateNode(el, node)
       el.classList.add('appearing') // opacity:0 until faded in below
       positionEl(el, enterFrom)
       void el.offsetWidth // force reflow so the move + fade below transition
@@ -188,18 +238,20 @@ export function createView({
   const DIR_SIDE: Record<string, string> = { parent: 'top', child: 'bottom', jump: 'left' }
   const jumpSide = (zone: string) => (zone === 'jump' ? 'right' : 'left')
 
-  // Get the current world-center of a card element from its live CSS transform.
-  function liveCenterOf(el: any): Pt {
+  // Get the current world-center (+ width) of a card element from its live CSS
+  // transform. Width comes from offsetWidth since cards are content-sized.
+  function liveCenterOf(el: any): Pt & { w: number } {
+    const w = el.offsetWidth || NODE.W
     const t = getComputedStyle(el).transform
     if (t && t !== 'none') {
       try {
         const m = new DOMMatrixReadOnly(t)
         // positionEl uses translate(x,y) translate(-50%,-50%), so m.m41/m.m42 is
-        // the translate-to-center offset; add half NODE dims to get the center.
-        return { x: m.m41 + NODE.W / 2, y: m.m42 + NODE.H / 2 }
+        // the translate-to-center offset; add half the box dims to get the center.
+        return { x: m.m41 + w / 2, y: m.m42 + NODE.H / 2, w }
       } catch (e) { /* fall through */ }
     }
-    return { x: 0, y: 0 }
+    return { x: 0, y: 0, w }
   }
 
   // Attach drag-to-connect behaviour to a handle element `h` belonging to card `el`.
@@ -271,6 +323,34 @@ export function createView({
     })
   }
 
+  // Full-title tooltip for clamped cards. Lives in screen space (appended to root,
+  // not the zoomed world) so it stays crisp; shown after a hover delay, hidden on
+  // leave / pan / zoom / navigation.
+  const TOOLTIP_DELAY_MS = 500
+  const tooltip = document.createElement('div')
+  tooltip.className = 'synapses-tooltip'
+  root.appendChild(tooltip)
+  let tooltipTimer: ReturnType<typeof setTimeout> | undefined
+  function hideTooltip() {
+    if (tooltipTimer) { clearTimeout(tooltipTimer); tooltipTimer = undefined }
+    tooltip.classList.remove('shown')
+  }
+  function showTooltipFor(el: CardEl) {
+    tooltip.textContent = el._name
+    tooltip.classList.add('shown') // make it laid out so offsetHeight is real
+    const rootRect = root.getBoundingClientRect()
+    const cardRect = el.getBoundingClientRect()
+    const cx = cardRect.left - rootRect.left + cardRect.width / 2
+    let top = cardRect.top - rootRect.top - tooltip.offsetHeight - 8
+    if (top < 4) top = cardRect.bottom - rootRect.top + 8 // flip below if no room above
+    tooltip.style.left = Math.round(cx) + 'px'
+    tooltip.style.top = Math.round(top) + 'px'
+  }
+  function scheduleTooltip(el: CardEl) {
+    if (tooltipTimer) clearTimeout(tooltipTimer)
+    tooltipTimer = setTimeout(() => showTooltipFor(el), TOOLTIP_DELAY_MS)
+  }
+
   function makeNode(): CardEl {
     const el = document.createElement('div') as CardEl
     el.className = 'synapses-node'
@@ -278,11 +358,14 @@ export function createView({
     label.className = 'synapses-node-label'
     el.appendChild(label)
     el._label = label
+    el._clamped = false
     el.addEventListener('click', (e) => {
       e.stopPropagation()
       if (el._zone === 'focus') onOpenMain(el._name)
       else onNavigate(el._name)
     })
+    el.addEventListener('pointerenter', () => { if (el._clamped) scheduleTooltip(el) })
+    el.addEventListener('pointerleave', hideTooltip)
     el._handles = {}
     for (const [dir, side] of [['parent', 'top'], ['child', 'bottom'], ['jump', 'left']]) {
       const h = document.createElement('div') as HandleEl
@@ -297,12 +380,17 @@ export function createView({
     return el
   }
 
+  // Native action-hint tooltip text. Suppressed on clamped cards (measureWidths)
+  // so it doesn't compete with the custom full-title tooltip.
+  function hintFor(el: CardEl): string {
+    return el._zone === 'focus' ? `Open "${el._name}" in the main pane` : `Recenter on "${el._name}"`
+  }
+
   function updateNode(el: CardEl, node: any) {
     el._name = node.name
     el._zone = node.zone
     el._label.textContent = node.name
-    el.title =
-      node.zone === 'focus' ? `Open "${node.name}" in the main pane` : `Recenter on "${node.name}"`
+    el.title = hintFor(el)
     el.className = 'synapses-node zone-' + node.zone
     // Keep the jump handle on the side its link actually meets (right for cards
     // shown at jump position, left otherwise).
@@ -350,20 +438,22 @@ export function createView({
     const nodes = layout.nodes.map((n: any) => {
       let x = n.x
       let y = n.y
+      let w = n.w
       const el = elements.get(n.name.toLowerCase())
       if (el) {
+        w = el.offsetWidth || n.w // content-sized; connectors meet the actual edge
         const t = getComputedStyle(el).transform
         if (t && t !== 'none') {
           try {
             const m = new DOMMatrixReadOnly(t)
-            x = m.m41 + NODE.W / 2 // undo the translate(-50%,-50%) to get the center
+            x = m.m41 + w / 2 // undo the translate(-50%,-50%) to get the center
             y = m.m42 + NODE.H / 2
           } catch (e) {
             /* keep layout coords */
           }
         }
       }
-      return { name: n.name, zone: n.zone, x, y, via: n.via }
+      return { name: n.name, zone: n.zone, x, y, w, via: n.via }
     })
     return { focus: layout.focus, nodes }
   }
@@ -468,6 +558,11 @@ export function createView({
   })
   stage.addEventListener('mouseleave', hideRemove)
 
+  // A pan (pointerdown) or zoom (wheel) moves cards under the cursor → drop the tooltip.
+  const onStageTooltipHide = () => hideTooltip()
+  stage.addEventListener('pointerdown', onStageTooltipHide)
+  stage.addEventListener('wheel', onStageTooltipHide, { passive: true })
+
   return {
     setGraph,
     setTheme,
@@ -478,8 +573,11 @@ export function createView({
     destroy() {
       ro.disconnect()
       if (raf) cancelAnimationFrame(raf)
+      hideTooltip()
       stage.removeEventListener('mousemove', onStageMove)
       stage.removeEventListener('mouseleave', hideRemove)
+      stage.removeEventListener('pointerdown', onStageTooltipHide)
+      stage.removeEventListener('wheel', onStageTooltipHide)
     },
   }
 }

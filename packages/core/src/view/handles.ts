@@ -33,10 +33,11 @@ export function nodeHandleStates(entry: Record<string, string[]> | null | undefi
   return out
 }
 
-// First node whose box (NODE.W x NODE.H centered at node.x,node.y) contains pt; else null.
-export function hitTestNode(pt: { x: number; y: number }, nodes: Array<{ name: string; x: number; y: number }> | null | undefined): string | null {
+// First node whose box (its own width `w` x NODE.H, centered at node.x,node.y)
+// contains pt; else null. Width defaults to NODE.W for unmeasured nodes.
+export function hitTestNode(pt: { x: number; y: number }, nodes: Array<{ name: string; x: number; y: number; w?: number }> | null | undefined): string | null {
   for (const n of nodes || []) {
-    if (Math.abs(pt.x - n.x) <= NODE.W / 2 && Math.abs(pt.y - n.y) <= NODE.H / 2) return n.name
+    if (Math.abs(pt.x - n.x) <= (n.w ?? NODE.W) / 2 && Math.abs(pt.y - n.y) <= NODE.H / 2) return n.name
   }
   return null
 }

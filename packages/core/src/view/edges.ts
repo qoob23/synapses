@@ -23,12 +23,13 @@ export interface Edge {
   remove: EdgeRemove | null
 }
 
-// computeEdges reads only nodes (with their zone/coords/optional via) off a layout.
+// computeEdges reads only nodes (with their zone/coords/width/optional via) off a layout.
 export interface EdgeLayoutNode {
   name: string
   zone: string
   x: number
   y: number
+  w?: number
   via?: string
 }
 export interface EdgeLayout {
@@ -43,8 +44,8 @@ const GATES: Record<string, { focus: string; node: string }> = {
   sibling: { focus: 'right', node: 'left' },
 }
 
-export function gatePoint(node: Point, side: string): Point {
-  const hw = NODE.W / 2
+export function gatePoint(node: Point & { w?: number }, side: string): Point {
+  const hw = (node.w ?? NODE.W) / 2 // cards are content-sized; left/right gates meet the actual edge
   const hh = NODE.H / 2
   switch (side) {
     case 'top':

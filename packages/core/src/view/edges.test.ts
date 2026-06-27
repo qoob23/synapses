@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeEdges, computeSecondaryEdges, edgeKey } from './edges'
+import { computeEdges, computeSecondaryEdges, edgeKey, gatePoint } from './edges'
 import { NODE } from './layout'
 
 // Order-independent set of an edge's two endpoints (rounded), for asserting which
@@ -206,5 +206,18 @@ describe('edgeKey', () => {
   })
   it('returns null for a missing edge', () => {
     expect(edgeKey(null)).toBe(null)
+  })
+})
+
+describe('gatePoint', () => {
+  it('meets the actual (content-sized) left/right edge via node.w', () => {
+    const node = { x: 100, y: 0, w: 300 }
+    expect(gatePoint(node, 'left')).toEqual({ x: 100 - 150, y: 0 })
+    expect(gatePoint(node, 'right')).toEqual({ x: 100 + 150, y: 0 })
+  })
+  it('falls back to NODE.W when no width is given, and uses NODE.H for top/bottom', () => {
+    const node = { x: 0, y: 0 }
+    expect(gatePoint(node, 'left')).toEqual({ x: -NODE.W / 2, y: 0 })
+    expect(gatePoint(node, 'top')).toEqual({ x: 0, y: -NODE.H / 2 })
   })
 })

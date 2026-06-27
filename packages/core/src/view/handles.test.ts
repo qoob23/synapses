@@ -43,4 +43,9 @@ describe('hitTestNode', () => {
   it('returns null in empty space', () => {
     expect(hitTestNode({ x: 200, y: 300 }, nodes)).toBe(null)
   })
+  it('uses each node\'s own width when present', () => {
+    const wide = [{ name: 'W', x: 0, y: 0, w: 600 }]
+    expect(hitTestNode({ x: 250, y: 0 }, wide)).toBe('W') // inside the 600-wide box
+    expect(hitTestNode({ x: 250, y: 0 }, [{ name: 'N', x: 0, y: 0 }])).toBe(null) // outside the default NODE.W box
+  })
 })
