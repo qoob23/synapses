@@ -206,7 +206,10 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     const b = document.createElement('button')
     b.className = 'synapses-btn'
     b.textContent = label
-    b.title = title
+    // Custom hover tooltip (.synapses-btn[data-tip]) instead of the native `title`, which
+    // has an inconsistent delay + OS styling. aria-label carries the accessible name.
+    b.setAttribute('aria-label', title)
+    b.dataset.tip = title
     b.addEventListener('click', onClick)
     return b
   }
