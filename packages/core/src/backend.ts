@@ -63,6 +63,17 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
     histState: async () => { await ready; return history.state() },
     histPush: async (name) => { await ready; return history.push(name) },
     histJump: async (i) => { await ready; return history.jump(i) },
+    histRemove: async (name) => { await ready; return history.remove(name) },
+    histRemoveMissing: async (names) => {
+      await ready
+      const removed: string[] = []
+      for (const n of names) {
+        let exists = true
+        try { exists = await dataSource.pageExists(n) } catch { exists = true }
+        if (!exists) { removed.push(n); history.remove(n) }
+      }
+      return { removed, state: history.state() }
+    },
     navigate: async (name) => { await services.navigateTo(name); return true },
     createChild: mut.createChild,
     createParent: mut.createParent,

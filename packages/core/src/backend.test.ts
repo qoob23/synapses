@@ -13,6 +13,7 @@ function fakes(pages: PageEntry[] = []) {
     setPropertyLinks: async (n, k, t) => { const e = map.get(n.toLowerCase())!; e.props = { ...e.props, [k]: t } },
     removePropertyKey: async (n, k) => { const e = map.get(n.toLowerCase())!; const { [k]: _, ...rest } = e.props; e.props = rest },
     searchPages: async (q) => [...map.values()].map((p) => p.name).filter((n) => n.toLowerCase().includes(q.toLowerCase())),
+    pageExists: async (n) => map.has(n.toLowerCase()),
   }
   const services: EditorServices = {
     getActivePageName: () => 'A',
@@ -49,6 +50,25 @@ describe('createCoreBackend', () => {
     fireGraph(); fireGraph()
     await vi.advanceTimersByTimeAsync(400)
     expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('histRemove removes an entry, returns new state, and persists', async () => {
+    const { ds, services } = fakes([{ name: 'A', props: {} }, { name: 'B', props: {} }])
+    const be = createCoreBackend(ds, services)
+    await be.histPush('A'); await be.histPush('B')
+    expect(await be.histRemove('A')).toEqual({ list: ['B'], index: 0 })
+    await vi.advanceTimersByTimeAsync(300)
+    const raw = await services.persistence.load('history.json')
+    expect(raw && JSON.parse(raw)).toEqual({ stack: ['B'], idx: 0 })
+  })
+
+  it('histRemoveMissing prunes only entries whose file is gone', async () => {
+    const { ds, services } = fakes([{ name: 'A', props: {} }, { name: 'C', props: {} }])
+    const be = createCoreBackend(ds, services)
+    await be.histPush('A'); await be.histPush('B'); await be.histPush('C')
+    const { removed, state } = await be.histRemoveMissing(['A', 'B', 'C'])
+    expect(removed).toEqual(['B'])
+    expect(state).toEqual({ list: ['A', 'C'], index: 1 })
   })
 
   it('onActivePageChange emits recenter with the page', () => {

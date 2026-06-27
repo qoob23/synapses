@@ -29,6 +29,8 @@ export interface SynapsesBackend {
   histState(): Promise<HistoryState>
   histPush(name: string): Promise<HistoryState>
   histJump(i: number): Promise<HistoryJump | null>
+  histRemove(name: string): Promise<HistoryState>
+  histRemoveMissing(names: string[]): Promise<{ removed: string[]; state: HistoryState }>
   navigate(name: string): Promise<boolean>
   createChild(focus: string, name: string): Promise<boolean>
   createParent(focus: string, name: string): Promise<boolean>
@@ -52,6 +54,7 @@ export interface DataSource {
   setPropertyLinks(name: string, key: string, targets: string[]): Promise<void>
   removePropertyKey(name: string, key: string): Promise<void>
   searchPages(q: string): Promise<string[]>
+  pageExists(name: string): Promise<boolean>
 }
 
 export interface Persistence {
