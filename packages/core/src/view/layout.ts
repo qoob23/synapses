@@ -7,11 +7,12 @@
 // the active thought at (0, 0).
 //
 // There is NO camera scale anymore (zoom was removed): the view renders cards at true
-// px and only translates the world to center the active thought. So the SPACING fills
-// the panel — pass `opts.viewport` (+ the current `cardH` from the size level) and the
-// band distances / vertical step are derived from the live panel size, clamped so cards
-// never collide and never fly apart. Omit `opts.viewport` and it falls back to the old
-// fixed constants (used by the identity pass and the pure unit tests).
+// px and only translates the world to center the active thought. Pass `opts.viewport`
+// (+ the current `cardH` from the size level): the HORIZONTAL band distances fill the
+// panel width (columns hug the edges, clamped), while the VERTICAL layout is DENSE —
+// fixed gaps that grow OUTWARD from the centre (within-group V_GAP; the middle band sits
+// SECTION_GAP from parents/children), independent of panel height. Omit `opts.viewport`
+// → fixed fallback constants (identity pass + pure unit tests).
 
 import type { Graph } from '../types'
 
@@ -57,11 +58,10 @@ const ROW_GAP = 40 // horizontal gap between cards in a row (space WITHIN a grou
 // BANDS — parents top, jumps/siblings middle (centred on the focus), children bottom — so
 // they are Y-separated and can never overlap, however wide the cards get.
 const PAD_X = 24 // screen-px kept between a column's outer edge and the panel edge
-const PAD_Y = 56
-const GAP = 48 // minimum clearance between neighbouring groups
+const GAP = 48 // minimum horizontal clearance between the focus/parents and the side columns
 const MAX_BAND_X = 620 // cap so columns don't fly apart on a wide monitor
-const MAX_BAND_Y = 360
 const V_GAP = 12 // FIXED vertical gap between cards stacked WITHIN a group (columns, child rows)
+const SECTION_GAP = 16 // FIXED vertical gap between the middle (jumps/siblings) band and parents/children
 const MIN_CHILD_GAP = 80 // the two children columns stay at least this far apart...
 const MAX_CHILD_GAP = 240 // ...and spread up to this far on a roomy panel
 
@@ -126,22 +126,19 @@ function computeSpacing(graph: LayoutGraph, widths: Widths, opts?: LayoutOpts): 
   const bandXFor = (names: string[] | undefined) =>
     clamp(vp.w / 2 - PAD_X - colW(names) + NODE.W / 2, minBandX, MAX_BAND_X)
 
-  // WITHIN a group the vertical gap is FIXED at V_GAP (so columns/child rows have a
-  // consistent rhythm). The zone DISTANCES below stay responsive — that's the air BETWEEN
-  // groups, which still fills the panel height.
+  // WITHIN a group the vertical gap between stacked cards is FIXED at V_GAP.
   const colStep = cardH + V_GAP
   const childStep = cardH + V_GAP
 
-  // Vertical zone distances (responsive air). Parents near the top; the children grid pushed
-  // toward the bottom (its LAST row near the panel edge), but kept below the side columns'
-  // vertical reach so a tall column can't collide with the centred children.
-  const bottomY = vp.h / 2 - PAD_Y - cardH / 2
-  const bandYTop = clamp(bottomY, cardH + GAP, MAX_BAND_Y)
-  const childRows = Math.ceil((graph.children?.length || 0) / 2)
+  // DENSE vertical layout that grows OUTWARD from the centre. The jumps/siblings columns sit
+  // centred on the focus; the parent row (above) and the children grid (below) sit a fixed
+  // SECTION_GAP clear of that middle block. Panel height no longer spreads the layout — it
+  // only decides whether everything fits (else pan).
   const colSlots = Math.max(graph.jumps?.length || 0, graph.siblings?.length || 0)
-  const colHalf = colSlots > 1 ? ((colSlots - 1) / 2) * colStep : 0
-  const pushBottom = clamp(bottomY - (childRows > 1 ? (childRows - 1) * childStep : 0), cardH + GAP, MAX_BAND_Y)
-  const bandYBottom = Math.max(pushBottom, colHalf + cardH + GAP)
+  const colHalf = colSlots > 1 ? ((colSlots - 1) / 2) * colStep : 0 // half-height of the tallest middle column
+  const bandY = colHalf + cardH + SECTION_GAP // centre-to-centre: focus → parent row / first child row
+  const bandYTop = bandY
+  const bandYBottom = bandY
 
   const childGap = clamp(vp.w * 0.16, MIN_CHILD_GAP, MAX_CHILD_GAP)
 
