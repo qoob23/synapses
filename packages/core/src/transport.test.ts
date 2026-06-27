@@ -34,11 +34,13 @@ describe('transport wiring', () => {
   })
 
   it('declares the full method + event manifest', () => {
-    expect(BACKEND_METHODS).toHaveLength(16)
+    expect(BACKEND_METHODS).toHaveLength(18)
     expect(BACKEND_METHODS).toContain('buildGraph')
     expect(BACKEND_METHODS).toContain('removeLink')
     expect(BACKEND_METHODS).toContain('getSize')
     expect(BACKEND_METHODS).toContain('setSize')
+    expect(BACKEND_METHODS).toContain('histRemove')
+    expect(BACKEND_METHODS).toContain('histRemoveMissing')
     expect(BACKEND_EVENTS).toEqual(['recenter', 'theme', 'refresh'])
   })
 })

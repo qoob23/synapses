@@ -78,6 +78,9 @@ export function createObsidianDataSource(app: App): DataSource {
       }
       await app.vault.process(file, (data) => removeInlineField(data, key))
     },
+    async pageExists(name) {
+      return !!resolveFile(name)
+    },
     async searchPages(q) {
       const query = String(q || '').toLowerCase().trim(); if (!query) return []
       const out: string[] = []

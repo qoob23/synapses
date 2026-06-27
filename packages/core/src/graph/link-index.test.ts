@@ -13,6 +13,7 @@ function fakeDataSource(pages: PageEntry[]): DataSource {
     setPropertyLinks: async () => {},
     removePropertyKey: async () => {},
     searchPages: async () => [],
+    pageExists: async (n) => map.has(n.toLowerCase()),
   }
 }
 

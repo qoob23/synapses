@@ -46,6 +46,9 @@ export function createLogseqDataSource(): DataSource {
       const uuid = await firstBlockUuid(name); if (!uuid) return
       await (logseq as any).Editor.removeBlockProperty(uuid, key)
     },
+    async pageExists(name) {
+      try { return !!(await (logseq as any).Editor.getPage(name)) } catch { return false }
+    },
     async searchPages(q) {
       const query = String(q || '').toLowerCase().trim(); if (!query) return []
       let pages: any[] = []; try { pages = (await (logseq as any).Editor.getAllPages()) || [] } catch {}
