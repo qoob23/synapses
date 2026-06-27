@@ -447,3 +447,25 @@
 .synapses-dialog-hint.err {
   color: #c0392b;
 }
+
+/* ---- context menu ---- */
+.synapses-context-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 160px;
+  background: var(--synapses-bg);
+  color: var(--synapses-text);
+  border: 1px solid var(--synapses-border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.synapses-context-menu-item {
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.synapses-context-menu-item:hover {
+  background: color-mix(in srgb, var(--synapses-accent) 18%, transparent);
+}
