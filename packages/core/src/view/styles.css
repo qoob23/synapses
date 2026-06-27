@@ -121,15 +121,15 @@
      (--synapses-node-maxw); past that the label clamps with an ellipsis and the full
      title shows on hover. min-width keeps room for the edge handles + tiny titles. */
   width: fit-content;
-  min-width: 96px;
+  min-width: 64px;
   max-width: var(--synapses-node-maxw, 480px);
-  min-height: var(--synapses-node-h, 40px);
+  min-height: var(--synapses-node-h, 28px);
   font-size: var(--synapses-node-font, 1rem);
   line-height: 1.1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 16px;
+  padding: 4px 8px;
   border: 1px solid var(--synapses-border);
   border-radius: 10px;
   background: color-mix(in srgb, var(--synapses-bg2) 70%, transparent);
@@ -205,8 +205,8 @@
 /* ---- handles (on every card, 3 directions, 3 states) ---- */
 .synapses-handle {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   box-sizing: border-box;
   cursor: pointer;
@@ -223,14 +223,14 @@
   height: 24px;
   transform: translate(-50%, -50%);
 }
-.handle-top    { top: -6px;  left: 50%; margin-left: -6px; }
-.handle-bottom { bottom: -6px; left: 50%; margin-left: -6px; }
-.handle-left   { left: -6px; top: 50%;  margin-top: -6px; }
-.handle-right  { right: -6px; top: 50%;  margin-top: -6px; }
-.handle-empty { background: transparent; border: 2px solid var(--synapses-accent); }
-.handle-shown { background: var(--synapses-accent); border: 2px solid var(--synapses-accent); }
-.handle-more  { background: var(--synapses-dot-hidden, #2ecc71); border: 2px solid var(--synapses-dot-hidden, #2ecc71); }
-.synapses-handle:hover { transform: scale(2); }
+.handle-top    { top: -2px;  left: 50%; margin-left: -2px; }
+.handle-bottom { bottom: -2px; left: 50%; margin-left: -2px; }
+.handle-left   { left: -2px; top: 50%;  margin-top: -2px; }
+.handle-right  { right: -2px; top: 50%;  margin-top: -2px; }
+.handle-empty { background: transparent; border: 1px solid var(--synapses-accent); }
+.handle-shown { background: var(--synapses-accent); border: 1px solid var(--synapses-accent); }
+.handle-more  { background: var(--synapses-dot-hidden, #2ecc71); border: 1px solid var(--synapses-dot-hidden, #2ecc71); }
+.synapses-handle:hover { transform: scale(3); }
 /* Reduced-motion: snap the hover scale (placed AFTER the base rule so it wins on
    equal specificity). */
 @media (prefers-reduced-motion: reduce) {

@@ -42,7 +42,7 @@ export interface LayoutResult {
 export type LayoutGraph = Pick<Graph, 'focus'> &
   Partial<Pick<Graph, 'parents' | 'children' | 'jumps' | 'siblings' | 'siblingParent'>>
 
-export const NODE = { W: 208, H: 40 } // base card size at size level 1.0
+export const NODE = { W: 208, H: 28 } // base card size at size level 1.0 (H tuned for 1rem text)
 
 // Fixed fallback spacing — today's constants, used when no viewport is supplied (the
 // identity pass + pure unit tests). With a viewport these are replaced by the
