@@ -450,9 +450,13 @@
 }
 
 /* ---- context menu ---- */
-.synapses-context-menu {
+.synapses-context-overlay {
   position: fixed;
+  inset: 0;
   z-index: 60;
+}
+.synapses-context-menu {
+  position: absolute;
   min-width: 160px;
   background: var(--synapses-bg);
   color: var(--synapses-text);

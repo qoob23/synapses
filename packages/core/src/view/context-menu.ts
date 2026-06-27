@@ -1,7 +1,9 @@
 // A tiny custom context menu — native menus/prompt are blocked in the sandboxed
-// Logseq iframe. One menu open at a time; dismissed on outside click / Esc / scroll / blur.
+// Logseq iframe. Mirrors the create-dialog pattern: a full-bleed transparent overlay
+// (robust against transformed/`contain`ed containing blocks, and a single dismiss
+// surface) with the menu absolutely positioned inside it. One menu open at a time.
 
-// Position the menu with its top-left at `at`, clamped fully on-screen.
+// Clamp a top-left point so a `box` stays fully inside `viewport`.
 export function clampMenuPosition(
   at: { x: number; y: number },
   box: { w: number; h: number },
@@ -12,23 +14,17 @@ export function clampMenuPosition(
   return { left, top }
 }
 
-let openMenu: HTMLElement | null = null
+let openOverlay: HTMLElement | null = null
 
-function onDocDown(e: MouseEvent) {
-  if (openMenu && !openMenu.contains(e.target as Node)) closeContextMenu()
-}
 function onKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape') { e.preventDefault(); closeContextMenu() }
 }
 
 export function closeContextMenu(): void {
-  if (!openMenu) return
-  openMenu.remove()
-  openMenu = null
-  document.removeEventListener('mousedown', onDocDown, true)
+  if (!openOverlay) return
+  openOverlay.remove()
+  openOverlay = null
   document.removeEventListener('keydown', onKeyDown, true)
-  window.removeEventListener('scroll', closeContextMenu, true)
-  window.removeEventListener('blur', closeContextMenu, true)
 }
 
 export function openContextMenu(opts: {
@@ -37,6 +33,9 @@ export function openContextMenu(opts: {
   items: Array<{ label: string; onSelect: () => void }>
 }): void {
   closeContextMenu()
+
+  const overlay = document.createElement('div')
+  overlay.className = 'synapses-context-overlay'
   const menu = document.createElement('div')
   menu.className = 'synapses-context-menu'
   for (const it of opts.items) {
@@ -46,24 +45,26 @@ export function openContextMenu(opts: {
     row.addEventListener('click', () => { closeContextMenu(); it.onSelect() })
     menu.appendChild(row)
   }
-  opts.root.appendChild(menu)
+  overlay.appendChild(menu)
+  opts.root.appendChild(overlay)
 
-  const r = menu.getBoundingClientRect()
+  // The overlay fills its containing block (transformed or not). Convert the
+  // viewport-space click point into overlay-local coordinates so the menu lands under
+  // the cursor regardless of any transformed ancestor, then clamp inside the overlay.
+  const orect = overlay.getBoundingClientRect()
+  const mrect = menu.getBoundingClientRect()
   const p = clampMenuPosition(
-    opts.at,
-    { w: r.width || 180, h: r.height || 40 },
-    { w: window.innerWidth, h: window.innerHeight },
+    { x: opts.at.x - orect.left, y: opts.at.y - orect.top },
+    { w: mrect.width || 180, h: mrect.height || 40 },
+    { w: orect.width || window.innerWidth, h: orect.height || window.innerHeight },
   )
-  menu.style.position = 'fixed'
   menu.style.left = p.left + 'px'
   menu.style.top = p.top + 'px'
-  openMenu = menu
+  openOverlay = overlay
 
-  // Register dismissers next tick so the opening contextmenu event doesn't self-close.
-  setTimeout(() => {
-    document.addEventListener('mousedown', onDocDown, true)
-    document.addEventListener('keydown', onKeyDown, true)
-    window.addEventListener('scroll', closeContextMenu, true)
-    window.addEventListener('blur', closeContextMenu, true)
-  }, 0)
+  // Dismiss by pressing the bare overlay (not the menu) or Escape — same model as the
+  // dialog. No scroll/blur/document-capture listeners that could tear the menu down
+  // mid-click.
+  overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) closeContextMenu() })
+  document.addEventListener('keydown', onKeyDown, true)
 }
