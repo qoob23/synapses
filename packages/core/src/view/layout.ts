@@ -61,7 +61,7 @@ const PAD_X = 24 // screen-px kept between a column's outer edge and the panel e
 const GAP = 48 // minimum horizontal clearance between the focus/parents and the side columns
 const MAX_BAND_X = 620 // cap so columns don't fly apart on a wide monitor
 const V_GAP = 12 // FIXED vertical gap between cards stacked WITHIN a group (columns, child rows)
-const SECTION_GAP = 16 // FIXED vertical gap between the middle (jumps/siblings) band and parents/children
+const SECTION_GAP = 48 // FIXED vertical gap between the middle (jumps/siblings) band and parents/children
 const MIN_CHILD_GAP = 80 // the two children columns stay at least this far apart...
 const MAX_CHILD_GAP = 240 // ...and spread up to this far on a roomy panel
 

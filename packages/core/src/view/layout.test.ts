@@ -240,7 +240,7 @@ describe('computeLayout keeps the four zones from overlapping', () => {
     expect(wide[1] - wide[0]).toBeGreaterThan(narrow[1] - narrow[0]) // wider split on a roomy panel
   })
 
-  it('separates the middle band from parents/children by a fixed 16px, growing outward from centre', () => {
+  it('separates the middle band from parents/children by a fixed 48px, growing outward from centre', () => {
     const make = (jumps: string[]) =>
       computeLayout(
         { focus: 'F', parents: ['P'], children: ['c1', 'c2'], jumps, siblings: ['s'], siblingParent: {} },
@@ -256,8 +256,8 @@ describe('computeLayout keeps the four zones from overlapping', () => {
     }
     const few = make(['j'])
     const many = make(['j1', 'j2', 'j3', 'j4', 'j5'])
-    expect(gapAboveMiddle(few)).toBeCloseTo(16) // 16px between the middle band and the parent row
-    expect(gapAboveMiddle(many)).toBeCloseTo(16) // ...still 16px with a taller middle column
+    expect(gapAboveMiddle(few)).toBeCloseTo(48) // 48px between the middle band and the parent row
+    expect(gapAboveMiddle(many)).toBeCloseTo(48) // ...still 48px with a taller middle column
     const parentDist = (nodes: any[]) => Math.abs(nodes.find((n) => n.zone === 'parent').y)
     expect(parentDist(many)).toBeGreaterThan(parentDist(few)) // sections grow OUTWARD from centre
   })
