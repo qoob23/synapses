@@ -85,61 +85,54 @@ describe('computeLayout', () => {
   })
 })
 
+// These assert the tight-reflow RELATIONSHIPS (constant gaps, inner-edge anchoring,
+// per-column sizing) rather than exact pixels, so they survive spacing re-tuning.
 describe('computeLayout with variable widths (tight reflow)', () => {
-  const g3parents = { focus: 'F', parents: ['p1', 'p2', 'p3'], children: [], jumps: [], siblings: [], siblingParent: {} }
-
-  it('uniform NODE.W widths reproduce the original fixed-slot coordinates', () => {
-    const widths = { f: NODE.W, p1: NODE.W, p2: NODE.W, p3: NODE.W }
-    const xs = computeLayout(g3parents, widths).nodes
+  it('packs a row with a constant gap between adjacent cards, centered on x=0', () => {
+    const g = { focus: 'F', parents: ['a', 'b', 'c'], children: [], jumps: [], siblings: [], siblingParent: {} }
+    const ps = computeLayout(g, { a: 100, b: 300, c: 150 }).nodes
       .filter((n) => n.zone === 'parent')
-      .sort((a, b) => a.x - b.x)
-      .map((n) => n.x)
-    expect(xs).toEqual([-224, 0, 224]) // == old GAP_X (208 + 16) spacing
+      .sort((x, y) => x.x - y.x)
+    const gaps: number[] = []
+    for (let i = 1; i < ps.length; i++) gaps.push(ps[i].x - ps[i].w / 2 - (ps[i - 1].x + ps[i - 1].w / 2))
+    expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThan(0.001) // all adjacent gaps equal
+    expect(gaps[0]).toBeGreaterThan(0) // there IS a gap (no overlap)
+    // centered: leftmost left-edge mirrors rightmost right-edge
+    expect(ps[0].x - ps[0].w / 2).toBeCloseTo(-(ps[ps.length - 1].x + ps[ps.length - 1].w / 2))
+    expect(ps.find((p) => p.name === 'b')!.w).toBe(300) // carries its width
   })
 
-  it('packs a parents row tightly by actual width + a 16px gap, centered on x=0', () => {
-    const g = { focus: 'F', parents: ['a', 'b'], children: [], jumps: [], siblings: [], siblingParent: {} }
-    const nodes = computeLayout(g, { a: 100, b: 300 }).nodes
-    const a = nodes.find((n) => n.name === 'a')!
-    const b = nodes.find((n) => n.name === 'b')!
-    // total = 100 + 16 + 300 = 416 → start at -208; a@-208+50=-158, b@-158+50+16+150=58
-    expect(a.x).toBe(-158)
-    expect(b.x).toBe(58)
-    // tight gap: b's left edge minus a's right edge == 16
-    expect((b.x - 300 / 2) - (a.x + 100 / 2)).toBe(16)
-    expect(a.w).toBe(100)
-    expect(b.w).toBe(300)
+  it('anchors a column inner edge independent of width (cards grow outward)', () => {
+    const g = { focus: 'F', parents: [], children: [], jumps: ['n', 'w'], siblings: [], siblingParent: {} }
+    const nodes = computeLayout(g, { n: NODE.W, w: 400 }).nodes.filter((nd) => nd.zone === 'jump')
+    const inner = nodes.map((nd) => nd.x + nd.w / 2) // right (inner) edge for the left column
+    expect(inner[0]).toBeCloseTo(inner[1]) // same inner edge regardless of width
+    expect(nodes.every((nd) => nd.x < 0)).toBe(true) // left of focus
+    const wide = nodes.find((n) => n.name === 'w')!
+    const narrow = nodes.find((n) => n.name === 'n')!
+    expect(wide.x).toBeLessThan(narrow.x) // wider card's center pushed further out
   })
 
-  it('anchors the jump column inner edge a constant gap from the focus (grows leftward)', () => {
-    const g = { focus: 'F', parents: [], children: [], jumps: ['j'], siblings: [], siblingParent: {} }
-    const j = computeLayout(g, { j: 300 }).nodes.find((n) => n.zone === 'jump')!
-    // center = -(BAND_X + (w - NODE.W)/2) = -(360 + (300-208)/2) = -(360+46) = -406
-    expect(j.x).toBe(-406)
-    // right (inner) edge stays at -(BAND_X - NODE.W/2) = -256 regardless of width
-    expect(j.x + j.w / 2).toBe(-256)
+  it('mirrors the jump (left) and sibling (right) columns', () => {
+    const j = computeLayout({ focus: 'F', jumps: ['x'], parents: [], children: [], siblings: [], siblingParent: {} }, { x: 300 })
+      .nodes.find((n) => n.zone === 'jump')!
+    const s = computeLayout({ focus: 'F', siblings: ['x'], parents: [], children: [], jumps: [], siblingParent: {} }, { x: 300 })
+      .nodes.find((n) => n.zone === 'sibling')!
+    expect(s.x).toBeCloseTo(-j.x)
   })
 
-  it('anchors the sibling column inner edge to the right of the focus (grows rightward)', () => {
-    const g = { focus: 'F', parents: [], children: [], jumps: [], siblings: ['s'], siblingParent: {} }
-    const s = computeLayout(g, { s: 300 }).nodes.find((n) => n.zone === 'sibling')!
-    expect(s.x).toBe(406)
-    expect(s.x - s.w / 2).toBe(256) // left (inner) edge fixed at BAND_X - NODE.W/2 = 256
-  })
-
-  it('sizes each children column to its widest card', () => {
+  it('sizes each children column to its widest card; a column shares one center', () => {
     // row-major fill: c1,c3 → left column; c2 → right column
     const g = { focus: 'F', parents: [], children: ['c1', 'c2', 'c3'], jumps: [], siblings: [], siblingParent: {} }
     const nodes = computeLayout(g, { c1: 100, c2: 300, c3: 400 }).nodes
     const c1 = nodes.find((n) => n.name === 'c1')!
     const c2 = nodes.find((n) => n.name === 'c2')!
     const c3 = nodes.find((n) => n.name === 'c3')!
-    // leftColW = max(100,400)=400 → leftCenter = -(92/2 + 400/2) = -246
-    // rightColW = 300 → rightCenter = +(46 + 150) = 196
-    expect(c1.x).toBe(-246)
-    expect(c3.x).toBe(-246) // same column, centered on the column center
-    expect(c2.x).toBe(196)
-    expect(c3.y).toBeGreaterThan(c1.y) // c3 wraps to the next row
+    expect(c1.x).toBeCloseTo(c3.x) // same (left) column center
+    expect(c1.x).toBeLessThan(0)
+    expect(c2.x).toBeGreaterThan(0)
+    expect(c3.y).toBeGreaterThan(c1.y) // wraps to the next row
+    expect(Math.abs(c1.x)).toBeGreaterThan(Math.abs(c2.x)) // left column (wider, 400) sits further out
   })
 
   it('expands the bbox to include a wide card', () => {

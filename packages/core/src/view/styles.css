@@ -112,12 +112,12 @@
   position: absolute;
   left: 0;
   top: 0;
-  /* Content-sized: the card shrinks to its title and grows up to the viewport-
-     derived cap (set from JS as --synapses-node-maxw); past that the label clamps
-     with an ellipsis. min-width keeps room for the edge handles + tiny titles. */
+  /* Content-sized: the card shrinks to its title and grows up to a generous cap
+     (--synapses-node-maxw); past that the label clamps with an ellipsis and the full
+     title shows on hover. min-width keeps room for the edge handles + tiny titles. */
   width: fit-content;
   min-width: 96px;
-  max-width: var(--synapses-node-maxw, 240px);
+  max-width: var(--synapses-node-maxw, 480px);
   min-height: var(--synapses-node-h, 40px);
   font-size: var(--synapses-node-font, 1.7rem);
   line-height: 1.1;
@@ -196,11 +196,6 @@
   .synapses-node {
     transition: background 0.15s, border-color 0.15s;
   }
-}
-/* While re-laying-out for a new width cap (panel resize), snap cards instantly
-   instead of gliding — view.js toggles this for one frame. */
-.synapses-root.synapses-snapping .synapses-node {
-  transition: none;
 }
 /* ---- handles (on every card, 3 directions, 3 states) ---- */
 .synapses-handle {

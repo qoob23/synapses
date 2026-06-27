@@ -37,11 +37,15 @@ export type LayoutGraph = Pick<Graph, 'focus'> &
 
 export const NODE = { W: 208, H: 40 }
 
-const BAND_Y = 210 // vertical distance to the parent/child rows (space BETWEEN groups)
-const BAND_X = 360 // horizontal distance to the jump/sibling columns (space BETWEEN groups)
-const ROW_GAP = 16 // horizontal gap between cards in a row (space WITHIN a group)
-const COL_STEP = 54 // center-to-center vertical step in a column (cards are fixed-height)
-const CHILD_GAP = 92 // inner gap between the two children columns (> ROW_GAP for a clear split)
+// Spacing is tuned for comfortable "air" between cards. Because the view's `fit`
+// normalizes the graph to the panel, what's visible on screen is the RATIO of these
+// gaps to the card size — bigger gaps read as more breathing room (cards render a
+// touch smaller). All are bounded constants so the graph never spreads too far.
+const BAND_Y = 240 // vertical distance to the parent/child rows (space BETWEEN groups)
+const BAND_X = 380 // horizontal distance to the jump/sibling columns (space BETWEEN groups)
+const ROW_GAP = 40 // horizontal gap between cards in a row (space WITHIN a group)
+const COL_STEP = 80 // center-to-center vertical step in a column (cards are fixed-height)
+const CHILD_GAP = 120 // inner gap between the two children columns (> ROW_GAP for a clear split)
 
 // Per-card width by name (case-insensitive); falls back to NODE.W when unmeasured.
 type Widths = Record<string, number> | undefined

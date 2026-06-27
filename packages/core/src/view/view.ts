@@ -67,17 +67,11 @@ export function createView({
 }) {
   const ctx = canvas.getContext('2d')!
   // Card HEIGHT is fixed (titles are single-line), so its CSS fallback tracks NODE.H.
-  // Card WIDTH is content-sized (fit-content), capped at CLAMP_FRACTION of the panel
-  // width via --synapses-node-maxw; past the cap the label clamps and gets a tooltip.
+  // Card WIDTH is content-sized (fit-content) up to a generous constant cap in
+  // styles.css (--synapses-node-maxw); past it the label clamps and gets a tooltip.
   root.style.setProperty('--synapses-node-h', NODE.H + 'px')
-  const CLAMP_FRACTION = 0.4
-  function applyMaxWidth() {
-    const maxw = Math.max(120, Math.round(viewport().w * CLAMP_FRACTION))
-    root.style.setProperty('--synapses-node-maxw', maxw + 'px')
-  }
   const elements = new Map<string, CardEl>() // nameLower -> element
   let layout: any = null
-  let lastGraph: Graph | null = null
   let theme: { edge: string; jumpEdge: string; highlight: string } = defaultTheme()
   let dpr = window.devicePixelRatio || 1
   let raf = 0
@@ -114,8 +108,6 @@ export function createView({
     canvas.height = Math.max(1, Math.round(vp.h * dpr))
     canvas.style.width = vp.w + 'px'
     canvas.style.height = vp.h + 'px'
-    applyMaxWidth() // the width cap tracks the panel; a narrower panel re-clamps titles
-    if (lastGraph) relayout() // re-measure + reposition for the new cap (instant, no glide)
     // keep content framed when the panel is resized
     if (layout) {
       panzoom.fit(layout.bbox, vp)
@@ -144,25 +136,9 @@ export function createView({
     return widths
   }
 
-  // Recompute positions for the current graph against freshly-measured widths and
-  // snap cards into place WITHOUT the recenter glide (used on panel resize).
-  function relayout() {
-    if (!lastGraph) return
-    layout = computeLayout(lastGraph, measureWidths())
-    root.classList.add('synapses-snapping') // suppress the transform transition
-    for (const node of layout.nodes) {
-      const el = elements.get(node.name.toLowerCase())
-      if (el) positionEl(el, node)
-    }
-    void world.offsetWidth // commit the snapped positions before re-enabling transitions
-    root.classList.remove('synapses-snapping')
-    scheduleDraw()
-  }
-
   function setGraph(graph: Graph) {
     hideRemove() // drop any stale hover highlight / unlink control from the old graph
     hideTooltip()
-    lastGraph = graph
     const prevFocus = layout ? layout.focus : null
 
     // Identity pass: dedup + zones come from a width-agnostic layout. We need the
