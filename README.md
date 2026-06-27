@@ -42,6 +42,15 @@ npm test         # run the unit tests (vitest)
   centered and its relations fanning out around it, is the inspiration for this plugin's layout.
 - **[Logseq](https://logseq.com)** — the host application this plugin extends; it provides the
   Markdown graph, page properties, and plugin platform everything here is built on.
+- **[Obsidian](https://obsidian.md)** — the second host application this plugin extends; its `ItemView`
+  API backs the in-process Obsidian adapter.
+- **[Dataview](https://github.com/blacksmithgu/obsidian-dataview)** — its inline-field index and query API
+  are how the Obsidian adapter reads `parent:: / child:: / jump::` links.
+- **[ExcaliBrain](https://github.com/zsviczian/excalibrain)** — its page-property data model
+  (`parent:: / child:: / jump::`, declared one direction with reciprocals inferred) is the basis for how
+  this plugin stores links.
+- **[BRAT](https://github.com/TfTHacker/obsidian42-brat)** — the Obsidian beta-reviewers' tool used to
+  install and update this plugin from GitHub Releases.
 
 ## License
 
