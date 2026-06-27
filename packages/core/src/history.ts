@@ -30,6 +30,29 @@ export function jumpTo({ stack, idx }: HistoryStack, i: number): HistoryStack {
   return { stack: stack.slice(), idx: ni }
 }
 
+// Remove all case-insensitive matches of `name`. The new idx points at the nearest
+// surviving entry at-or-before the old position (so removing the current entry lands
+// on the previous one); if none survive before it, the nearest survivor after it; -1
+// when the stack empties.
+export function removeEntry({ stack, idx }: HistoryStack, name: string): HistoryStack {
+  const keep = stack.map((s) => !same(s, name))
+  const next = stack.filter((_, i) => keep[i])
+  if (next.length === stack.length) return { stack: next, idx } // nothing removed
+  if (next.length === 0) return { stack: next, idx: -1 }
+  let target = -1
+  for (let i = Math.min(idx, stack.length - 1); i >= 0; i--) {
+    if (keep[i]) { target = i; break }
+  }
+  if (target === -1) {
+    for (let i = idx + 1; i < stack.length; i++) {
+      if (keep[i]) { target = i; break }
+    }
+  }
+  let ni = 0
+  for (let i = 0; i < target; i++) if (keep[i]) ni++
+  return { stack: next, idx: ni }
+}
+
 export function serialize({ stack, idx }: HistoryStack): string {
   return JSON.stringify({ stack, idx })
 }
@@ -51,6 +74,7 @@ export interface History {
   state(): HistoryState
   push(name: string): HistoryState
   jump(i: number): HistoryJump | null
+  remove(name: string): HistoryState
   load(loaded: HistoryStack | null | undefined): HistoryState
 }
 
@@ -68,6 +92,11 @@ export function createHistory(onChange?: (s: HistoryStack) => void): History {
       state = jumpTo(state, i)
       if (onChange) onChange(state)
       return { name: state.stack[state.idx] || null, ...snapshot() }
+    },
+    remove(name) {
+      state = removeEntry(state, name)
+      if (onChange) onChange(state)
+      return snapshot()
     },
     load(loaded) {
       if (loaded && Array.isArray(loaded.stack)) state = { stack: loaded.stack.slice(), idx: loaded.idx }
