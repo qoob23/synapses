@@ -57,3 +57,4 @@
 
 ## 2026-06-28
 - **Toolbar ↻ "Rebuild from editor"** — hard-resets the in-memory index + pending patches and rebuilds purely from the editor (new `link-index.hardReset` → backend `rebuildIndex`), forcing a full re-render; the real fix was Logseq-side: `listPages` now gates on `page.file`, so phantom datascript pages: deleted `.md` whose lingering property blocks resurrected dead links no longer re-enter the index without a manual re-index.
+- **Color transparency floor** — theme colors are clamped to ≤50% transparency (opacity ≥ 0.5) in `applyTheme` via new pure `clampColorAlpha` (`packages/core/src/view/color.ts`), fixing Obsidian's translucent `--background-modifier-border` rendering parent/child connectors invisible.
