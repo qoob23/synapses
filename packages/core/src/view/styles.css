@@ -124,7 +124,7 @@
   min-width: 64px;
   max-width: var(--synapses-node-maxw, 480px);
   min-height: var(--synapses-node-h, 28px);
-  font-size: var(--synapses-node-font, 16px);
+  font-size: var(--synapses-node-font, 15px);
   line-height: 1.1;
   display: flex;
   align-items: center;

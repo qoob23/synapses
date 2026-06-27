@@ -6,7 +6,7 @@ import cssText from './styles.css?raw'
 
 describe('node geometry single source of truth', () => {
   // Card size now scales with the size level via CSS vars (height/font/max-width), but
-  // the CSS FALLBACKS must still track the base geometry: height → NODE.H, font → 16px,
+  // the CSS FALLBACKS must still track the base geometry: height → NODE.H, font → 15px,
   // max-width → the base cap.
   it('styles.css height fallback matches NODE.H', () => {
     expect(cssText).toContain(`var(--synapses-node-h, ${NODE.H}px)`)
@@ -16,7 +16,7 @@ describe('node geometry single source of truth', () => {
     expect(cssText).toContain('max-width: var(--synapses-node-maxw')
   })
   it('styles.css drives node label size from --synapses-node-font', () => {
-    expect(cssText).toContain('font-size: var(--synapses-node-font, 16px)')
+    expect(cssText).toContain('font-size: var(--synapses-node-font, 15px)')
   })
 })
 
