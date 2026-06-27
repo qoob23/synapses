@@ -1,6 +1,7 @@
 import { computeLayout, NODE } from './layout'
-import { computeEdges, drawEdges, gatePoint, edgeKey } from './edges'
+import { computeEdges, computeSecondaryEdges, drawEdges, gatePoint, edgeKey } from './edges'
 import type { Edge, EdgeRemove } from './edges'
+import type { Adjacency } from '../types'
 import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom'
 import { hitTest, pointAtDistanceFromEnd } from './edge-hit'
 import { nodeHandleStates } from './handles'
@@ -72,6 +73,7 @@ export function createView({
   let raf = 0
   let animUntil = 0
   let lastEdges: Edge[] = []
+  let adjacency: Adjacency = {} // full per-card links, for connectors between non-active cards
   let pending: { a: Pt; b: Pt; zone: string } | null = null
   let hoveredKey: string | null = null // identity of the edge under the cursor, for the hover highlight
 
@@ -311,7 +313,11 @@ export function createView({
     return new Set(elements.keys())
   }
 
-  function setHandles(adjacency: Record<string, any>, renderedNames: Set<string>) {
+  function setHandles(adj: Adjacency, renderedNames: Set<string>) {
+    // Retain the full adjacency so draw() can add connectors between non-active
+    // cards; it arrives async (after setGraph), so redraw once it lands.
+    adjacency = adj || {}
+    scheduleDraw()
     for (const [key, el] of elements) {
       if (!el._handles) continue
       const states = nodeHandleStates(adjacency[key], renderedNames)
@@ -353,8 +359,12 @@ export function createView({
   }
 
   function draw() {
-    lastEdges = computeEdges(liveLayout())
-    drawEdges(ctx, lastEdges, panzoom.getTransform(), theme, dpr, pending, hoveredKey)
+    const live = liveLayout()
+    lastEdges = computeEdges(live)
+    // Connectors between visible cards that don't touch the active thought — drawn
+    // faded and display-only (NOT added to lastEdges, so hover/unlink ignore them).
+    const secondary = computeSecondaryEdges(live, adjacency, lastEdges)
+    drawEdges(ctx, lastEdges, panzoom.getTransform(), theme, dpr, pending, hoveredKey, secondary)
   }
   function scheduleDraw() {
     if (!raf) raf = requestAnimationFrame(loop)

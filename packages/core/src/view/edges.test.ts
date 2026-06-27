@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { computeEdges, edgeKey } from './edges'
+import { computeEdges, computeSecondaryEdges, edgeKey } from './edges'
 import { NODE } from './layout'
+
+// Order-independent set of an edge's two endpoints (rounded), for asserting which
+// two cards a connector joins without depending on the a→b direction.
+const ptKey = (p: { x: number; y: number }) => `${Math.round(p.x)},${Math.round(p.y)}`
+const endpointSet = (e: { a: { x: number; y: number }; b: { x: number; y: number } }) =>
+  [ptKey(e.a), ptKey(e.b)].sort()
 
 // Minimal hand-placed layout: active thought at origin, one parent above, one child below.
 const layout = {
@@ -77,6 +83,118 @@ describe('computeEdges', () => {
     }
     const sibEdge = computeEdges(orphan).find((e) => e.neighbor === 'S')!
     expect(sibEdge.remove).toBeFalsy()
+  })
+})
+
+describe('computeSecondaryEdges', () => {
+  it('emits a display-only connector for a jump link between two non-active cards', () => {
+    const layout = {
+      focus: 'F',
+      nodes: [
+        { name: 'F', zone: 'focus', x: 0, y: 0 },
+        { name: 'P', zone: 'parent', x: 0, y: -150 },
+        { name: 'J', zone: 'jump', x: -200, y: 0 },
+      ],
+    }
+    // F links to P (parent) and J (jump); additionally P and J jump to each other.
+    const adjacency = {
+      f: { parents: ['P'], children: [], jumps: ['J'] },
+      p: { parents: [], children: ['F'], jumps: ['J'] },
+      j: { parents: [], children: [], jumps: ['F', 'P'] },
+    }
+    const primary = computeEdges(layout)
+    const secondary = computeSecondaryEdges(layout, adjacency, primary)
+    expect(secondary).toHaveLength(1)
+    expect(secondary[0].role).toBe('jump') // jump link → jump connector colour
+    expect(secondary[0].remove).toBeNull() // display-only, not removable
+    // dominant axis is horizontal (|dx|=200 > |dy|=150): P's left gate ↔ J's right gate
+    expect(endpointSet(secondary[0])).toEqual(
+      [ptKey({ x: -NODE.W / 2, y: -150 }), ptKey({ x: -200 + NODE.W / 2, y: 0 })].sort(),
+    )
+  })
+
+  it('uses the normal connector role for a parent/child link, with vertical gates', () => {
+    const layout = {
+      focus: 'F',
+      nodes: [
+        { name: 'F', zone: 'focus', x: 0, y: 0 },
+        { name: 'P', zone: 'parent', x: 0, y: -150 },
+        { name: 'C', zone: 'child', x: 0, y: 150 },
+      ],
+    }
+    // P is also a direct parent of C (a link between two non-active cards).
+    const adjacency = {
+      f: { parents: ['P'], children: ['C'], jumps: [] },
+      p: { parents: [], children: ['F', 'C'], jumps: [] },
+      c: { parents: ['F', 'P'], children: [], jumps: [] },
+    }
+    const secondary = computeSecondaryEdges(layout, adjacency, computeEdges(layout))
+    expect(secondary).toHaveLength(1)
+    expect(secondary[0].role).toBe('child') // parent/child link → normal connector colour
+    // dominant axis is vertical: P's bottom gate ↔ C's top gate
+    expect(endpointSet(secondary[0])).toEqual(
+      [ptKey({ x: 0, y: -150 + NODE.H / 2 }), ptKey({ x: 0, y: 150 - NODE.H / 2 })].sort(),
+    )
+  })
+
+  it('excludes links that involve the active thought', () => {
+    const layout = {
+      focus: 'F',
+      nodes: [
+        { name: 'F', zone: 'focus', x: 0, y: 0 },
+        { name: 'P', zone: 'parent', x: 0, y: -150 },
+        { name: 'C', zone: 'child', x: 0, y: 150 },
+      ],
+    }
+    // the only links are focus↔neighbour (already drawn as primary edges)
+    const adjacency = {
+      f: { parents: ['P'], children: ['C'], jumps: [] },
+      p: { parents: [], children: ['F'], jumps: [] },
+      c: { parents: ['F'], children: [], jumps: [] },
+    }
+    expect(computeSecondaryEdges(layout, adjacency, computeEdges(layout))).toEqual([])
+  })
+
+  it('dedupes against a primary edge (the sibling→shared-parent connector)', () => {
+    const layout = {
+      focus: 'F',
+      nodes: [
+        { name: 'F', zone: 'focus', x: 0, y: 0 },
+        { name: 'P', zone: 'parent', x: 0, y: -150 },
+        { name: 'S', zone: 'sibling', x: 180, y: 0, via: 'P' },
+      ],
+    }
+    // S is a child of P — already drawn by computeEdges as the sibling-via connector.
+    const adjacency = {
+      f: { parents: ['P'], children: [], jumps: [] },
+      p: { parents: [], children: ['F', 'S'], jumps: [] },
+      s: { parents: ['P'], children: [], jumps: [] },
+    }
+    expect(computeSecondaryEdges(layout, adjacency, computeEdges(layout))).toEqual([])
+  })
+
+  it('emits one connector per linked pair (reverse direction deduped)', () => {
+    const layout = {
+      focus: 'F',
+      nodes: [
+        { name: 'F', zone: 'focus', x: 0, y: 0 },
+        { name: 'P', zone: 'parent', x: 0, y: -150 },
+        { name: 'J', zone: 'jump', x: -200, y: 0 },
+      ],
+    }
+    // the P↔J jump appears in BOTH cards' adjacency — must not double-draw
+    const adjacency = {
+      p: { parents: [], children: [], jumps: ['J'] },
+      j: { parents: [], children: [], jumps: ['P'] },
+    }
+    expect(computeSecondaryEdges(layout, adjacency, computeEdges(layout))).toHaveLength(1)
+  })
+
+  it('returns [] with missing/empty adjacency', () => {
+    const layout = { focus: 'F', nodes: [{ name: 'F', zone: 'focus', x: 0, y: 0 }] }
+    expect(computeSecondaryEdges(layout, {}, [])).toEqual([])
+    expect(computeSecondaryEdges(layout, undefined, [])).toEqual([])
+    expect(computeSecondaryEdges(null, {}, [])).toEqual([])
   })
 })
 

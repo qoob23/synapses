@@ -1,4 +1,5 @@
 import { NODE } from './layout'
+import type { Adjacency } from '../types'
 
 export interface Point {
   x: number
@@ -103,6 +104,91 @@ export function computeEdges(layout: EdgeLayout | null | undefined): Edge[] {
   return edges
 }
 
+// Unordered, case-insensitive identity for a pair of card names.
+function pairKey(a: string, b: string): string {
+  const x = a.toLowerCase()
+  const y = b.toLowerCase()
+  return x < y ? x + '|' + y : y + '|' + x
+}
+
+// One display-only connector between two non-active cards. Gate sides follow the
+// dominant axis between the card centres so the curve looks natural between
+// arbitrary positions; `zone` is the curve-orientation tag `curve()` understands
+// ('jump' = horizontal S, 'child' = vertical S), `role` only drives the colour.
+function secondaryEdge(a: EdgeLayoutNode, b: EdgeLayoutNode, jump: boolean): Edge {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  let aSide: string
+  let bSide: string
+  let zone: string
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    zone = 'jump' // horizontal S-curve
+    aSide = dx >= 0 ? 'right' : 'left'
+    bSide = dx >= 0 ? 'left' : 'right'
+  } else {
+    zone = 'child' // vertical S-curve
+    aSide = dy >= 0 ? 'bottom' : 'top'
+    bSide = dy >= 0 ? 'top' : 'bottom'
+  }
+  return {
+    a: gatePoint(a, aSide),
+    b: gatePoint(b, bSide),
+    neighbor: b.name,
+    role: jump ? 'jump' : 'child',
+    zone,
+    via: false,
+    remove: null,
+  }
+}
+
+// Pure: connectors for declared parent/child/jump links BETWEEN two visible cards
+// that don't touch the active thought ("secondary" links). Deduped against the
+// primary edges — so the focus↔neighbour edges and the sibling→shared-parent
+// connector are never redrawn — and against the reverse direction. These are
+// display-only (`remove: null`); the caller draws them faded and does not hit-test
+// them. Excludes any pair involving the active thought (already drawn as primary).
+export function computeSecondaryEdges(
+  layout: EdgeLayout | null | undefined,
+  adjacency: Adjacency | null | undefined,
+  primaryEdges: Edge[] | null | undefined,
+): Edge[] {
+  if (!layout || !adjacency) return []
+  const focus = layout.nodes.find((n) => n.zone === 'focus')
+  const byName = new Map<string, EdgeLayoutNode>()
+  for (const n of layout.nodes) byName.set(n.name.toLowerCase(), n)
+
+  // Pairs already drawn by the primary edges: a removable edge names both ends in
+  // its `remove` descriptor (covers the sibling-via parent→sibling pair); the rest
+  // are focus↔neighbour.
+  const drawn = new Set<string>()
+  for (const e of primaryEdges || []) {
+    if (e.remove) drawn.add(pairKey(e.remove.from, e.remove.to))
+    else if (focus) drawn.add(pairKey(focus.name, e.neighbor))
+  }
+
+  const out: Edge[] = []
+  const seen = new Set<string>()
+  for (const a of layout.nodes) {
+    if (a.zone === 'focus') continue
+    const adj = adjacency[a.name.toLowerCase()]
+    if (!adj) continue
+    const links: Array<{ to: string; jump: boolean }> = [
+      ...adj.parents.map((t) => ({ to: t, jump: false })),
+      ...adj.children.map((t) => ({ to: t, jump: false })),
+      ...adj.jumps.map((t) => ({ to: t, jump: true })),
+    ]
+    for (const { to, jump } of links) {
+      const b = byName.get(to.toLowerCase())
+      if (!b || b.zone === 'focus') continue // both ends must be visible non-active cards
+      const key = pairKey(a.name, to)
+      if (drawn.has(key) || seen.has(key)) continue
+      seen.add(key)
+      out.push(secondaryEdge(a, b, jump))
+    }
+  }
+  return out
+}
+
 function curve(ctx: CanvasRenderingContext2D, a: Point, b: Point, zone: string): void {
   ctx.beginPath()
   ctx.moveTo(a.x, a.y)
@@ -116,10 +202,16 @@ function curve(ctx: CanvasRenderingContext2D, a: Point, b: Point, zone: string):
   ctx.stroke()
 }
 
+// Connectors that don't touch the active thought are drawn at this fraction of the
+// normal alpha, so they read as present but recede behind the active links.
+const SECONDARY_ALPHA = 0.4
+
 // Draw the retained edges in world space (sharing the card transform), plus an
 // optional dashed drag-preview line. The edge whose key matches `highlightKey`
-// (the one under the cursor) is drawn thicker in the accent colour. Endpoint
-// dots are superseded by DOM handles.
+// (the one under the cursor) is drawn thicker in the accent colour. `secondary`
+// edges (links between visible cards not involving the active thought) are drawn
+// UNDER the primary edges at reduced alpha. Endpoint dots are superseded by DOM
+// handles.
 export function drawEdges(
   ctx: CanvasRenderingContext2D,
   edges: Edge[] | null | undefined,
@@ -128,6 +220,7 @@ export function drawEdges(
   dpr: number,
   pending?: { a: Point; b: Point; zone?: string } | null,
   highlightKey?: string | null,
+  secondary?: Edge[] | null,
 ): void {
   const canvas = ctx.canvas
   ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -135,6 +228,17 @@ export function drawEdges(
 
   const { s, tx, ty } = transform
   ctx.setTransform(s * dpr, 0, 0, s * dpr, tx * dpr, ty * dpr)
+
+  if (secondary && secondary.length) {
+    ctx.save()
+    ctx.globalAlpha = SECONDARY_ALPHA
+    ctx.lineWidth = 1.5
+    for (const e of secondary) {
+      ctx.strokeStyle = e.role === 'jump' || e.role === 'sibling' ? theme.jumpEdge : theme.edge
+      curve(ctx, e.a, e.b, e.zone)
+    }
+    ctx.restore()
+  }
 
   for (const e of edges || []) {
     const hot = highlightKey && edgeKey(e) === highlightKey
