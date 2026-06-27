@@ -55,7 +55,7 @@ export function openCreateDialog({
     input.placeholder = 'Type a note name…'
     const results = div('synapses-dialog-results')
     const hint = div('synapses-dialog-hint')
-    hint.textContent = 'Enter = create new · click a match = link existing · Esc = cancel'
+    hint.textContent = '↑↓ move · Enter select · Esc cancel'
     box.append(title, input, results, hint)
     overlay.appendChild(box)
     root.appendChild(overlay)
@@ -79,11 +79,53 @@ export function openCreateDialog({
     input.focus()
 
     let token = 0
-    async function search() {
-      const q = input.value.trim()
-      const mine = ++token
+    let highlight = 0
+    let rows: Array<{ el: HTMLElement; act: () => void }> = []
+
+    function paint() {
+      for (let i = 0; i < rows.length; i++) rows[i].el.classList.toggle('is-active', i === highlight)
+      if (rows[highlight]) rows[highlight].el.scrollIntoView({ block: 'nearest' })
+    }
+
+    function setHighlight(i: number) {
+      highlight = i
+      paint()
+    }
+
+    // Render an ordered list: a "create" row first (when the query is non-empty), then matches.
+    function render(matches: string[]) {
       results.innerHTML = ''
-      if (!q) return
+      rows = []
+      const q = input.value.trim()
+      if (q) {
+        const createRow = div('synapses-dialog-result')
+        createRow.textContent = `✛ Create "${q}"`
+        const act = () => finish(q, false)
+        createRow.addEventListener('click', act)
+        createRow.addEventListener('mousemove', () => setHighlight(0))
+        results.appendChild(createRow)
+        rows.push({ el: createRow, act })
+      }
+      for (const m of matches) {
+        if (m.toLowerCase() === sourcePage.toLowerCase()) continue
+        const idx = rows.length
+        const r = div('synapses-dialog-result')
+        r.textContent = m
+        const act = () => finish(m, true)
+        r.addEventListener('click', act)
+        r.addEventListener('mousemove', () => setHighlight(idx))
+        results.appendChild(r)
+        rows.push({ el: r, act })
+      }
+      if (highlight > rows.length - 1) highlight = rows.length - 1
+      if (highlight < 0) highlight = rows.length ? 0 : -1
+      paint()
+    }
+
+    async function search() {
+      const mine = ++token
+      const q = input.value.trim()
+      if (!q) { render([]); return }
       let matches: string[] = []
       try {
         matches = await backend.searchPages(q)
@@ -91,13 +133,8 @@ export function openCreateDialog({
         /* ignore */
       }
       if (mine !== token) return
-      for (const m of matches || []) {
-        if (m.toLowerCase() === sourcePage.toLowerCase()) continue
-        const r = div('synapses-dialog-result')
-        r.textContent = m
-        r.addEventListener('click', () => finish(m, true))
-        results.appendChild(r)
-      }
+      highlight = 0 // default highlight = the create row
+      render(matches || [])
     }
 
     async function finish(name: string, existing: boolean) {
@@ -125,12 +162,16 @@ export function openCreateDialog({
     }
 
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape') { e.preventDefault(); close(false); return }
+      const ctrl = e.ctrlKey && !e.metaKey
+      const down = e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey) || (ctrl && (e.key === 'j' || e.key === 'n'))
+      const up = e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey) || (ctrl && (e.key === 'k' || e.key === 'p'))
+      if (down) { e.preventDefault(); setHighlight(nextHighlight(highlight, rows.length, 1)); return }
+      if (up) { e.preventDefault(); setHighlight(nextHighlight(highlight, rows.length, -1)); return }
+      if (e.key === 'Enter') {
         e.preventDefault()
-        close(false)
-      } else if (e.key === 'Enter' && document.activeElement === input) {
-        const v = input.value.trim()
-        if (v) finish(v, false)
+        const row = rows[highlight]
+        if (row) row.act()
       }
     }
 

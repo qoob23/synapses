@@ -436,7 +436,8 @@
   border-radius: 6px;
   cursor: pointer;
 }
-.synapses-dialog-result:hover {
+.synapses-dialog-result:hover,
+.synapses-dialog-result.is-active {
   background: color-mix(in srgb, var(--synapses-accent) 18%, transparent);
 }
 .synapses-dialog-hint {
