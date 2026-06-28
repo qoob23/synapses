@@ -16,14 +16,16 @@ properties and the datascript schema). Plain **TypeScript** (no React, no SVG, n
 > `src/shared/rpc.js` paths are gone** — code now lives in npm workspaces under `packages/`.
 
 - `packages/core` (`@logseq-synapses/core`) — editor-agnostic engine + view: graph link-index
-  (`graph/index-pure.ts` + `graph/link-index.ts`), `mutations.ts`, `history.ts`, `ontology.ts`, the
-  generic postMessage `transport.ts`, the view (`view/` — `view.ts`, `edges.ts`, `layout.ts`,
-  `panzoom.ts`, `dialog.ts`, `theme.ts`, `handles.ts`, `edge-hit.ts`, `styles.css`), `app.ts` =
-  `mountSynapses`, `backend.ts` = `createCoreBackend`.
+  (`graph/index-pure.ts` + `graph/link-index.ts`), `mutations.ts`, `history.ts`, `ontology.ts`,
+  `ignore.ts` (folder/ignore-filter exclusion), the generic postMessage `transport.ts`, the view
+  (`view/` — `view.ts`, `edges.ts`, `layout.ts`, `panzoom.ts`, `dialog.ts`, `context-menu.ts`,
+  `theme.ts`, `color.ts`, `handles.ts`, `edge-hit.ts`, `styles.css`), `app.ts` = `mountSynapses`,
+  `backend.ts` = `createCoreBackend`.
 - `packages/logseq-plugin` — Logseq adapter: M entry `src/index.ts` (has `logseq`), P iframe entry
   `src/frame.ts`, `sidebar.ts`, `datasource.ts`, `services.ts`.
 - `packages/obsidian-plugin` — Obsidian adapter, **in-process `ItemView` (no iframe)**: `main.ts`,
-  `view.ts`, `datasource.ts`, `services.ts`, `inline-fields.ts`, `dataview-map.ts`, `settings.ts`.
+  `view.ts`, `datasource.ts`, `services.ts`, `inline-fields.ts`, `dataview-map.ts`, `write-target.ts`,
+  `paths.ts`, `settings.ts`.
 
 **Two-seam architecture:** the view consumes a high-level `SynapsesBackend`; each editor supplies a
 `DataSource` (read/write properties + change events) + `EditorServices` (theme/assets/nav/ontology);
@@ -40,6 +42,13 @@ properties and the datascript schema). Plain **TypeScript** (no React, no SVG, n
 - **`verbatimModuleSyntax` is on** → type-only imports must use `import { type X }`.
 - **Build artifacts are gitignored/rebuildable:** `packages/obsidian-plugin/{main.js,styles.css}` (esbuild
   renames `main.css`→`styles.css`), `packages/logseq-plugin/dist/`.
+- **Mobile mode flows through the seam, not just the view.** `EditorServices.getUiMode()`
+  (`UiMode.mobile`) + an `onUiModeChange` → `'uimode'` backend event; `app.ts` reads `mobile` before
+  `init()` and re-reads it on the event, then calls `view.setMobile`. On mobile, activating a card
+  recenters but does **not** mirror to the editor main pane (`navigate` is gated on `!mobile` —
+  switching pages would close the mobile drawer); handles go inert and the connector × is tap- (not
+  hover-) revealed. Detection differs per editor: Obsidian = `Platform.isMobile || settings.mobileMode`;
+  Logseq has no mobile plugin runtime, so the in-settings "Mobile mode" toggle is the only signal.
 
 ## Terminology
 
@@ -143,8 +152,26 @@ are `packages/obsidian-plugin/src/{datasource,services}.ts`.)
   `reconcilePatches` replays unconfirmed `pendingPatches` onto each fresh build and only drops a patch once
   a read confirms it (or after `PATCH_TTL_MS`, so external removals eventually win). Keep the replay→swap
   synchronous (no `await` between them) or the race returns.
-- **`window.prompt`/`alert` are blocked** in the sandboxed Logseq synapses iframe — use the in-iframe
-  dialog (`packages/core/src/view/dialog.ts`), not native modals.
+- **A deleted `.md` leaves a lingering datascript entity** (Logseq): `getPage()`/`listPages` still report a
+  referenced page whose file is gone, resurrecting dead links and re-materialising an empty file on nav.
+  Gate on a backing **file** — `listPages` filters on `page.file`, `DataSource.pageExists` requires a file,
+  and history prunes missing entries. `link-index.hardReset` (exposed as `backend.rebuildIndex`, wired to
+  the toolbar ↻) is the manual escape hatch: it discards the live index **and** all pending patches and
+  rebuilds purely from the editor.
+- **Markdown backups under `logseq/` index as phantom thoughts.** Logseq's `bak/` + `.recycle/` copies get
+  read by the index (Dataview indexes them in Obsidian; resolvable paths in Logseq) and inject phantom
+  parent/child links into real pages. Both adapters drop the `logseq/` folder; Obsidian also honours its
+  native `userIgnoreFilters` (Dataview ignores that setting). Pure helpers `isInLogseqFolder` /
+  `matchesIgnoreFilters` live in `packages/core/src/ignore.ts`.
+- **One connection per pair — route every link write through `setLink`/`unlink` (`mutations.ts`).**
+  Connecting an already-linked pair **retypes** it: `setLink` queries `rolesBetween` and `unlink`s every
+  differing role on both declaration sides before writing. Writing a property directly instead leaves two
+  inline declarations with an undefined winner (and breaks parent↔child flips / legacy multi-role self-heal).
+- **Menus and modals use the full-bleed overlay pattern, never fixed-position or native.** Both
+  `view/dialog.ts` and `view/context-menu.ts` render an overlay covering the stage with an
+  absolutely-positioned child (`clampMenuPosition`). `window.prompt`/`alert` are blocked in the sandboxed
+  Logseq iframe; a `position:fixed` menu resolves against Obsidian's transformed pane (lands off-screen)
+  and a Logseq dismisser tears it down between mousedown and mouseup.
 - **An iframe in an inline wrapper falls back to its ~300px intrinsic width**, ignoring `width:100%`. Fix
   width with persistent **CSS** (`:has()` in `synapsesFrameStyle`, `packages/logseq-plugin/src/sidebar.ts`),
   not imperative JS — JS mutations get wiped when Logseq re-renders the sidebar.
@@ -157,6 +184,9 @@ are `packages/obsidian-plugin/src/{datasource,services}.ts`.)
   `getPageBlocksTree(name)[0].uuid` before writing with `upsertBlockProperty`.
 - The synapses skips re-rendering when the graph key is unchanged (anti-flicker on reconcile) — see
   `graphKey` in `packages/core/src/app.ts`.
+- **Theme colors are clamped to opacity ≥ 0.5** (`clampColorAlpha`, `view/color.ts`) before `applyTheme`
+  sets CSS vars and edge colors — Obsidian's translucent `--background-modifier-border` otherwise renders
+  parent/child connectors invisible.
 
 ## Pointers
 
