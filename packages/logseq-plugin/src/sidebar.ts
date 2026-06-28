@@ -110,6 +110,31 @@ export function renderSynapsesSlot(slot: string, connect: (el: HTMLIFrameElement
   setTimeout(tick, 30)
 }
 
+// Scroll the host sidebar in response to a wheel delta forwarded from the iframe
+// (see frame.ts). The synapses iframe is cross-origin/sandboxed and can't reach
+// the parent scroll container, but M can. Match the forwarding iframe by its
+// contentWindow, then nudge its nearest scrollable ancestor in the host document.
+export function scrollSidebarForFrame(source: Window, delta: { dx: number; dy: number }): void {
+  const frames = Array.from(parent.document.querySelectorAll<HTMLIFrameElement>('iframe.synapses-frame'))
+  const frame = frames.find((f) => f.contentWindow === source)
+  const scroller = frame && findScrollableAncestor(frame)
+  if (!scroller) return
+  if (delta.dy) scroller.scrollTop += delta.dy
+  if (delta.dx) scroller.scrollLeft += delta.dx
+}
+
+// Walk up from an element to the nearest ancestor that actually scrolls vertically
+// (overflow auto/scroll and content taller than the box). Stops at the host root.
+function findScrollableAncestor(start: Element): HTMLElement | null {
+  let el: HTMLElement | null = start.parentElement
+  while (el && el !== parent.document.documentElement) {
+    const oy = parent.getComputedStyle(el).overflowY
+    if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) return el
+    el = el.parentElement
+  }
+  return null
+}
+
 // While the user drags the sidebar resize handle and the cursor crosses our
 // iframe, the iframe would swallow the mouse events — making the resize lag and
 // "stick" after release (the parent never gets mouseup). When a gesture starts

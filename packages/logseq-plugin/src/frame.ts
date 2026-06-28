@@ -6,10 +6,24 @@ import '@logseq-synapses/core/styles.css'
 // so the initial theme + restore calls don't race ahead of it and fail with
 // "synapses bridge not connected" (which also left the UI stuck on the light theme).
 let mounted = false
-const { backend } = createBackendProxy({
+const { backend, client } = createBackendProxy({
   onConnect: () => {
     if (mounted) return
     mounted = true
     mountSynapses(document.body, backend)
   },
 })
+
+// The view swallows the wheel (panzoom calls preventDefault to kill zoom/host
+// scroll-chaining), so the cross-origin iframe would otherwise trap every scroll
+// gesture and the Logseq right sidebar couldn't scroll while the cursor is over
+// us. Forward the delta to M (host context), which scrolls the sidebar directly.
+// Pixel-normalize first: deltaMode line/page rarely occurs but would scroll wrong.
+window.addEventListener(
+  'wheel',
+  (e) => {
+    const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1
+    client.post('hostScroll', { dx: e.deltaX * k, dy: e.deltaY * k })
+  },
+  { passive: true },
+)

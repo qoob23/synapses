@@ -2,7 +2,7 @@ import '@logseq/libs'
 import { createCoreBackend, serveBackend } from '@logseq-synapses/core'
 import { createLogseqDataSource } from './datasource'
 import { createLogseqServices } from './services'
-import { renderSynapsesSlot, openSynapsesSidebar, synapsesFrameStyle } from './sidebar'
+import { renderSynapsesSlot, openSynapsesSidebar, synapsesFrameStyle, scrollSidebarForFrame } from './sidebar'
 
 const settingsSchema = [
   { key: 'parentFields', type: 'string', default: 'parent, parents, up', title: 'Parent property names', description: 'Comma-separated property names treated as "parent".' },
@@ -14,7 +14,9 @@ const settingsSchema = [
 async function main() {
   ;(logseq as any).useSettingsSchema(settingsSchema)
   const backend = createCoreBackend(createLogseqDataSource(), createLogseqServices())
-  const server = serveBackend(backend)
+  const server = serveBackend(backend, (method, payload, source) => {
+    if (method === 'hostScroll') scrollSidebarForFrame(source, payload)
+  })
 
   ;(logseq as any).provideStyle(synapsesFrameStyle())
   ;(logseq as any).App.onMacroRendererSlotted(({ slot, payload }: any) => {

@@ -89,3 +89,6 @@
     - handles inert — tap a connector to unlink; create via mobile-only toolbar buttons; taller touch cards;
     - title + back/forward dropped (breadcrumb is the nav);
     - activating a card recenters without switching the editor page (drawer stays open); active card opens in editor.
+- **Wheel over the Logseq Synapses iframe scrolls the host right sidebar** (the view's `preventDefault` trapped it).
+    - New symmetric client→server transport `post`/`onClientEvent` (mirrors `notify`); P forwards wheel deltas to M.
+    - M scrolls the iframe's nearest scrollable ancestor; keeping `preventDefault` stops the browser double-scrolling.
