@@ -1,37 +1,39 @@
 import type { Palette } from '../types'
-import { clampColorAlpha, mixColors } from './color'
+import { clampColorAlpha, mixColors, fadeAlpha, withAlpha } from './color'
 
-// Resolve the canvas connector colors for a palette. Precedence, per kind:
-//   1. the user's configured override (palette.primaryEdge / .secondaryEdge),
-//   2. a color DERIVED from bg→text — a UI border color is often too dim to see
-//      as a line, and muted text can be brighter than the border, which inverted
-//      the intended "direct links read stronger than jumps" ordering; mixing
-//      toward text by a fixed amount guarantees visibility AND ordering
-//      (direct > jump) in any theme, light or dark,
-//   3. the theme's border / muted-text vars, then 4. static grays.
-// Everything passes through clampColorAlpha so a too-translucent value (incl. a
-// user override) can't fade the connectors out of sight. mixColors yields a
-// concrete rgb() so the result is valid as a <canvas> strokeStyle.
-export function connectorColors(palette: Palette): { edge: string; jumpEdge: string } {
-  const fallback = { edge: 'rgba(127,127,127,0.55)', jumpEdge: 'rgba(127,127,127,0.32)' }
-  if (!palette) return fallback
+// Connections are always shades of GRAY, never the picked color; transparency
+// distinguishes the link kinds: direct (parent/child) links draw the gray at the
+// base alpha (75%), jump/sibling links at half that. The picked color (else the
+// theme accent) is reserved for the HOVERED connection — drawn opaque, so a hover
+// reads as bold + bright. The gray base is, in order:
+//   1. a color mixed from bg→text (a UI border is often too dim to see as a line;
+//      mixing toward text guarantees visibility in any theme), else
+//   2. the theme border var, else 3. a static gray.
+// mixColors yields a concrete rgb() so the result is valid as a <canvas> strokeStyle.
+const FALLBACK_BASE = 'rgb(127, 127, 127)'
+const JUMP_FACTOR = 0.5 // jump/sibling connectors = the gray at half opacity
+const DEFAULT_ALPHA = 0.75 // resting connectors render softened to this, not solid
+
+export function connectorColors(palette: Palette): { edge: string; jumpEdge: string; highlight: string } {
+  const grayBase = (palette && (
+    mixColors(palette.bg, palette.text, 0.55)
+    || clampColorAlpha(palette.border)
+  )) || FALLBACK_BASE
+  const edge = withAlpha(grayBase, DEFAULT_ALPHA) as string
+  const highlightBase = (palette && (palette.primaryEdge || palette.accent)) || grayBase
   return {
-    edge: clampColorAlpha(palette.primaryEdge)
-      || mixColors(palette.bg, palette.text, 0.55)
-      || clampColorAlpha(palette.border)
-      || fallback.edge,
-    jumpEdge: clampColorAlpha(palette.secondaryEdge)
-      || mixColors(palette.bg, palette.text, 0.33)
-      || clampColorAlpha(palette.text2)
-      || fallback.jumpEdge,
+    edge,
+    jumpEdge: fadeAlpha(edge, JUMP_FACTOR) as string,
+    highlight: withAlpha(highlightBase, 1) as string,
   }
 }
 
 // Apply a palette (read from the editor by the main context) onto the root
 // container's CSS variables, and return the connector colors for the canvas layer.
-// Theme colors are passed through clampColorAlpha so translucent values (e.g.
-// Obsidian's --background-modifier-border) can't fade borders out of sight —
-// transparency is capped at 50% (opacity >= 0.5).
+// Most colors pass through clampColorAlpha so translucent values (e.g. Obsidian's
+// --background-modifier-border) can't fade out — transparency is capped at 50%.
+// The default border is the exception: it's SET to 75% opacity (softer chrome +
+// card outlines). An explicit primary override (--synapses-primary) stays full.
 export function applyTheme(root: HTMLElement, palette: Palette) {
   if (!palette) return connectorColors(palette)
 
@@ -40,7 +42,7 @@ export function applyTheme(root: HTMLElement, palette: Palette) {
     '--synapses-bg2': clampColorAlpha(palette.bg2),
     '--synapses-text': clampColorAlpha(palette.text),
     '--synapses-text2': clampColorAlpha(palette.text2),
-    '--synapses-border': clampColorAlpha(palette.border),
+    '--synapses-border': withAlpha(palette.border, 0.75),
     '--synapses-accent': clampColorAlpha(palette.accent),
   }
   for (const k in map) {
@@ -48,11 +50,10 @@ export function applyTheme(root: HTMLElement, palette: Palette) {
   }
   root.classList.toggle('synapses-dark', palette.mode === 'dark')
 
-  // When the user picks a PRIMARY connector color, it also recolors the structural
-  // accent elements — card borders, the active card, drag handles — through
-  // --synapses-primary, which those rules fall back FROM to their theme color when
-  // it's absent. Cleared (not just unset) so resetting the picker reverts them.
-  // (The secondary override stays scoped to jump/sibling connectors only.)
+  // The picked color is a HIGHLIGHT, used (at full strength) only for the active
+  // card and the current history crumb — via --synapses-primary, which those rules
+  // fall back FROM to the theme accent when it's absent. Resting cards/crumbs and
+  // the connectors never use it. Cleared (not just unset) so resetting reverts them.
   const primary = clampColorAlpha(palette.primaryEdge)
   if (primary) root.style.setProperty('--synapses-primary', primary)
   else root.style.removeProperty('--synapses-primary')

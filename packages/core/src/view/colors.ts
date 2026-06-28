@@ -1,14 +1,15 @@
-// In-iframe connector-color popover: a native color picker + reset (×) per kind,
+// In-iframe connector-color popover: a native color picker + reset (×) per row,
 // for the CURRENT theme mode. Native menus/prompt are blocked in the sandboxed
 // Logseq iframe, so this mirrors the context-menu overlay pattern (full-bleed
 // overlay + positioned box, dismissed by clicking the bare overlay or Escape).
 import { rgbToHex } from './color'
 
 export interface ColorRow {
-  key: 'primary' | 'secondary'
   label: string
   value: string | undefined // stored override (any CSS color), or undefined = auto-derive
   fallback: string // the auto-derived color, shown in the swatch when there's no override
+  // value === null => reset this row to auto.
+  onChange: (value: string | null) => void
 }
 
 let openOverlay: HTMLElement | null = null
@@ -29,8 +30,6 @@ export function openColorsPopover(opts: {
   at: { x: number; y: number }
   title: string
   rows: ColorRow[]
-  // value === null => reset that kind to auto.
-  onChange: (key: 'primary' | 'secondary', value: string | null) => void
 }): void {
   closeColorsPopover()
 
@@ -74,13 +73,13 @@ export function openColorsPopover(opts: {
     input.addEventListener('change', () => {
       row.value = input.value
       reset.disabled = false
-      opts.onChange(row.key, input.value)
+      row.onChange(input.value)
     })
     reset.addEventListener('click', () => {
       row.value = undefined
       setSwatch(undefined)
       reset.disabled = true
-      opts.onChange(row.key, null)
+      row.onChange(null)
     })
 
     r.append(label, input, reset)

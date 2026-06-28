@@ -239,11 +239,11 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     const plus = btn('+', 'Larger cards & text', () => { view.stepSize(1); renderToolbar() })
     plus.disabled = level >= count - 1
 
-    const colors = btn('🎨', 'Connector colors', () => openColors(colors))
+    const colors = btn('◑', 'Highlight color', () => openColors(colors))
 
     // (No explicit "open in main pane" button — clicking the centred active card already
     // opens it in the main pane.) The add group is mobile-only; on desktop the handles +
-    // the editor cover creation, so the toolbar stays ↻ − + 🎨.
+    // the editor cover creation, so the toolbar stays ↻ − + ◑.
     els.toolbar.append(refresh, ...(mobile ? [add] : []), minus, plus, colors)
   }
 
@@ -278,9 +278,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   async function applyThemeWithOverrides(p: Palette) {
     try {
       const o = await backend.getConnectorColors()
-      const dark = p.mode === 'dark'
-      p.primaryEdge = (dark ? o.primaryDark : o.primaryLight) || undefined
-      p.secondaryEdge = (dark ? o.secondaryDark : o.secondaryLight) || undefined
+      p.primaryEdge = (p.mode === 'dark' ? o.primaryDark : o.primaryLight) || undefined
     } catch (e) { /* ignore overrides; fall back to auto-derived */ }
     view.setTheme(applyTheme(container, p))
   }
@@ -300,25 +298,30 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     try { palette = await backend.getTheme(); overrides = await backend.getConnectorColors() }
     catch (e) { return }
     const dark = palette.mode === 'dark'
-    // Auto-derived colors (overrides cleared) — shown in a swatch that has no override.
-    const derived = connectorColors({ ...palette, primaryEdge: undefined, secondaryEdge: undefined })
+    const field = dark ? 'primaryDark' : 'primaryLight'
+    // The picked color highlights the active card / current crumb / hovered connector;
+    // with none set that highlight is the theme accent — shown in the swatch as the
+    // auto value (connectorColors().highlight, with the override cleared).
+    const derived = connectorColors({ ...palette, primaryEdge: undefined })
     const rect = anchor.getBoundingClientRect()
     openColorsPopover({
       root: els.dialogRoot,
       at: { x: rect.left, y: rect.bottom + 4 },
-      title: `Connector colors · ${dark ? 'Dark' : 'Light'}`,
+      title: `Highlight color · ${dark ? 'Dark' : 'Light'}`,
       rows: [
-        { key: 'primary', label: 'Primary (parent/child)', value: dark ? overrides.primaryDark : overrides.primaryLight, fallback: derived.edge },
-        { key: 'secondary', label: 'Secondary (jump/sibling)', value: dark ? overrides.secondaryDark : overrides.secondaryLight, fallback: derived.jumpEdge },
+        {
+          label: 'Color',
+          value: overrides[field],
+          fallback: derived.highlight,
+          onChange: async (value) => {
+            const cur = await backend.getConnectorColors()
+            if (value == null) delete cur[field]
+            else cur[field] = value
+            await backend.setConnectorColors(cur)
+            await loadTheme()
+          },
+        },
       ],
-      onChange: async (key, value) => {
-        const cur = await backend.getConnectorColors()
-        const field = key === 'primary' ? (dark ? 'primaryDark' : 'primaryLight') : (dark ? 'secondaryDark' : 'secondaryLight')
-        if (value == null) delete cur[field]
-        else cur[field] = value
-        await backend.setConnectorColors(cur)
-        await loadTheme()
-      },
     })
   }
 

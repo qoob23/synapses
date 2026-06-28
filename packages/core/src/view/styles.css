@@ -6,7 +6,7 @@
   --synapses-bg2: #f6f6f7;
   --synapses-text: #232323;
   --synapses-text2: #8a8a8a;
-  --synapses-border: #d6d6d6;
+  --synapses-border: rgba(214, 214, 214, 0.75);
   --synapses-accent: #4a90d9;
 
   /* folded from the former html,body + body rules */
@@ -178,7 +178,9 @@
   align-items: center;
   justify-content: center;
   padding: 4px 8px;
-  border: 1px solid var(--synapses-primary, var(--synapses-border));
+  /* Neutral theme border — the picked color highlights only the ACTIVE card
+     (.zone-focus below), never the resting/non-active cards. */
+  border: 1px solid var(--synapses-border);
   border-radius: 10px;
   background: color-mix(in srgb, var(--synapses-bg2) 70%, transparent);
   color: var(--synapses-text);
@@ -192,7 +194,7 @@
     border-color 0.15s;
 }
 .synapses-node:hover {
-  border-color: var(--synapses-primary, var(--synapses-accent));
+  border-color: var(--synapses-accent);
 }
 .synapses-node-label {
   max-width: 100%;
@@ -204,7 +206,10 @@
   font-weight: 600;
   border-width: 2px;
   border-color: var(--synapses-primary, var(--synapses-accent));
-  background: color-mix(in srgb, var(--synapses-primary, var(--synapses-accent)) 22%, transparent);
+  /* Tint over the OPAQUE card color (--synapses-bg2, the same base as the other
+     cards but at full opacity, vs their 70%): a solid, darker body so the active
+     card stays well-defined against the busy stage instead of washing out. */
+  background: color-mix(in srgb, var(--synapses-primary, var(--synapses-accent)) 22%, var(--synapses-bg2));
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--synapses-primary, var(--synapses-accent)) 12%, transparent);
 }
 /* Start state for a freshly-added card: invisible at the active note's gate; view.js
@@ -366,13 +371,31 @@
   white-space: nowrap;
   border-top: 1px solid var(--synapses-border);
   background: var(--synapses-bg2);
+  /* Recolor the scrollbar only (default thickness/shape kept): a muted thumb close
+     to the bg over a transparent track (the breadcrumb's own bg2 shows through),
+     instead of the OS-default bright bar. Firefox prop here; WebKit/Chromium below. */
+  scrollbar-color: color-mix(in srgb, var(--synapses-text2) 30%, transparent) transparent;
 }
+#synapses-breadcrumb::-webkit-scrollbar-track {
+  background: transparent;
+}
+#synapses-breadcrumb::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--synapses-text2) 30%, transparent);
+}
+#synapses-breadcrumb:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--synapses-text2) 50%, transparent);
+}
+/* A crumb IS a card (same note, shown in the history row) — match .synapses-node:
+   the semi-transparent fill, rounded border, text colour. The picked color is used
+   ONLY for the current crumb (the highlight, below), like the active card; resting
+   crumbs use the neutral theme border. Kept at the compact toolbar font so the row
+   stays short. */
 .synapses-crumb {
   flex: 0 0 auto;
   max-width: 140px;
   border: 1px solid var(--synapses-border);
-  background: var(--synapses-bg);
-  color: var(--synapses-text2);
+  background: color-mix(in srgb, var(--synapses-bg2) 70%, transparent);
+  color: var(--synapses-text);
   border-radius: 10px;
   padding: 2px 8px;
   cursor: pointer;
@@ -380,11 +403,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
+  transition: background 0.15s, border-color 0.15s;
 }
-.synapses-crumb.current {
-  color: var(--synapses-text);
+.synapses-crumb:hover {
   border-color: var(--synapses-accent);
+}
+/* The current crumb = the active card (.synapses-node.zone-focus): accent/primary
+   border + tinted fill + bold (no outer ring — it would bleed into neighbours). */
+.synapses-crumb.current {
   font-weight: 600;
+  border-color: var(--synapses-primary, var(--synapses-accent));
+  background: color-mix(in srgb, var(--synapses-primary, var(--synapses-accent)) 22%, transparent);
 }
 
 /* ---- flash (empty / error overlay) ---- */

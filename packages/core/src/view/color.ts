@@ -148,3 +148,28 @@ export function mixColors(c1: string | undefined, c2: string | undefined, t: num
   const mix = (x: number, y: number) => Math.round(x + (y - x) * k)
   return `rgb(${mix(a.r, b.r)}, ${mix(a.g, b.g)}, ${mix(a.b, b.b)})`
 }
+
+// Format a clamped 0..1 alpha without trailing-zero noise (0.5 -> "0.5").
+function clampAlpha(a: number): number {
+  return Number(Math.max(0, Math.min(1, a)).toFixed(4))
+}
+
+// Multiply a color's existing alpha by `factor`, returning rgba(...). Used to
+// derive the faded jump/sibling connector from the primary connector color —
+// transparency (not a second color) distinguishes the two link kinds, so the
+// fade is proportional and stays distinct whatever the primary's own alpha is.
+// Returns the input unchanged if it can't be parsed.
+export function fadeAlpha(color: string | undefined, factor: number): string | undefined {
+  const rgb = parseColorToRgb(color)
+  if (!rgb) return color
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${clampAlpha(rgb.a * factor)})`
+}
+
+// Set a color's alpha to an absolute value, returning rgba(...). Used for the
+// hover highlight (full opacity so a hovered link reads brighter than its
+// resting state). Returns the input unchanged if it can't be parsed.
+export function withAlpha(color: string | undefined, alpha: number): string | undefined {
+  const rgb = parseColorToRgb(color)
+  if (!rgb) return color
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${clampAlpha(alpha)})`
+}

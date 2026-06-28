@@ -92,3 +92,4 @@
 - **Wheel over the Logseq Synapses iframe scrolls the host right sidebar** (the view's `preventDefault` trapped it).
     - New symmetric client→server transport `post`/`onClientEvent` (mirrors `notify`); P forwards wheel deltas to M.
     - M scrolls the iframe's nearest scrollable ancestor; keeping `preventDefault` stops the browser double-scrolling.
+- **Theme rework** — Logseq sidebar iframe adapts to the Logseq theme; connector colors reworked + in-view picker.

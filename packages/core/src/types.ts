@@ -17,21 +17,21 @@ export type Adjacency = Record<string, { parents: string[]; children: string[]; 
 export interface Palette {
   mode: 'light' | 'dark'
   bg?: string; bg2?: string; text?: string; text2?: string; border?: string; accent?: string
-  // User-configured connector color overrides, already resolved for the current
-  // mode by the editor adapter (blank setting => undefined => auto-derived).
-  // primaryEdge = parent/child connectors; secondaryEdge = jump/sibling connectors.
-  primaryEdge?: string; secondaryEdge?: string
+  // The user-configured connector color override, already resolved for the current
+  // mode by the adapter (blank setting => undefined => auto-derived). It drives all
+  // connectors (jump/sibling are the same color, just more transparent) plus the
+  // structural accents (card borders, active card, handles) via --synapses-primary.
+  primaryEdge?: string
 }
 
 export type BackendEvent = 'recenter' | 'theme' | 'refresh' | 'uimode'
 
 export interface UiMode { mobile: boolean }
 
-// User connector-color overrides, persisted per kind × mode. A missing key means
-// "auto-derive from the theme" for that kind/mode.
+// The user connector-color override, persisted per mode. A missing key means
+// "auto-derive from the theme" for that mode.
 export interface ConnectorColors {
   primaryLight?: string; primaryDark?: string
-  secondaryLight?: string; secondaryDark?: string
 }
 
 export interface SynapsesBackend {

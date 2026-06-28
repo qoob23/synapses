@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampColorAlpha, parseColorToRgb, isOpaqueColor, isDarkColor, mixColors, rgbToHex } from './color'
+import { clampColorAlpha, parseColorToRgb, isOpaqueColor, isDarkColor, mixColors, rgbToHex, fadeAlpha, withAlpha } from './color'
 
 describe('clampColorAlpha', () => {
   // The bug: theme borders (e.g. Obsidian's --background-modifier-border) come in
@@ -130,5 +130,33 @@ describe('mixColors', () => {
   it('falls back to whichever input parses', () => {
     expect(mixColors('white', '#000000', 0.5)).toBe('#000000')
     expect(mixColors('#ffffff', 'nope', 0.5)).toBe('#ffffff')
+  })
+})
+
+describe('fadeAlpha', () => {
+  it('halves the alpha of an opaque color', () => {
+    expect(fadeAlpha('rgb(140, 140, 140)', 0.5)).toBe('rgba(140, 140, 140, 0.5)')
+    expect(fadeAlpha('#ff0000', 0.5)).toBe('rgba(255, 0, 0, 0.5)')
+  })
+  it('is proportional to the existing alpha (stays distinct from the source)', () => {
+    expect(fadeAlpha('rgba(127, 127, 127, 0.55)', 0.5)).toBe('rgba(127, 127, 127, 0.275)')
+  })
+  it('returns unparseable input unchanged', () => {
+    expect(fadeAlpha('white', 0.5)).toBe('white')
+    expect(fadeAlpha(undefined, 0.5)).toBeUndefined()
+  })
+})
+
+describe('withAlpha', () => {
+  it('sets an absolute alpha', () => {
+    expect(withAlpha('rgb(140, 140, 140)', 1)).toBe('rgba(140, 140, 140, 1)')
+    expect(withAlpha('rgba(255, 0, 0, 0.2)', 1)).toBe('rgba(255, 0, 0, 1)')
+  })
+  it('clamps out-of-range alpha', () => {
+    expect(withAlpha('#000000', 2)).toBe('rgba(0, 0, 0, 1)')
+  })
+  it('returns unparseable input unchanged', () => {
+    expect(withAlpha('white', 1)).toBe('white')
+    expect(withAlpha(undefined, 1)).toBeUndefined()
   })
 })

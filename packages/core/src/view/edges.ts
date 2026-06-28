@@ -210,10 +210,10 @@ const SECONDARY_ALPHA = 0.4
 
 // Draw the retained edges in world space (sharing the card transform), plus an
 // optional dashed drag-preview line. The edge whose key matches `highlightKey`
-// (the one under the cursor) is drawn thicker in the accent colour. `secondary`
-// edges (links between visible cards not involving the active note) are drawn
-// UNDER the primary edges at reduced alpha. Endpoint dots are superseded by DOM
-// handles.
+// (the one under the cursor) is drawn bolder (thicker) and brighter (its own
+// colour at full opacity, via theme.highlight). `secondary` edges (links between
+// visible cards not involving the active note) are drawn UNDER the primary edges
+// at reduced alpha. Endpoint dots are superseded by DOM handles.
 export function drawEdges(
   ctx: CanvasRenderingContext2D,
   edges: Edge[] | null | undefined,
@@ -244,7 +244,7 @@ export function drawEdges(
 
   for (const e of edges || []) {
     const hot = highlightKey && edgeKey(e) === highlightKey
-    ctx.lineWidth = hot ? 2.5 : 1.5
+    ctx.lineWidth = hot ? 3 : 1.5
     ctx.strokeStyle = hot
       ? theme.highlight
       : e.role === 'jump' || e.role === 'sibling'
