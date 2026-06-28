@@ -1,6 +1,15 @@
 import '@logseq/libs'
 import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
-import { toNames } from '@logseq-synapses/core'
+import { toNames, isInLogseqFolder } from '@logseq-synapses/core'
+
+// Best-effort path of a page's backing file. Logseq surfaces `page.file` as either an
+// entity ref (`{ id }`, no path — then we can't tell, and Logseq doesn't list those
+// files as pages anyway) or, on some versions, a `{ path }`/string we can inspect.
+function pageFilePath(page: any): string {
+  const f = page?.file
+  if (!f) return ''
+  return typeof f === 'string' ? f : (f.path || '')
+}
 
 // Page properties live on the first (pre-)block; some Logseq versions surface
 // them on the page entity, others only on the block. Raw wiki-link values are
@@ -42,6 +51,9 @@ export function createLogseqDataSource(): DataSource {
         let page: any
         try { page = await (logseq as any).Editor.getPage(name) } catch { return null }
         if (!page || !page.file) return null
+        // Never surface Logseq's own logseq/ folder (its bak/recycle markdown backups of
+        // real pages) as thoughts — when a path is resolvable. No-op when file is a bare ref.
+        if (isInLogseqFolder(pageFilePath(page))) return null
         return { name, props: await getPagePropsRaw(name, page) }
       }))
       return entries.filter(Boolean) as PageEntry[]

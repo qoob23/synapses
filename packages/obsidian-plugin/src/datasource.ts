@@ -1,6 +1,7 @@
 import { App, TFile } from 'obsidian'
 import type { DataviewApi } from 'obsidian-dataview'
 import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
+import { isInLogseqFolder, matchesIgnoreFilters } from '@logseq-synapses/core'
 import { upsertInlineField, removeInlineField, hasInlineField } from './inline-fields'
 import { newNotePath } from './paths'
 import { chooseWriteTarget } from './write-target'
@@ -8,6 +9,16 @@ import { pageToPropMap } from './dataview-map'
 
 export function createObsidianDataSource(app: App): DataSource {
   const dv = (): DataviewApi | undefined => (app as any).plugins?.plugins?.dataview?.api
+
+  // Obsidian's "Excluded files" setting (Settings → Files and links). Dataview does not
+  // honor it, so we read it ourselves and apply it to listPages/searchPages.
+  const userIgnoreFilters = (): string[] => {
+    try { return (app.vault as any).getConfig?.('userIgnoreFilters') || [] } catch { return [] }
+  }
+  // A path is hidden if it lives in a logseq/ folder (always — Logseq's bak/recycle
+  // markdown backups must never surface as thoughts) or matches the user's excluded files.
+  const isIgnoredPath = (path: string): boolean =>
+    isInLogseqFolder(path) || matchesIgnoreFilters(path, userIgnoreFilters())
 
   function resolveFile(name: string): TFile | null {
     const byLink = app.metadataCache.getFirstLinkpathDest(name, '')
@@ -41,6 +52,8 @@ export function createObsidianDataSource(app: App): DataSource {
       const api = dv(); if (!api) return []
       const out: PageEntry[] = []
       for (const page of api.pages()) {
+        const path = (page as any)?.file?.path
+        if (path && isIgnoredPath(path)) continue // excluded folder / logseq backups
         const name = (page as any)?.file?.name
         if (!name) continue
         out.push({ name, props: pageToPropMap(page as unknown as Record<string, unknown>) })
@@ -85,6 +98,7 @@ export function createObsidianDataSource(app: App): DataSource {
       const query = String(q || '').toLowerCase().trim(); if (!query) return []
       const out: string[] = []
       for (const f of app.vault.getMarkdownFiles()) {
+        if (isIgnoredPath(f.path)) continue // don't offer excluded files / logseq backups as link targets
         if (f.basename.toLowerCase().includes(query)) out.push(f.basename)
         if (out.length >= 20) break
       }

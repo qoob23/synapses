@@ -1,5 +1,6 @@
 export * from './types'
 export * from './ontology'
+export * from './ignore'
 export * from './graph/index-pure'
 export * from './graph/link-index'
 export * from './history'
