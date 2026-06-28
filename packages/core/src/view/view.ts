@@ -292,19 +292,39 @@ export function createView({
     return { x: 0, y: 0, w }
   }
 
+  // Drag-to-connect state. One drag is live at a time (single pointer). The
+  // move/up/cancel listeners live on `window` (capture phase), NOT on the handle:
+  // a handle is a tiny 6px dot and Chromium implicitly releases its pointer capture
+  // mid-gesture (the dot rescales on :hover; the pointer gets retargeted), which
+  // dropped the handle's own `pointerup` — leaving the dashed preview line stuck and
+  // never opening the create dialog. A window-level finalize fires wherever the up
+  // lands (and the pointerId guard keeps it scoped to this gesture), so the drag
+  // always completes. Reproduces in both editors since both run on Chromium.
+  type HandleDrag = {
+    pointerId: number
+    startX: number
+    startY: number
+    fromNode: string
+    dir: string
+    anchorWorld: Pt
+    moved: boolean
+  }
+  let handleDrag: HandleDrag | null = null
+
   // Attach drag-to-connect behaviour to a handle element `h` belonging to card `el`.
+  // Only pointerdown lives on the handle; move/up/cancel are the window listeners below.
   function attachHandleDrag(h: HandleEl, el: CardEl) {
     // Prevent sub-threshold taps from bubbling to the card's click→activate.
     h.addEventListener('click', (e) => e.stopPropagation())
 
-    let drag: any = null
-
     h.addEventListener('pointerdown', (e) => {
       e.stopPropagation() // unconditional — prevents panzoom drag starting
-      h.setPointerCapture(e.pointerId)
+      // Best-effort: capture keeps events flowing while it holds; the window
+      // listeners finalize the gesture even after Chromium drops it.
+      try { h.setPointerCapture(e.pointerId) } catch (err) { /* ignore */ }
       const center = liveCenterOf(el)
       const anchorWorld = gatePoint(center, h._side || DIR_SIDE[h._dir])
-      drag = {
+      handleDrag = {
         pointerId: e.pointerId,
         startX: e.clientX,
         startY: e.clientY,
@@ -314,52 +334,57 @@ export function createView({
         moved: false,
       }
     })
-
-    h.addEventListener('pointermove', (e) => {
-      if (!drag) return
-      const dx = e.clientX - drag.startX
-      const dy = e.clientY - drag.startY
-      if (!drag.moved && Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return
-      drag.moved = true
-      // Re-read rect on every move (spec requirement).
-      const rect = stage.getBoundingClientRect()
-      const worldB = screenToWorld(panzoom.getTransform(), e.clientX - rect.left, e.clientY - rect.top)
-      pending = { a: drag.anchorWorld, b: worldB, zone: drag.dir }
-      scheduleDraw()
-    })
-
-    h.addEventListener('pointerup', (e) => {
-      if (!drag) return
-      const wasMoved = drag.moved
-      const fromNode = drag.fromNode
-      const dir = drag.dir
-      drag = null
-      pending = null
-      scheduleDraw()
-
-      if (!wasMoved) {
-        // Sub-threshold tap → open centered create dialog for THIS card (not the active note).
-        if (onCreateAt) onCreateAt(fromNode, dir, null)
-        return
-      }
-
-      // Resolve drop target via LIVE DOM (cards may be mid-transition).
-      const tgt = document.elementFromPoint(e.clientX, e.clientY)
-      const nodeEl = (tgt && tgt.closest('.synapses-node')) as CardEl | null
-      const toName = nodeEl && nodeEl._name
-      if (toName && toName !== fromNode) {
-        if (onLinkExisting) onLinkExisting(fromNode, toName, dir)
-      } else {
-        if (onCreateAt) onCreateAt(fromNode, dir, { x: e.clientX, y: e.clientY })
-      }
-    })
-
-    h.addEventListener('pointercancel', () => {
-      drag = null
-      pending = null
-      scheduleDraw()
-    })
   }
+
+  function onHandleDragMove(e: PointerEvent) {
+    if (!handleDrag || e.pointerId !== handleDrag.pointerId) return
+    const dx = e.clientX - handleDrag.startX
+    const dy = e.clientY - handleDrag.startY
+    if (!handleDrag.moved && Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return
+    handleDrag.moved = true
+    // Re-read rect on every move (cards may be mid-transition).
+    const rect = stage.getBoundingClientRect()
+    const worldB = screenToWorld(panzoom.getTransform(), e.clientX - rect.left, e.clientY - rect.top)
+    pending = { a: handleDrag.anchorWorld, b: worldB, zone: handleDrag.dir }
+    scheduleDraw()
+  }
+
+  function onHandleDragUp(e: PointerEvent) {
+    if (!handleDrag || e.pointerId !== handleDrag.pointerId) return
+    const { moved: wasMoved, fromNode, dir } = handleDrag
+    handleDrag = null
+    pending = null
+    scheduleDraw()
+
+    if (!wasMoved) {
+      // Sub-threshold tap → open centered create dialog for THIS card (not the active note).
+      if (onCreateAt) onCreateAt(fromNode, dir, null)
+      return
+    }
+
+    // Resolve drop target via LIVE DOM (cards may be mid-transition).
+    const tgt = document.elementFromPoint(e.clientX, e.clientY)
+    const nodeEl = (tgt && tgt.closest('.synapses-node')) as CardEl | null
+    const toName = nodeEl && nodeEl._name
+    if (toName && toName !== fromNode) {
+      if (onLinkExisting) onLinkExisting(fromNode, toName, dir)
+    } else {
+      if (onCreateAt) onCreateAt(fromNode, dir, { x: e.clientX, y: e.clientY })
+    }
+  }
+
+  function onHandleDragCancel(e: PointerEvent) {
+    if (!handleDrag || e.pointerId !== handleDrag.pointerId) return
+    handleDrag = null
+    pending = null
+    scheduleDraw()
+  }
+
+  // Capture phase: an upstream stopPropagation can't strand a gesture, and the
+  // listener still fires after the handle loses pointer capture. Removed in destroy().
+  window.addEventListener('pointermove', onHandleDragMove, true)
+  window.addEventListener('pointerup', onHandleDragUp, true)
+  window.addEventListener('pointercancel', onHandleDragCancel, true)
 
   // Full-title tooltip for clamped cards. Lives in screen space (appended to root,
   // not the zoomed world) so it stays crisp; shown after a hover delay, hidden on
@@ -658,6 +683,9 @@ export function createView({
       ro.disconnect()
       if (raf) cancelAnimationFrame(raf)
       hideTooltip()
+      window.removeEventListener('pointermove', onHandleDragMove, true)
+      window.removeEventListener('pointerup', onHandleDragUp, true)
+      window.removeEventListener('pointercancel', onHandleDragCancel, true)
       stage.removeEventListener('mousemove', onStageMove)
       stage.removeEventListener('mouseleave', hideRemove)
       stage.removeEventListener('pointerdown', onStageTooltipHide)
