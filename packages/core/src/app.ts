@@ -45,6 +45,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   const same = (a?: string | null, b?: string | null) =>
     !!a && !!b && a.toLowerCase() === b.toLowerCase()
   let focus: string | null = null
+  let mobile = false
   let navToken = 0
   let lastRenderKey: string | null = null
 
@@ -152,19 +153,8 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       .catch(() => {})
 
     // Mirror the active thought into the main pane unless this navigation came FROM the editor.
-    if (!opts.fromLogseq) backend.navigate(name).catch(() => {})
-  }
-
-  async function jumpToIndex(i: number) {
-    try {
-      const st = await backend.histJump(i)
-      if (st && st.name) {
-        lastHist = { list: st.list, index: st.index }
-        goto(st.name, { noHistory: true })
-      }
-    } catch (e) {
-      /* ignore */
-    }
+    // On mobile we never mirror — switching the editor page closes the mobile drawer.
+    if (!opts.fromLogseq && !mobile) backend.navigate(name).catch(() => {})
   }
 
   async function removeFromHistory(name: string) {
@@ -230,17 +220,8 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
 
   function renderToolbar() {
     els.toolbar.innerHTML = ''
-    const back = btn('◀', 'Back', () => jumpToIndex(lastHist.index - 1))
-    back.disabled = lastHist.index <= 0
-    const fwd = btn('▶', 'Forward', () => jumpToIndex(lastHist.index + 1))
-    fwd.disabled = lastHist.index >= lastHist.list.length - 1
     const refresh = btn('↻', 'Rebuild from editor', () => hardRefresh())
     refresh.classList.add('synapses-btn-refresh') // bumps the thin glyph up to the triangles' weight
-
-    const title = document.createElement('div')
-    title.className = 'synapses-title'
-    title.textContent = focus || ''
-    title.title = focus || ''
 
     const add = document.createElement('div')
     add.className = 'synapses-add-group'
@@ -258,8 +239,9 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     plus.disabled = level >= count - 1
 
     // (No explicit "open in main pane" button — clicking the centred active card already
-    // opens it in the main pane.)
-    els.toolbar.append(back, fwd, refresh, title, add, minus, plus)
+    // opens it in the main pane.) The add group is mobile-only; on desktop the handles +
+    // the editor cover creation, so the toolbar stays ↻ − +.
+    els.toolbar.append(refresh, ...(mobile ? [add] : []), minus, plus)
   }
 
   function renderBreadcrumb() {
@@ -360,6 +342,11 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       onSizeChange: (level) => { backend.setSize(level).catch(() => {}) },
     })
 
+    // Load the mobile flag before init() so the first renderToolbar/setGraph already
+    // reflect mobile mode (mobile-only add group, no editor-mirror on activate).
+    try { mobile = !!(await backend.getUiMode()).mobile } catch (e) { /* ignore */ }
+    view.setMobile(mobile)
+
     unsubs.push(
       backend.on('recenter', (payload) => {
         if (payload && payload.page) {
@@ -374,6 +361,11 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       }),
       backend.on('refresh', () => {
         if (focus) goto(focus, { noHistory: true, fromLogseq: true, ifChanged: true })
+      }),
+      backend.on('uimode', async () => {
+        try { mobile = !!(await backend.getUiMode()).mobile } catch (e) { /* ignore */ }
+        view.setMobile(mobile)
+        renderToolbar()
       }),
     )
 
