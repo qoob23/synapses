@@ -61,7 +61,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   // before any function that touches it runs (they all run after boot()).
   let view!: ReturnType<typeof createView>
 
-  // Restore the previous active thought + history (e.g. after the view was re-mounted),
+  // Restore the previous active note + history (e.g. after the view was re-mounted),
   // otherwise fall back to the currently open page in the editor.
   async function restore() {
     try {
@@ -112,7 +112,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     }
     if (mine !== navToken) return // superseded by a newer navigation
 
-    // An activated thought that renders unlinked may be a file that was deleted on disk.
+    // An activated note that renders unlinked may be a file that was deleted on disk.
     // Only emptiness + a failed existence check prunes — a genuinely-unlinked existing note stays.
     const unlinked = !(
       graph.parents.length || graph.children.length || graph.jumps.length || graph.siblings.length
@@ -152,7 +152,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       .then((adj) => { if (mine === navToken) view.setHandles(adj || {}, names) })
       .catch(() => {})
 
-    // Mirror the active thought into the main pane unless this navigation came FROM the editor.
+    // Mirror the active note into the main pane unless this navigation came FROM the editor.
     // On mobile we never mirror — switching the editor page closes the mobile drawer.
     if (!opts.fromLogseq && !mobile) backend.navigate(name).catch(() => {})
   }
@@ -167,7 +167,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     renderToolbar()
     renderBreadcrumb()
     if (!wasActive) return
-    // The removed crumb was the active thought: land on the new current entry and
+    // The removed crumb was the active note: land on the new current entry and
     // open it in the editor too (goto without `fromLogseq` runs the navigate mirror).
     if (lastHist.list.length) {
       goto(lastHist.list[lastHist.index], { noHistory: true })
@@ -202,7 +202,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       hideFlash()
       goto(focus, { noHistory: true, fromLogseq: true })
     } else {
-      restore() // no active thought yet: re-run the initial restore (manages its own flash)
+      restore() // no active note yet: re-run the initial restore (manages its own flash)
     }
   }
 
@@ -251,8 +251,8 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       c.className = 'synapses-crumb' + (i === lastHist.index ? ' current' : '')
       c.textContent = name
       c.title = name
-      // Clicking a crumb re-activates the thought (move-to-rightmost via histPush),
-      // not a pointer-move like back/forward — so the activated thought lands at the
+      // Clicking a crumb re-activates the note (move-to-rightmost via histPush),
+      // not a pointer-move like back/forward — so the activated note lands at the
       // most-recent (right-most) breadcrumb slot instead of highlighting in place.
       c.addEventListener('click', () => goto(name))
       c.addEventListener('contextmenu', (e) => {

@@ -39,7 +39,7 @@
     - spatial grouping — more space between zones than within;
     - history move-to-rightmost de-dupe; fixed iframe right-edge bleed.
 - **Fluid recenter animation:**
-    - appearing cards emerge from the activating card; disappearing cards collapse into the old active thought;
+    - appearing cards emerge from the activating card; disappearing cards collapse into the old active note;
     - respects `prefers-reduced-motion`;
     - dropped a `scale()` experiment (connectors overshot un-scaled card borders).
 - **Edge/handle/unlink pass:**
@@ -48,7 +48,7 @@
     - unlink control off the non-active card (× centered, Remove?/Cancel spread apart to avoid mis-clicks);
     - unlink a sibling from its shared parent via a pure `remove:{from,to,role}` edge descriptor.
 - **Terminology pass (docs):** canonical glossary in `CLAUDE.md`.
-    - thought / card / link / connector / active thought / activate / recenter;
+    - note / card / link / connector / active note / activate / recenter;
     - `edge` kept as the code term; code symbols preserved verbatim; comments swept to match.
 
 ## 2026-06-27
@@ -60,9 +60,9 @@
 - **Obsidian default folder** — new notes go to the vault's configured default location, not the root.
 - **Edit properties in place** — Obsidian updates a prefilled property where it already lives, not a duplicate.
     - YAML frontmatter (`processFrontMatter`) or an existing inline `key::` line; unlink clears both.
-- **Layout** — dense, deterministic bands: the four directional zones grow outward from the active thought.
+- **Layout** — dense, deterministic bands: the four directional zones grow outward from the active note.
     - horizontal fills the panel width; vertical is fixed.
-- **Zoom removed** — the world only translates to center the active thought (no camera scale), so text stays crisp.
+- **Zoom removed** — the world only translates to center the active note (no camera scale), so text stays crisp.
     - replaced by a persisted +/− card/text size control, with drag-to-pan for overflow.
 - **UI tweaks:**
     - content-sized card widths with hover tooltips for clamped titles;
@@ -82,7 +82,7 @@
 - **Ignore excluded + `logseq/` folders** — both adapters skip pages outside user content when building the index.
     - new pure `isInLogseqFolder` / `matchesIgnoreFilters` in core;
     - Obsidian honors its native `userIgnoreFilters` (which Dataview ignores) and always drops `logseq/`;
-        - its `bak/` + `.recycle/` backups were indexed as phantom thoughts injecting phantom parent/child links;
+        - its `bak/` + `.recycle/` backups were indexed as phantom notes injecting phantom parent/child links;
     - Logseq datasource drops the same folder defensively when a file path is resolvable.
 - **Mobile mode** — distinct touch UI behind a per-editor `mobile` flag + a "Mobile mode (testing)" toggle.
     - Obsidian auto-detects via `Platform.isMobile`; Logseq has no mobile runtime, so the toggle is the only signal;

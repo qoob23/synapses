@@ -4,7 +4,7 @@
 
 // True when `path` is inside a `logseq/` folder at any depth — i.e. Logseq's own
 // metadata directory. It holds config plus `bak/` and `.recycle/` markdown BACKUPS
-// of real pages, which Obsidian's Dataview would otherwise index as phantom thoughts
+// of real pages, which Obsidian's Dataview would otherwise index as phantom notes
 // (and whose stale property blocks inject phantom links into the real pages). Matches
 // the folder, never a file merely named `logseq.md`.
 export function isInLogseqFolder(path: string): boolean {

@@ -1,8 +1,8 @@
 # Synapses for Logseq & Obsidian
 
-An advanced link editor. Lays out your thought links as a focused graph: the active thought sits in the
+An advanced link editor. Lays out your note links as a focused graph: the active note sits in the
 center with its **parents above, children below, jumps to the left, siblings to the right**; clicking a
-card **activates** that thought (the view recenters on it). Built for the **Markdown graph (Logseq 0.10.x)**.
+card **activates** that note (the view recenters on it). Built for the **Markdown graph (Logseq 0.10.x)**.
 
 This plugin was written with LLM assistance.
 
@@ -19,7 +19,7 @@ siblings are computed.
 
 ## Editing properties in place
 
-When Synapses links or unlinks thoughts it edits link properties **in place**. If your note template
+When Synapses links or unlinks notes it edits link properties **in place**. If your note template
 prefills `parent:: / child:: / jump::` — whether as an inline field anywhere in the note (top, middle,
 or bottom) or as a key in the YAML frontmatter — Synapses updates that existing value instead of
 prepending a duplicate at the top. Brand-new properties are added as inline fields.
@@ -45,7 +45,7 @@ npm test         # run the unit tests (vitest)
 
 ## Inspiration & credits
 
-- **[TheBrain](https://www.thebrain.com)** — its spatial "Plex" interface, with the active thought
+- **[TheBrain](https://www.thebrain.com)** — its spatial "Plex" interface, with the active note
   centered and its relations fanning out around it, is the inspiration for this plugin's layout.
 - **[Logseq](https://logseq.com)** — the host application this plugin extends; it provides the
   Markdown graph, page properties, and plugin platform everything here is built on.

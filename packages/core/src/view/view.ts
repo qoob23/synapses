@@ -177,16 +177,16 @@ export function createView({
     }
     layout = computeLayout(graph, measureWidths(), { viewport: viewport(), cardH: cardHpx() })
 
-    // Newly-appearing cards emerge FROM the activating card (the new active thought) at
+    // Newly-appearing cards emerge FROM the activating card (the new active note) at
     // its current on-screen position, so new links grow out of the card you just
     // clicked. Captured BEFORE the loop below moves anything to the center.
     const activatingEl = elements.get(String(graph.focus).toLowerCase())
     const enterFrom = activatingEl ? liveCenterOf(activatingEl) : { x: 0, y: 0 }
 
-    // Disappearing cards collapse INTO the OLD active thought's card at its NEW position —
+    // Disappearing cards collapse INTO the OLD active note's card at its NEW position —
     // it usually demotes to a parent/jump/sibling and slides there — so a
     // dropped card fades into the card it belonged to, not the new center.
-    // Falls back to the center if the old active thought is gone too.
+    // Falls back to the center if the old active note is gone too.
     let exitInto: Pt = { x: 0, y: 0 }
     if (prevFocus) {
       const moved = layout.nodes.find((n: any) => n.name.toLowerCase() === prevFocus.toLowerCase())
@@ -209,7 +209,7 @@ export function createView({
       positionEl(el, node)
     }
 
-    // Dropped cards: fade out while collapsing into the old active thought's new spot.
+    // Dropped cards: fade out while collapsing into the old active note's new spot.
     for (const [key, el] of elements) {
       if (present.has(key)) continue
       const dead = el
@@ -270,7 +270,7 @@ export function createView({
   }
 
   // Map each handle direction to the gate side on the card. Jump-position cards
-  // sit to the LEFT of the active thought, so their jump connector meets their RIGHT side —
+  // sit to the LEFT of the active note, so their jump connector meets their RIGHT side —
   // put the jump handle there too so it visually connects to its link.
   const DIR_SIDE: Record<string, string> = { parent: 'top', child: 'bottom', jump: 'left' }
   const jumpSide = (zone: string) => (zone === 'jump' ? 'right' : 'left')
@@ -338,7 +338,7 @@ export function createView({
       scheduleDraw()
 
       if (!wasMoved) {
-        // Sub-threshold tap → open centered create dialog for THIS card (not the active thought).
+        // Sub-threshold tap → open centered create dialog for THIS card (not the active note).
         if (onCreateAt) onCreateAt(fromNode, dir, null)
         return
       }
@@ -501,7 +501,7 @@ export function createView({
   function draw() {
     const live = liveLayout()
     lastEdges = computeEdges(live)
-    // Connectors between visible cards that don't touch the active thought — drawn
+    // Connectors between visible cards that don't touch the active note — drawn
     // faded and display-only (NOT added to lastEdges, so hover/unlink ignore them).
     const secondary = computeSecondaryEdges(live, adjacency, lastEdges)
     drawEdges(ctx, lastEdges, panzoom.getTransform(), theme, dpr, pending, hoveredKey, secondary)

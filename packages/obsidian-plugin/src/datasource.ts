@@ -16,7 +16,7 @@ export function createObsidianDataSource(app: App): DataSource {
     try { return (app.vault as any).getConfig?.('userIgnoreFilters') || [] } catch { return [] }
   }
   // A path is hidden if it lives in a logseq/ folder (always — Logseq's bak/recycle
-  // markdown backups must never surface as thoughts) or matches the user's excluded files.
+  // markdown backups must never surface as notes) or matches the user's excluded files.
   const isIgnoredPath = (path: string): boolean =>
     isInLogseqFolder(path) || matchesIgnoreFilters(path, userIgnoreFilters())
 

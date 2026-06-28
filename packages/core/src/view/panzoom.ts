@@ -16,7 +16,7 @@ export function screenToWorld(t: Transform, x: number, y: number) {
 }
 
 // Drag-to-pan on the stage (no zoom). Calls onChange with the current {s, tx, ty}
-// whenever it changes. `s` stays 1; `center(viewport)` puts the active thought (world
+// whenever it changes. `s` stays 1; `center(viewport)` puts the active note (world
 // origin) at the panel center and resets any pan. A wheel over the stage is made inert
 // (preventDefault, no zoom) so a trackpad scroll doesn't scroll the host page.
 export function attachPanzoom(stage: HTMLElement, onChange: (t: Transform) => void) {
@@ -65,7 +65,7 @@ export function attachPanzoom(stage: HTMLElement, onChange: (t: Transform) => vo
     apply()
   }
 
-  // Center the ACTIVE THOUGHT (world origin 0,0) in the viewport at scale 1, dropping any
+  // Center the ACTIVE NOTE (world origin 0,0) in the viewport at scale 1, dropping any
   // live pan offset. Played on each recenter/resize.
   function center(viewport: { w: number; h: number }) {
     set(1, viewport.w / 2, viewport.h / 2)

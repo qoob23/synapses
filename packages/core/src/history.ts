@@ -15,8 +15,8 @@ const same = (a: string, b: string): boolean => String(a).toLowerCase() === Stri
 
 export function pushEntry({ stack, idx }: HistoryStack, name: string, cap = CAP): HistoryStack {
   if (idx >= 0 && same(stack[idx], name)) return { stack: stack.slice(), idx }
-  // Drop forward history past the current position, then make the activated thought
-  // the right-most (most-recent) entry — de-duping so a re-activated thought MOVES
+  // Drop forward history past the current position, then make the activated note
+  // the right-most (most-recent) entry — de-duping so a re-activated note MOVES
   // to the right rather than appearing twice.
   const next = stack.slice(0, idx + 1).filter((s) => !same(s, name))
   next.push(name)

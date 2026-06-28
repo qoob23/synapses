@@ -37,7 +37,7 @@ export interface EdgeLayout {
   nodes: EdgeLayoutNode[]
 }
 
-// Which gate of the active thought connects to which gate of the linked card, per zone.
+// Which gate of the active note connects to which gate of the linked card, per zone.
 const GATES: Record<string, { focus: string; node: string }> = {
   parent: { focus: 'top', node: 'bottom' },
   child: { focus: 'bottom', node: 'top' },
@@ -72,7 +72,7 @@ export function edgeKey(e: { role: string; neighbor?: string | null } | null | u
 // endpoints + metadata, so the same list can be drawn AND hit-tested. Each
 // removable edge carries a `remove` descriptor {from, to, role} naming the
 // link to strip — for siblings that's the (shared parent → sibling)
-// child link, not an active-thought↔sibling link (which is only computed).
+// child link, not an active-note↔sibling link (which is only computed).
 export function computeEdges(layout: EdgeLayout | null | undefined): Edge[] {
   if (!layout) return []
   const focus = layout.nodes.find((n) => n.zone === 'focus')
@@ -81,7 +81,7 @@ export function computeEdges(layout: EdgeLayout | null | undefined): Edge[] {
   for (const n of layout.nodes) {
     if (n.zone === 'focus') continue
 
-    // Siblings connect to their shared PARENT, not the active thought.
+    // Siblings connect to their shared PARENT, not the active note.
     if (n.zone === 'sibling') {
       const parentName = n.via ? String(n.via) : null
       const via =
@@ -144,11 +144,11 @@ function secondaryEdge(a: EdgeLayoutNode, b: EdgeLayoutNode, jump: boolean): Edg
 }
 
 // Pure: connectors for declared parent/child/jump links BETWEEN two visible cards
-// that don't touch the active thought ("secondary" links). Deduped against the
+// that don't touch the active note ("secondary" links). Deduped against the
 // primary edges — so the focus↔neighbour edges and the sibling→shared-parent
 // connector are never redrawn — and against the reverse direction. These are
 // display-only (`remove: null`); the caller draws them faded and does not hit-test
-// them. Excludes any pair involving the active thought (already drawn as primary).
+// them. Excludes any pair involving the active note (already drawn as primary).
 export function computeSecondaryEdges(
   layout: EdgeLayout | null | undefined,
   adjacency: Adjacency | null | undefined,
@@ -204,14 +204,14 @@ function curve(ctx: CanvasRenderingContext2D, a: Point, b: Point, zone: string):
   ctx.stroke()
 }
 
-// Connectors that don't touch the active thought are drawn at this fraction of the
+// Connectors that don't touch the active note are drawn at this fraction of the
 // normal alpha, so they read as present but recede behind the active links.
 const SECONDARY_ALPHA = 0.4
 
 // Draw the retained edges in world space (sharing the card transform), plus an
 // optional dashed drag-preview line. The edge whose key matches `highlightKey`
 // (the one under the cursor) is drawn thicker in the accent colour. `secondary`
-// edges (links between visible cards not involving the active thought) are drawn
+// edges (links between visible cards not involving the active note) are drawn
 // UNDER the primary edges at reduced alpha. Endpoint dots are superseded by DOM
 // handles.
 export function drawEdges(

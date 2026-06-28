@@ -8,7 +8,7 @@ const ptKey = (p: { x: number; y: number }) => `${Math.round(p.x)},${Math.round(
 const endpointSet = (e: { a: { x: number; y: number }; b: { x: number; y: number } }) =>
   [ptKey(e.a), ptKey(e.b)].sort()
 
-// Minimal hand-placed layout: active thought at origin, one parent above, one child below.
+// Minimal hand-placed layout: active note at origin, one parent above, one child below.
 const layout = {
   focus: 'F',
   nodes: [
@@ -24,7 +24,7 @@ describe('computeEdges', () => {
     expect(edges.map((e) => e.neighbor).sort()).toEqual(['C', 'P'])
     const parent = edges.find((e) => e.neighbor === 'P')!
     expect(parent.role).toBe('parent')
-    // active thought's parent-gate is its top edge; the linked card's child-gate is its bottom edge
+    // active note's parent-gate is its top edge; the linked card's child-gate is its bottom edge
     expect(parent.a).toEqual({ x: 0, y: -NODE.H / 2 })
     expect(parent.b).toEqual({ x: 0, y: -150 + NODE.H / 2 })
   })
@@ -137,7 +137,7 @@ describe('computeSecondaryEdges', () => {
     )
   })
 
-  it('excludes links that involve the active thought', () => {
+  it('excludes links that involve the active note', () => {
     const layout = {
       focus: 'F',
       nodes: [

@@ -219,7 +219,7 @@ export function reconcilePatches(fresh: LinkGraphIndex, patches: Patch[], now: n
   return keep
 }
 
-// Per-thought arrays of linked thoughts from an index (pure). Keyed by LOWERCASED name;
+// Per-note arrays of linked notes from an index (pure). Keyed by LOWERCASED name;
 // values are DISPLAY-cased. Names absent from the index are omitted.
 export function getAdjacency(index: LinkGraphIndex, names: string[]): Adjacency {
   const out: Adjacency = {}

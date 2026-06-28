@@ -52,7 +52,7 @@ export function createLogseqDataSource(): DataSource {
         try { page = await (logseq as any).Editor.getPage(name) } catch { return null }
         if (!page || !page.file) return null
         // Never surface Logseq's own logseq/ folder (its bak/recycle markdown backups of
-        // real pages) as thoughts — when a path is resolvable. No-op when file is a bare ref.
+        // real pages) as notes — when a path is resolvable. No-op when file is a bare ref.
         if (isInLogseqFolder(pageFilePath(page))) return null
         return { name, props: await getPagePropsRaw(name, page) }
       }))

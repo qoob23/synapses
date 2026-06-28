@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`logseq-synapses` — a **Logseq + Obsidian** plugin that lays out thoughts spatially (rendered here as
-**Synapses**): the active thought centered, with parents above, children below, jumps to the left and
+`logseq-synapses` — a **Logseq + Obsidian** plugin that lays out notes spatially (rendered here as
+**Synapses**): the active note centered, with parents above, children below, jumps to the left and
 siblings to the right, and click-a-card-to-activate navigation, rendered in the **right sidebar**. The
 Logseq target is the **0.10.x Markdown/file graph** — NOT the DB version (the DB version reworked
 properties and the datascript schema). Plain **TypeScript** (no React, no SVG, no d3) by design.
@@ -56,33 +56,33 @@ Canonical vocabulary for this project — use these terms in docs, comments, and
 **code symbols predate this glossary and keep their old names**; the mapping is called out so you can
 connect prose to code.
 
-- **Thought** — a piece of the user's content: a Logseq page/journal or an Obsidian note, backed by a
-  file on disk. The central noun. (Older prose says *note*. "Page" still refers to the editor substrate —
-  page properties, the page's first block, `getPage`.)
-- **Card** — the on-screen box that represents a thought. (Code says *node*: `NODE` geometry,
+- **Note** — a piece of the user's content: a Logseq page/journal or an Obsidian note, backed by a
+  file on disk. The central noun. ("Page" refers to the editor substrate — page properties,
+  the page's first block, `getPage`.)
+- **Card** — the on-screen box that represents a note. (Code says *node*: `NODE` geometry,
   `nodeAdjacency`, the `<div>` elements.)
-- **Link** — a connection between two thoughts. Each link **kind** is a many-to-many relationship,
+- **Link** — a connection between two notes. Each link **kind** is a many-to-many relationship,
   declared one direction via page properties; reciprocals are inferred and siblings computed. The
   in-memory index of all links is the **link index** (`packages/core/src/graph/`; historically the
   *relationship index* / `src/main/graph.js`).
 - **Connector** — the line drawn on the `<canvas>` for a link. (Code says *edge*: `view/edges.ts`,
-  `computeEdges`/`drawEdges`, `view/edge-hit.ts`.) Link is to connector as thought is to card — the
+  `computeEdges`/`drawEdges`, `view/edge-hit.ts`.) Link is to connector as note is to card — the
   relation vs. its drawing.
-- **Active thought** — the thought currently centered; only the active thought's links are shown. (Code
+- **Active note** — the note currently centered; only the active note's links are shown. (Code
   says *focus*: the `focus` field on `Graph`/layout, `GATES[zone].focus`.)
-- **Activate** — to make a thought the active one: click its card, open its page in the editor, or
-  create a new thought. (Older prose says *navigate* / *follow*.)
-- **Recenter** — the camera glide that plays when you activate a different thought (the motion, not the
+- **Activate** — to make a note the active one: click its card, open its page in the editor, or
+  create a new note. (Older prose says *navigate* / *follow*.)
+- **Recenter** — the camera glide that plays when you activate a different note (the motion, not the
   action).
 
-The four **link kinds**, named by where their cards sit relative to the active thought:
+The four **link kinds**, named by where their cards sit relative to the active note:
 
 | Kind | Position | Detail |
 |------|----------|-------|
 | **Parent** | above | |
 | **Child** | below, in two columns | |
 | **Jump** | left | association link |
-| **Sibling** | right | computed — the children of the active thought's parents (never declared directly) |
+| **Sibling** | right | computed — the children of the active note's parents (never declared directly) |
 
 ## Commands
 
@@ -129,14 +129,14 @@ P  packages/logseq-plugin/src/frame.ts   the synapses UI (core's mountSynapses +
   `onMacroRendererSlotted`, where M `provideUI`s an `<iframe>` (its `src` is set via the DOM, not the
   template, so DOMPurify can't strip it). Full-sidebar width is enforced with `:has()` **CSS** in
   `synapsesFrameStyle()`.
-- **Link index (`packages/core/src/graph/`) — the engine, and the source of most subtlety.** A thought's
+- **Link index (`packages/core/src/graph/`) — the engine, and the source of most subtlety.** A note's
   links come from page **properties** (`parent:: / child:: / jump::`), declared one direction; reciprocals
   (parent↔child) and symmetric jumps are inferred, siblings are computed. Built once, **patched immediately**
   on plugin writes, and **rebuilt debounced** on editor change events — the rebuild **replays unconfirmed
   patches** (`reconcilePatches` in `link-index.ts`) so a write isn't clobbered by a stale read.
 - **Rendering (`packages/core/src/view/`):** `view.ts` manages absolutely-positioned `<div>` cards (keyed
   by name so positions tween) over a `<canvas>` connector layer (`edges.ts`); `layout.ts` is banded
-  arithmetic; `panzoom.ts` centers on the **active thought** (the `focus` in code). `app.ts`
+  arithmetic; `panzoom.ts` centers on the **active note** (the `focus` in code). `app.ts`
   (`mountSynapses`) is the orchestrator (navigation, history, create dialog, theme).
 - **History is durable** (`history.ts` reducer, persisted via each editor's `EditorServices.persistence`),
   so it survives the Logseq iframe being re-injected when the sidebar re-renders.
@@ -158,7 +158,7 @@ are `packages/obsidian-plugin/src/{datasource,services}.ts`.)
   and history prunes missing entries. `link-index.hardReset` (exposed as `backend.rebuildIndex`, wired to
   the toolbar ↻) is the manual escape hatch: it discards the live index **and** all pending patches and
   rebuilds purely from the editor.
-- **Markdown backups under `logseq/` index as phantom thoughts.** Logseq's `bak/` + `.recycle/` copies get
+- **Markdown backups under `logseq/` index as phantom notes.** Logseq's `bak/` + `.recycle/` copies get
   read by the index (Dataview indexes them in Obsidian; resolvable paths in Logseq) and inject phantom
   parent/child links into real pages. Both adapters drop the `logseq/` folder; Obsidian also honours its
   native `userIgnoreFilters` (Dataview ignores that setting). Pure helpers `isInLogseqFolder` /

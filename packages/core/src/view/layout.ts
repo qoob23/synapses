@@ -1,13 +1,13 @@
-// Banded layout around the active thought, no physics:
+// Banded layout around the active note, no physics:
 //   parents row above, children grid below, jumps column left, siblings column right.
 // Cards are content-sized (tight reflow): each carries its own width `w`, rows pack
 // by actual width + a gap, and columns anchor their inner edge a constant gap from
 // the focus so wider cards grow OUTWARD. With a uniform `w = NODE.W` this reproduces
 // the original fixed-slot coordinates exactly. All coordinates are "world" units with
-// the active thought at (0, 0).
+// the active note at (0, 0).
 //
 // There is NO camera scale anymore (zoom was removed): the view renders cards at true
-// px and only translates the world to center the active thought. Pass `opts.viewport`
+// px and only translates the world to center the active note. Pass `opts.viewport`
 // (+ the current `cardH` from the size level): the HORIZONTAL band distances fill the
 // panel width (columns hug the edges, clamped), while the VERTICAL layout is DENSE —
 // fixed gaps that grow OUTWARD from the centre (within-group V_GAP; the middle band sits

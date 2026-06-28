@@ -207,7 +207,7 @@
   background: color-mix(in srgb, var(--synapses-accent) 22%, transparent);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--synapses-accent) 12%, transparent);
 }
-/* Start state for a freshly-added card: invisible at the active thought's gate; view.js
+/* Start state for a freshly-added card: invisible at the active note's gate; view.js
    removes this class after a reflow so it fades + grows to its final spot. */
 .synapses-node.appearing {
   opacity: 0;
@@ -356,7 +356,7 @@
   min-width: 72px;
 }
 
-/* ---- breadcrumb (Past Thought List) ---- */
+/* ---- breadcrumb (Past Note List) ---- */
 #synapses-breadcrumb {
   flex: 0 0 auto;
   display: flex;
