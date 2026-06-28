@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampColorAlpha } from './color'
+import { clampColorAlpha, parseColorToRgb, isOpaqueColor, isDarkColor, mixColors } from './color'
 
 describe('clampColorAlpha', () => {
   // The bug: theme borders (e.g. Obsidian's --background-modifier-border) come in
@@ -65,5 +65,55 @@ describe('clampColorAlpha', () => {
   it('passes through empty / undefined input', () => {
     expect(clampColorAlpha('')).toBe('')
     expect(clampColorAlpha(undefined)).toBe(undefined)
+  })
+})
+
+describe('parseColorToRgb', () => {
+  it('parses #rrggbb', () => { expect(parseColorToRgb('#334455')).toEqual({ r: 51, g: 68, b: 85, a: 1 }) })
+  it('parses #rgb shorthand', () => { expect(parseColorToRgb('#abc')).toEqual({ r: 170, g: 187, b: 204, a: 1 }) })
+  it('parses #rrggbbaa alpha', () => { expect(parseColorToRgb('#00000080')!.a).toBeCloseTo(0.5, 2) })
+  it('parses rgb()', () => { expect(parseColorToRgb('rgb(10, 20, 30)')).toEqual({ r: 10, g: 20, b: 30, a: 1 }) })
+  it('parses rgba() with alpha', () => { expect(parseColorToRgb('rgba(10, 20, 30, 0.4)')).toEqual({ r: 10, g: 20, b: 30, a: 0.4 }) })
+  it('parses modern slash rgb', () => { expect(parseColorToRgb('rgb(10 20 30 / 0.4)')).toEqual({ r: 10, g: 20, b: 30, a: 0.4 }) })
+  it('returns null for unsupported formats', () => {
+    expect(parseColorToRgb('white')).toBeNull()
+    expect(parseColorToRgb('hsl(0,0%,0%)')).toBeNull()
+    expect(parseColorToRgb(undefined)).toBeNull()
+  })
+})
+
+describe('isOpaqueColor', () => {
+  it('false for transparent / zero alpha / empty', () => {
+    expect(isOpaqueColor('transparent')).toBe(false)
+    expect(isOpaqueColor('rgba(0,0,0,0)')).toBe(false)
+    expect(isOpaqueColor(undefined)).toBe(false)
+  })
+  it('true for opaque and semi-transparent', () => {
+    expect(isOpaqueColor('rgb(1,2,3)')).toBe(true)
+    expect(isOpaqueColor('rgba(1,2,3,0.2)')).toBe(true)
+  })
+  it('assumes unparseable named colors are opaque', () => { expect(isOpaqueColor('white')).toBe(true) })
+})
+
+describe('isDarkColor', () => {
+  it('true for dark backgrounds', () => {
+    expect(isDarkColor('#222222')).toBe(true)
+    expect(isDarkColor('rgb(20,20,20)')).toBe(true)
+  })
+  it('false for light backgrounds', () => {
+    expect(isDarkColor('#eeeeee')).toBe(false)
+    expect(isDarkColor('white')).toBe(false)
+  })
+})
+
+describe('mixColors', () => {
+  it('blends toward c2 by t', () => { expect(mixColors('rgb(0,0,0)', 'rgb(100,100,100)', 0.5)).toBe('rgb(50, 50, 50)') })
+  it('t=0 returns c1, t=1 returns c2 (as rgb)', () => {
+    expect(mixColors('#000000', '#ffffff', 0)).toBe('rgb(0, 0, 0)')
+    expect(mixColors('#000000', '#ffffff', 1)).toBe('rgb(255, 255, 255)')
+  })
+  it('falls back to whichever input parses', () => {
+    expect(mixColors('white', '#000000', 0.5)).toBe('#000000')
+    expect(mixColors('#ffffff', 'nope', 0.5)).toBe('#ffffff')
   })
 })
