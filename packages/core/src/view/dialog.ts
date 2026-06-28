@@ -61,12 +61,26 @@ export function openCreateDialog({
     root.appendChild(overlay)
 
     // If an `at` point is provided, position the dialog at that screen location.
+    // The overlay is `position:fixed; inset:0`, so it fills its containing block —
+    // the viewport in Logseq's iframe, but Obsidian's *transformed* sidebar pane
+    // (offset from the viewport). `at` is viewport-space (clientX/clientY) and the
+    // box is `position:absolute` inside the overlay, so we must convert `at` into
+    // overlay-local coordinates and clamp against the overlay's own box — otherwise
+    // the dialog lands far off to the right / behind the view in Obsidian. Mirrors
+    // the same fix already in view/context-menu.ts (clampMenuPosition).
+    //
+    // Clamp against the box's *eventual* height (its current empty-chrome height plus
+    // the results list's max-height), not its current height: results render lazily as
+    // the user types. Reserving that space up front positions the dialog high enough
+    // from the start, so it never has to jump up once matches appear.
     if (at) {
-      const r = box.getBoundingClientRect()
+      const orect = overlay.getBoundingClientRect()
+      const brect = box.getBoundingClientRect()
+      const maxResults = parseFloat(getComputedStyle(results).maxHeight) || 180
       const p = clampDialogPosition(
-        at,
-        { w: r.width || 420, h: r.height || 200 },
-        { w: window.innerWidth, h: window.innerHeight },
+        { x: at.x - orect.left, y: at.y - orect.top },
+        { w: brect.width || 420, h: (brect.height || 200) + maxResults },
+        { w: orect.width || window.innerWidth, h: orect.height || window.innerHeight },
       )
       overlay.style.alignItems = 'flex-start'
       overlay.style.justifyContent = 'flex-start'
