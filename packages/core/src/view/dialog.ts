@@ -82,10 +82,8 @@ export function openCreateDialog({
         { w: brect.width || 420, h: (brect.height || 200) + maxResults },
         { w: orect.width || window.innerWidth, h: orect.height || window.innerHeight },
       )
-      overlay.style.alignItems = 'flex-start'
-      overlay.style.justifyContent = 'flex-start'
-      overlay.style.paddingTop = '0'
-      box.style.position = 'absolute'
+      overlay.classList.add('is-anchored')
+      box.classList.add('is-anchored')
       box.style.left = p.left + 'px'
       box.style.top = p.top + 'px'
     }

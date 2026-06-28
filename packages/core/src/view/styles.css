@@ -309,6 +309,9 @@
   gap: 4px;
   align-items: center;
 }
+.synapses-edge-actions.is-shown {
+  display: flex;
+}
 .synapses-edge-remove,
 .synapses-edge-cancel {
   align-items: center;
@@ -428,6 +431,9 @@
   color: var(--synapses-text2);
   pointer-events: none;
 }
+.synapses-flash.is-shown {
+  display: flex;
+}
 
 /* ---- create/link dialog ---- */
 .synapses-dialog-overlay {
@@ -439,6 +445,17 @@
   justify-content: center;
   padding-top: 16vh;
   background: rgba(0, 0, 0, 0.35);
+}
+/* Anchored variant: dialog positioned at a screen point (inline left/top on the
+   box) instead of the default centered layout — pin the box to the overlay's
+   top-left so its inline coords are measured from there. */
+.synapses-dialog-overlay.is-anchored {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding-top: 0;
+}
+.synapses-dialog.is-anchored {
+  position: absolute;
 }
 .synapses-dialog {
   width: min(420px, 92vw);

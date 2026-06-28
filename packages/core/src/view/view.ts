@@ -560,13 +560,12 @@ export function createView({
   cancelBtn.className = 'synapses-edge-cancel'
   cancelBtn.textContent = 'Cancel'
   removeActions.append(removeBtn, cancelBtn)
-  removeActions.style.display = 'none'
   removeActions.addEventListener('pointerdown', (e) => e.stopPropagation()) // don't let a click start a stage pan
   stage.appendChild(removeActions)
   let hoveredEdge: Edge | null = null
 
   function hideRemove() {
-    removeActions.style.display = 'none'
+    removeActions.classList.remove('is-shown')
     removeActions.classList.remove('confirm')
     removeBtn.textContent = '×'
     hoveredEdge = null
@@ -592,7 +591,7 @@ export function createView({
     const atScreen = worldToScreen(t, at.x, at.y)
     removeActions.style.left = atScreen.x + 'px'
     removeActions.style.top = atScreen.y + 'px'
-    removeActions.style.display = 'flex'
+    removeActions.classList.add('is-shown')
     return true
   }
 

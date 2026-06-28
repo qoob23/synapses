@@ -339,10 +339,10 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
 
   function flash(msg: string) {
     els.flash.textContent = msg
-    els.flash.style.display = 'flex'
+    els.flash.classList.add('is-shown')
   }
   function hideFlash() {
-    els.flash.style.display = 'none'
+    els.flash.classList.remove('is-shown')
   }
 
   // Contract: the caller passes a backend that is ready to take calls. Obsidian's
