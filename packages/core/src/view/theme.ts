@@ -48,5 +48,14 @@ export function applyTheme(root: HTMLElement, palette: Palette) {
   }
   root.classList.toggle('synapses-dark', palette.mode === 'dark')
 
+  // When the user picks a PRIMARY connector color, it also recolors the structural
+  // accent elements — card borders, the active card, drag handles — through
+  // --synapses-primary, which those rules fall back FROM to their theme color when
+  // it's absent. Cleared (not just unset) so resetting the picker reverts them.
+  // (The secondary override stays scoped to jump/sibling connectors only.)
+  const primary = clampColorAlpha(palette.primaryEdge)
+  if (primary) root.style.setProperty('--synapses-primary', primary)
+  else root.style.removeProperty('--synapses-primary')
+
   return connectorColors(palette)
 }
