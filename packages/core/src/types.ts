@@ -27,6 +27,13 @@ export type BackendEvent = 'recenter' | 'theme' | 'refresh' | 'uimode'
 
 export interface UiMode { mobile: boolean }
 
+// User connector-color overrides, persisted per kind × mode. A missing key means
+// "auto-derive from the theme" for that kind/mode.
+export interface ConnectorColors {
+  primaryLight?: string; primaryDark?: string
+  secondaryLight?: string; secondaryDark?: string
+}
+
 export interface SynapsesBackend {
   getActivePage(): Promise<string | null>
   getTheme(): Promise<Palette>
@@ -48,6 +55,8 @@ export interface SynapsesBackend {
   searchPages(q: string): Promise<string[]>
   getSize(): Promise<number | null>
   setSize(level: number | null): Promise<void> // discrete card/text size level; null resets to default
+  getConnectorColors(): Promise<ConnectorColors>
+  setConnectorColors(colors: ConnectorColors): Promise<void> // persisted verbatim; omit a key to reset it to auto
   on(event: BackendEvent, handler: (payload?: any) => void): () => void
 }
 

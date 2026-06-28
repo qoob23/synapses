@@ -12,7 +12,13 @@ import type { SynapsesBackend, BackendEvent } from './types'
 const TAG = '__synapses_rpc__'
 
 // ---- server: runs in the plugin main context (has `logseq`) ----
-export function startServer(handlers: Record<string, (...args: any[]) => any>) {
+// `onClientEvent` receives fire-and-forget messages pushed *from* the iframe
+// (the mirror of `notify`): e.g. the Logseq wrapper forwards wheel deltas so it
+// can scroll the host sidebar, which the sandboxed iframe can't reach itself.
+export function startServer(
+  handlers: Record<string, (...args: any[]) => any>,
+  onClientEvent?: (method: string, payload: any, source: Window) => void,
+) {
   let peer: Window | null = null
   let queued: any[] = [] // events fired before the iframe finished its handshake
 
@@ -24,6 +30,11 @@ export function startServer(handlers: Record<string, (...args: any[]) => any>) {
       peer = e.source as Window
       for (const msg of queued) peer.postMessage(msg, '*')
       queued = []
+      return
+    }
+
+    if (d.kind === 'cevt') {
+      onClientEvent && onClientEvent(d.method, d.payload, e.source as Window)
       return
     }
 
@@ -100,7 +111,14 @@ export function createClient(
     })
   }
 
-  return { call, isConnected: () => !!peer }
+  // Fire-and-forget push to the server (mirror of the server's `notify`). No-ops
+  // until the handshake completes; used for high-frequency, response-less signals
+  // like forwarded wheel deltas where a per-call promise would be wasteful.
+  function post(method: string, payload?: any) {
+    if (peer) peer.postMessage({ [TAG]: true, kind: 'cevt', method, payload }, '*')
+  }
+
+  return { call, isConnected: () => !!peer, post }
 }
 
 // ---- typed SynapsesBackend serve/proxy layer ----
@@ -109,7 +127,7 @@ export const BACKEND_METHODS = [
   'getActivePage', 'getTheme', 'getUiMode', 'buildGraph', 'nodeAdjacency', 'rebuildIndex', 'histState', 'histPush', 'histJump',
   'histRemove', 'histRemoveMissing',
   'navigate', 'createChild', 'createParent', 'createJump', 'linkExisting', 'removeLink', 'searchPages',
-  'getSize', 'setSize',
+  'getSize', 'setSize', 'getConnectorColors', 'setConnectorColors',
 ] as const satisfies readonly Exclude<keyof SynapsesBackend, 'on'>[]
 
 // Compile-time completeness: every SynapsesBackend method (except `on`) MUST be listed above.
@@ -143,8 +161,11 @@ export function buildProxy(
 }
 
 // High-level helpers used by the Logseq wrapper:
-export function serveBackend(backend: SynapsesBackend) {
-  const server = startServer(buildHandlerMap(backend, BACKEND_METHODS))
+export function serveBackend(
+  backend: SynapsesBackend,
+  onClientEvent?: (method: string, payload: any, source: Window) => void,
+) {
+  const server = startServer(buildHandlerMap(backend, BACKEND_METHODS), onClientEvent)
   for (const evt of BACKEND_EVENTS) backend.on(evt, (payload) => server.notify(evt, payload))
   return server // exposes { init, notify }
 }

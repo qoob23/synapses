@@ -126,6 +126,15 @@ export function isDarkColor(color?: string): boolean {
   return 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b < 128
 }
 
+// Convert any parseable color to #rrggbb for an <input type="color"> (which only
+// accepts 6-digit hex). Alpha is dropped. Returns undefined if unparseable.
+export function rgbToHex(color?: string): string | undefined {
+  const rgb = parseColorToRgb(color)
+  if (!rgb) return undefined
+  const h = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0')
+  return '#' + h(rgb.r) + h(rgb.g) + h(rgb.b)
+}
+
 // Linear blend; `t` is the weight toward c2 (0 => c1, 1 => c2). Returns concrete
 // rgb(...) so the result is valid as a <canvas> strokeStyle (color-mix() is not
 // reliably accepted there). Falls back to whichever input parses.

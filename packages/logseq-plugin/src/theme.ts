@@ -95,14 +95,6 @@ export function readPalette(modeHint?: 'light' | 'dark'): Palette {
     || (hasDarkMarker(host) || hasDarkMarker(doc.documentElement) ? 'dark'
       : isDarkColor(out.bg) ? 'dark' : 'light')
 
-  // User-configured connector color overrides, resolved for the active mode.
-  const s = (logseq as any).settings || {}
-  const dark = out.mode === 'dark'
-  const primary = String((dark ? s.primaryColorDark : s.primaryColorLight) || '').trim()
-  const secondary = String((dark ? s.secondaryColorDark : s.secondaryColorLight) || '').trim()
-  if (primary) out.primaryEdge = primary
-  if (secondary) out.secondaryEdge = secondary
-
   // Drop unresolved keys so applyTheme keeps core defaults for them.
   for (const k of Object.keys(out) as (keyof Palette)[]) {
     if (out[k] == null) delete (out as Record<keyof Palette, unknown>)[k]

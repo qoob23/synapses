@@ -9,10 +9,6 @@ const settingsSchema = [
   { key: 'childFields', type: 'string', default: 'child, children, down', title: 'Child property names', description: 'Comma-separated property names treated as "child".' },
   { key: 'jumpFields', type: 'string', default: 'jump, jumps, friend, friends', title: 'Jump property names', description: 'Comma-separated property names treated as "jump".' },
   { key: 'mobileMode', type: 'boolean', default: false, title: 'Mobile mode (testing)', description: 'Force the mobile layout & interactions even on desktop, for testing.' },
-  { key: 'primaryColorLight', type: 'string', default: '', title: 'Primary connector color (light)', description: 'Color for parent/child connectors in light mode (any CSS color). Blank = auto-derive from the theme.' },
-  { key: 'primaryColorDark', type: 'string', default: '', title: 'Primary connector color (dark)', description: 'Color for parent/child connectors in dark mode (any CSS color). Blank = auto-derive from the theme.' },
-  { key: 'secondaryColorLight', type: 'string', default: '', title: 'Secondary connector color (light)', description: 'Color for jump/sibling connectors in light mode (any CSS color). Blank = auto-derive from the theme.' },
-  { key: 'secondaryColorDark', type: 'string', default: '', title: 'Secondary connector color (dark)', description: 'Color for jump/sibling connectors in dark mode (any CSS color). Blank = auto-derive from the theme.' },
 ]
 
 async function main() {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampColorAlpha, parseColorToRgb, isOpaqueColor, isDarkColor, mixColors } from './color'
+import { clampColorAlpha, parseColorToRgb, isOpaqueColor, isDarkColor, mixColors, rgbToHex } from './color'
 
 describe('clampColorAlpha', () => {
   // The bug: theme borders (e.g. Obsidian's --background-modifier-border) come in
@@ -103,6 +103,21 @@ describe('isDarkColor', () => {
   it('false for light backgrounds', () => {
     expect(isDarkColor('#eeeeee')).toBe(false)
     expect(isDarkColor('white')).toBe(false)
+  })
+})
+
+describe('rgbToHex', () => {
+  it('converts rgb()/rgba() to #rrggbb (dropping alpha)', () => {
+    expect(rgbToHex('rgb(255, 0, 0)')).toBe('#ff0000')
+    expect(rgbToHex('rgba(0, 128, 255, 0.4)')).toBe('#0080ff')
+  })
+  it('normalizes hex shorthand and passes 6-digit hex through', () => {
+    expect(rgbToHex('#abc')).toBe('#aabbcc')
+    expect(rgbToHex('#0080ff')).toBe('#0080ff')
+  })
+  it('returns undefined for unparseable input', () => {
+    expect(rgbToHex('white')).toBeUndefined()
+    expect(rgbToHex(undefined)).toBeUndefined()
   })
 })
 

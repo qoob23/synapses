@@ -1,8 +1,9 @@
 import { createView } from './view/view'
 import { openCreateDialog } from './view/dialog'
 import { openContextMenu } from './view/context-menu'
-import { applyTheme } from './view/theme'
-import type { SynapsesBackend, Graph, HistoryState, Role } from './types'
+import { openColorsPopover } from './view/colors'
+import { applyTheme, connectorColors } from './view/theme'
+import type { SynapsesBackend, Graph, HistoryState, Role, Palette } from './types'
 
 interface GotoOpts {
   noHistory?: boolean
@@ -238,10 +239,12 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     const plus = btn('+', 'Larger cards & text', () => { view.stepSize(1); renderToolbar() })
     plus.disabled = level >= count - 1
 
+    const colors = btn('🎨', 'Connector colors', () => openColors(colors))
+
     // (No explicit "open in main pane" button — clicking the centred active card already
     // opens it in the main pane.) The add group is mobile-only; on desktop the handles +
-    // the editor cover creation, so the toolbar stays ↻ − +.
-    els.toolbar.append(refresh, ...(mobile ? [add] : []), minus, plus)
+    // the editor cover creation, so the toolbar stays ↻ − + 🎨.
+    els.toolbar.append(refresh, ...(mobile ? [add] : []), minus, plus, colors)
   }
 
   function renderBreadcrumb() {
@@ -269,13 +272,54 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     els.breadcrumb.scrollLeft = els.breadcrumb.scrollWidth
   }
 
+  // Merge the user's persisted connector-color overrides (resolved for the
+  // palette's current mode) onto the theme, then apply. Shared by the initial
+  // load, the editor 'theme' event, and color edits.
+  async function applyThemeWithOverrides(p: Palette) {
+    try {
+      const o = await backend.getConnectorColors()
+      const dark = p.mode === 'dark'
+      p.primaryEdge = (dark ? o.primaryDark : o.primaryLight) || undefined
+      p.secondaryEdge = (dark ? o.secondaryDark : o.secondaryLight) || undefined
+    } catch (e) { /* ignore overrides; fall back to auto-derived */ }
+    view.setTheme(applyTheme(container, p))
+  }
+
   async function loadTheme() {
     try {
-      const p = await backend.getTheme()
-      view.setTheme(applyTheme(container, p))
+      await applyThemeWithOverrides(await backend.getTheme())
     } catch (e) {
       /* keep defaults */
     }
+  }
+
+  // Open the connector-color picker for the current mode, anchored under its button.
+  async function openColors(anchor: HTMLElement) {
+    let palette: Palette
+    let overrides
+    try { palette = await backend.getTheme(); overrides = await backend.getConnectorColors() }
+    catch (e) { return }
+    const dark = palette.mode === 'dark'
+    // Auto-derived colors (overrides cleared) — shown in a swatch that has no override.
+    const derived = connectorColors({ ...palette, primaryEdge: undefined, secondaryEdge: undefined })
+    const rect = anchor.getBoundingClientRect()
+    openColorsPopover({
+      root: els.dialogRoot,
+      at: { x: rect.left, y: rect.bottom + 4 },
+      title: `Connector colors · ${dark ? 'Dark' : 'Light'}`,
+      rows: [
+        { key: 'primary', label: 'Primary (parent/child)', value: dark ? overrides.primaryDark : overrides.primaryLight, fallback: derived.edge },
+        { key: 'secondary', label: 'Secondary (jump/sibling)', value: dark ? overrides.secondaryDark : overrides.secondaryLight, fallback: derived.jumpEdge },
+      ],
+      onChange: async (key, value) => {
+        const cur = await backend.getConnectorColors()
+        const field = key === 'primary' ? (dark ? 'primaryDark' : 'primaryLight') : (dark ? 'secondaryDark' : 'secondaryLight')
+        if (value == null) delete cur[field]
+        else cur[field] = value
+        await backend.setConnectorColors(cur)
+        await loadTheme()
+      },
+    })
   }
 
   function btn(label: string, title: string, onClick: () => void): HTMLButtonElement {
@@ -357,7 +401,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
         }
       }),
       backend.on('theme', (payload) => {
-        view.setTheme(applyTheme(container, payload))
+        void applyThemeWithOverrides(payload)
       }),
       backend.on('refresh', () => {
         if (focus) goto(focus, { noHistory: true, fromLogseq: true, ifChanged: true })

@@ -14,7 +14,7 @@ const VARS: Record<'bg' | 'bg2' | 'text' | 'text2' | 'border' | 'accent', string
   accent: '--interactive-accent',
 }
 
-function readPalette(settings?: SynapsesSettings): Palette {
+function readPalette(): Palette {
   const mode: 'light' | 'dark' = document.body.classList.contains('theme-dark') ? 'dark' : 'light'
   const out: Palette = { mode }
   try {
@@ -24,13 +24,6 @@ function readPalette(settings?: SynapsesSettings): Palette {
       if (v) (out as any)[k] = v
     }
   } catch { /* ignore */ }
-  if (settings) {
-    const dark = mode === 'dark'
-    const primary = (dark ? settings.primaryColorDark : settings.primaryColorLight).trim()
-    const secondary = (dark ? settings.secondaryColorDark : settings.secondaryColorLight).trim()
-    if (primary) out.primaryEdge = primary
-    if (secondary) out.secondaryEdge = secondary
-  }
   return out
 }
 
@@ -51,12 +44,8 @@ export function createObsidianServices(app: App, plugin: SettingsPlugin): Editor
       plugin.registerEvent(app.workspace.on('file-open', fire))
     },
     async navigateTo(name) { await app.workspace.openLinkText(name, '', false) },
-    getTheme() { return readPalette(plugin.settings) },
-    onThemeChange(cb) {
-      plugin.registerEvent(app.workspace.on('css-change', () => cb(readPalette(plugin.settings))))
-      // Re-apply when the user edits the connector-color (or any) settings.
-      plugin.onSettingsChanged(() => cb(readPalette(plugin.settings)))
-    },
+    getTheme() { return readPalette() },
+    onThemeChange(cb) { plugin.registerEvent(app.workspace.on('css-change', () => cb(readPalette()))) },
     getUiMode(): UiMode { return { mobile: Platform.isMobile || !!plugin.settings.mobileMode } },
     onUiModeChange(cb) { plugin.onSettingsChanged(cb) },
     // RAW forward — the 400ms debounce lives in createCoreBackend.

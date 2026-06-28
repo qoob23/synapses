@@ -2,13 +2,14 @@ import { createLinkIndex } from './graph/link-index'
 import { createMutations } from './mutations'
 import { createHistory, serialize, deserialize } from './history'
 import type { HistoryStack } from './history'
-import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, Palette } from './types'
+import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, Palette, ConnectorColors } from './types'
 
 export const GRAPH_DEBOUNCE_MS = 400
 export const HISTORY_SAVE_DEBOUNCE_MS = 300
 export const SIZE_SAVE_DEBOUNCE_MS = 300
 const HISTORY_KEY = 'history.json'
 const SIZE_KEY = 'size'
+const COLORS_KEY = 'connectorColors'
 
 export function createCoreBackend(dataSource: DataSource, services: EditorServices): SynapsesBackend {
   const getOntology = () => services.getOntology()
@@ -106,6 +107,20 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
       sizeTimer = setTimeout(() => {
         services.persistence.save(SIZE_KEY, String(level)).catch((e) => console.warn('[synapses] size save failed', e))
       }, SIZE_SAVE_DEBOUNCE_MS)
+    },
+    getConnectorColors: async () => {
+      try {
+        const raw = await services.persistence.load(COLORS_KEY)
+        if (!raw) return {}
+        const obj = JSON.parse(raw)
+        return obj && typeof obj === 'object' ? (obj as ConnectorColors) : {}
+      } catch (e) { console.warn('[synapses] connector colors load failed', e); return {} }
+    },
+    // Persisted immediately (not debounced) — color edits are deliberate, infrequent
+    // clicks, and a reset must not be clobbered by a stale debounced save.
+    setConnectorColors: async (colors) => {
+      try { await services.persistence.save(COLORS_KEY, JSON.stringify(colors || {})) }
+      catch (e) { console.warn('[synapses] connector colors save failed', e) }
     },
     on: (event, handler) => { listeners.get(event)!.add(handler); return () => listeners.get(event)!.delete(handler) },
   }

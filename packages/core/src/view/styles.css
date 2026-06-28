@@ -485,3 +485,64 @@
 .synapses-context-menu-item:hover {
   background: color-mix(in srgb, var(--synapses-accent) 18%, transparent);
 }
+
+/* ---- connector colors popover ---- */
+.synapses-colors-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+.synapses-colors {
+  position: absolute;
+  min-width: 240px;
+  background: var(--synapses-bg);
+  color: var(--synapses-text);
+  border: 1px solid var(--synapses-border);
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.synapses-colors-head {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--synapses-text2);
+  padding: 2px 4px 6px;
+}
+.synapses-colors-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+}
+.synapses-colors-label {
+  flex: 1;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.synapses-colors-swatch {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--synapses-border);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+.synapses-colors-reset {
+  width: 22px;
+  height: 22px;
+  line-height: 1;
+  border: 1px solid var(--synapses-border);
+  border-radius: 6px;
+  background: var(--synapses-bg2);
+  color: var(--synapses-text2);
+  cursor: pointer;
+}
+.synapses-colors-reset:hover:not(:disabled) {
+  border-color: var(--synapses-accent);
+  color: var(--synapses-text);
+}
+.synapses-colors-reset:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
