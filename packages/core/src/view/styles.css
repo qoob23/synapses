@@ -379,6 +379,7 @@
   font: inherit;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: left;
 }
 .synapses-crumb.current {
   color: var(--synapses-text);
