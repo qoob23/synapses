@@ -8,6 +8,7 @@ const settingsSchema = [
   { key: 'parentFields', type: 'string', default: 'parent, parents, up', title: 'Parent property names', description: 'Comma-separated property names treated as "parent".' },
   { key: 'childFields', type: 'string', default: 'child, children, down', title: 'Child property names', description: 'Comma-separated property names treated as "child".' },
   { key: 'jumpFields', type: 'string', default: 'jump, jumps, friend, friends', title: 'Jump property names', description: 'Comma-separated property names treated as "jump".' },
+  { key: 'mobileMode', type: 'boolean', default: false, title: 'Mobile mode (testing)', description: 'Force the mobile layout & interactions even on desktop, for testing.' },
 ]
 
 async function main() {

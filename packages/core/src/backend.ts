@@ -33,7 +33,7 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
 
   // events
   const listeners = new Map<BackendEvent, Set<(p?: any) => void>>([
-    ['recenter', new Set()], ['theme', new Set()], ['refresh', new Set()],
+    ['recenter', new Set()], ['theme', new Set()], ['refresh', new Set()], ['uimode', new Set()],
   ])
   const emit = (evt: BackendEvent, payload?: any) => listeners.get(evt)!.forEach((fn) => fn(payload))
 
@@ -50,6 +50,7 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
   })
   services.onActivePageChange((name) => { if (name) emit('recenter', { page: name }) })
   services.onThemeChange((p: Palette) => emit('theme', p))
+  services.onUiModeChange(() => emit('uimode'))
   services.onOntologyChange(async () => {
     try { await index.rebuild() } catch (e) { console.warn('[synapses] rebuild failed', e) }
     emit('refresh')
@@ -58,6 +59,7 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
   return {
     getActivePage: async () => services.getActivePageName(),
     getTheme: async () => services.getTheme(),
+    getUiMode: async () => services.getUiMode(),
     buildGraph: (name) => index.buildGraph(name),
     nodeAdjacency: (names) => index.nodeAdjacency(names),
     // Hard refresh: blow away the in-memory index + pending patches and rebuild

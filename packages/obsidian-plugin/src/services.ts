@@ -1,5 +1,5 @@
-import { App, Plugin } from 'obsidian'
-import type { EditorServices, Palette, OntologyConfig, Persistence } from '@logseq-synapses/core'
+import { App, Plugin, Platform } from 'obsidian'
+import type { EditorServices, Palette, OntologyConfig, Persistence, UiMode } from '@logseq-synapses/core'
 import { buildOntology } from '@logseq-synapses/core'
 import type { SynapsesSettings } from './settings'
 
@@ -46,6 +46,8 @@ export function createObsidianServices(app: App, plugin: SettingsPlugin): Editor
     async navigateTo(name) { await app.workspace.openLinkText(name, '', false) },
     getTheme() { return readPalette() },
     onThemeChange(cb) { plugin.registerEvent(app.workspace.on('css-change', () => cb(readPalette()))) },
+    getUiMode(): UiMode { return { mobile: Platform.isMobile || !!plugin.settings.mobileMode } },
+    onUiModeChange(cb) { plugin.onSettingsChanged(cb) },
     // RAW forward — the 400ms debounce lives in createCoreBackend.
     onGraphChange(cb) {
       plugin.registerEvent(app.metadataCache.on('changed', () => cb()))

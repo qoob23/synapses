@@ -5,12 +5,14 @@ export interface SynapsesSettings {
   parentFields: string
   childFields: string
   jumpFields: string
+  mobileMode: boolean
 }
 
 export const DEFAULT_SETTINGS: SynapsesSettings = {
   parentFields: 'parent, parents, up',
   childFields: 'child, children, down',
   jumpFields: 'jump, jumps, friend, friends',
+  mobileMode: false,
 }
 
 export class SynapsesSettingTab extends PluginSettingTab {
@@ -19,7 +21,7 @@ export class SynapsesSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this
     containerEl.empty()
-    const field = (name: string, desc: string, key: keyof SynapsesSettings) =>
+    const field = (name: string, desc: string, key: 'parentFields' | 'childFields' | 'jumpFields') =>
       new Setting(containerEl).setName(name).setDesc(desc).addText((t) =>
         t.setValue(this.plugin.settings[key]).onChange(async (v) => {
           this.plugin.settings[key] = v
@@ -29,5 +31,6 @@ export class SynapsesSettingTab extends PluginSettingTab {
     field('Parent property names', 'Comma-separated fields treated as "parent".', 'parentFields')
     field('Child property names', 'Comma-separated fields treated as "child".', 'childFields')
     field('Jump property names', 'Comma-separated fields treated as "jump".', 'jumpFields')
+    new Setting(containerEl).setName('Mobile mode (testing)').setDesc('Force the mobile layout & interactions even on desktop, for testing.').addToggle((t) => t.setValue(this.plugin.settings.mobileMode).onChange(async (v) => { this.plugin.settings.mobileMode = v; await this.plugin.saveSettings() }))
   }
 }

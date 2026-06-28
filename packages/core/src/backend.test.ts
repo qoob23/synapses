@@ -21,6 +21,8 @@ function fakes(pages: PageEntry[] = []) {
     navigateTo: vi.fn(async () => {}),
     getTheme: () => ({ mode: 'light' }),
     onThemeChange: () => {},
+    getUiMode: () => ({ mobile: false }),
+    onUiModeChange: () => {},
     onGraphChange: (cb) => { graphCb = cb },
     getOntology: () => ({ parent: ['parent'], child: ['child'], jump: ['jump'] }),
     onOntologyChange: () => {},

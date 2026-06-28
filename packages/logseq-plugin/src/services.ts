@@ -1,5 +1,5 @@
 import '@logseq/libs'
-import type { EditorServices, Palette, OntologyConfig, Persistence } from '@logseq-synapses/core'
+import type { EditorServices, Palette, OntologyConfig, Persistence, UiMode } from '@logseq-synapses/core'
 import { buildOntology } from '@logseq-synapses/core'
 
 // Read Logseq's theme CSS variables from the host document so the synapses iframe
@@ -60,6 +60,8 @@ export function createLogseqServices(): EditorServices {
     async navigateTo(name) { await (logseq as any).App.pushState('page', { name }) },
     getTheme() { return readPalette() },
     onThemeChange(cb) { (logseq as any).App.onThemeModeChanged((e: any) => cb(readPalette(e?.mode))) },
+    getUiMode(): UiMode { const s = (logseq as any).settings || {}; return { mobile: !!s.mobileMode } },
+    onUiModeChange(cb) { (logseq as any).onSettingsChanged(() => cb()) },
     // Raw forward — the debounce lives in createCoreBackend, not here.
     onGraphChange(cb) { (logseq as any).DB.onChanged(() => cb()) },
     getOntology(): OntologyConfig { const s = (logseq as any).settings || {}; return buildOntology({ parent: s.parentFields, child: s.childFields, jump: s.jumpFields }) },

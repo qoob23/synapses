@@ -19,11 +19,14 @@ export interface Palette {
   bg?: string; bg2?: string; text?: string; text2?: string; border?: string; accent?: string
 }
 
-export type BackendEvent = 'recenter' | 'theme' | 'refresh'
+export type BackendEvent = 'recenter' | 'theme' | 'refresh' | 'uimode'
+
+export interface UiMode { mobile: boolean }
 
 export interface SynapsesBackend {
   getActivePage(): Promise<string | null>
   getTheme(): Promise<Palette>
+  getUiMode(): Promise<UiMode>
   buildGraph(name: string): Promise<Graph>
   nodeAdjacency(names: string[]): Promise<Adjacency>
   rebuildIndex(): Promise<void> // hard refresh: discard in-memory index + patches, rebuild from the editor
@@ -71,6 +74,8 @@ export interface EditorServices {
   navigateTo(name: string): Promise<void>
   getTheme(): Palette | Promise<Palette>
   onThemeChange(cb: (palette: Palette) => void): void
+  getUiMode(): UiMode
+  onUiModeChange(cb: () => void): void
   onGraphChange(cb: () => void): void
   getOntology(): OntologyConfig
   onOntologyChange(cb: () => void): void

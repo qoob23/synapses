@@ -106,7 +106,7 @@ export function createClient(
 // ---- typed SynapsesBackend serve/proxy layer ----
 
 export const BACKEND_METHODS = [
-  'getActivePage', 'getTheme', 'buildGraph', 'nodeAdjacency', 'rebuildIndex', 'histState', 'histPush', 'histJump',
+  'getActivePage', 'getTheme', 'getUiMode', 'buildGraph', 'nodeAdjacency', 'rebuildIndex', 'histState', 'histPush', 'histJump',
   'histRemove', 'histRemoveMissing',
   'navigate', 'createChild', 'createParent', 'createJump', 'linkExisting', 'removeLink', 'searchPages',
   'getSize', 'setSize',
@@ -119,7 +119,7 @@ type _BackendMethodsAreComplete =
 const _backendMethodsAreComplete: _BackendMethodsAreComplete = true
 void _backendMethodsAreComplete
 
-export const BACKEND_EVENTS = ['recenter', 'theme', 'refresh'] as const satisfies readonly BackendEvent[]
+export const BACKEND_EVENTS = ['recenter', 'theme', 'refresh', 'uimode'] as const satisfies readonly BackendEvent[]
 
 export function buildHandlerMap(backend: SynapsesBackend, methods: readonly (keyof SynapsesBackend)[]) {
   const map: Record<string, (...a: any[]) => any> = {}
