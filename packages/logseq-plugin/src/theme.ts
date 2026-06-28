@@ -75,8 +75,13 @@ export function readPalette(modeHint?: 'light' | 'dark'): Palette {
   if (!cs) return { mode: modeHint || 'light' }
 
   const out: Palette = { mode: 'light' }
-  // Base colors: --ls-* var, else rendered-color sample.
-  out.bg = firstVar(cs, VARS.bg) || resolvedBg(doc.querySelector('#main-content-container') || host)
+  // Background is RENDERED-FIRST: --ls-primary-background-color can resolve darker
+  // than the actual painted editor surface (some themes paint the visible bg via a
+  // body-level rule, leaving the primary var at a darker default). Sample what's
+  // really on screen so the view matches the editor; fall back to the var.
+  out.bg = resolvedBg(doc.querySelector('#main-content-container') || host) || firstVar(cs, VARS.bg)
+  // Secondary surface (toolbar/cards): the var is a sensible distinct shade; else
+  // sample the sidebar, else reuse bg.
   out.bg2 = firstVar(cs, VARS.bg2)
     || resolvedBg(doc.querySelector('#right-sidebar, .cp__right-sidebar-inner'))
     || out.bg

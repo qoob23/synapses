@@ -1,5 +1,5 @@
 import type { Palette } from '../types'
-import { clampColorAlpha } from './color'
+import { clampColorAlpha, mixColors } from './color'
 
 // Apply a palette (read from the editor by the main context) onto the root
 // container's CSS variables, and return edge colors for the canvas layer.
@@ -23,8 +23,15 @@ export function applyTheme(root: HTMLElement, palette: Palette) {
   }
   root.classList.toggle('synapses-dark', palette.mode === 'dark')
 
+  // Connector colors are DERIVED from bg→text rather than taken from the theme's
+  // border/muted-text vars: a UI border color is often too dim to see as a line,
+  // and muted text can be brighter than the border — which inverted the intended
+  // "direct links read stronger than jumps" ordering. Mixing toward text by a
+  // fixed amount guarantees both visibility and ordering (direct > jump) in any
+  // theme, light or dark. Concrete rgb() (mixColors) keeps them valid as canvas
+  // strokeStyle. Falls back to the border/muted vars, then the static grays.
   return {
-    edge: map['--synapses-border'] || fallback.edge,
-    jumpEdge: map['--synapses-text2'] || fallback.jumpEdge,
+    edge: mixColors(palette.bg, palette.text, 0.55) || map['--synapses-border'] || fallback.edge,
+    jumpEdge: mixColors(palette.bg, palette.text, 0.33) || map['--synapses-text2'] || fallback.jumpEdge,
   }
 }
