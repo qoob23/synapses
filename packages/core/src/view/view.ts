@@ -71,12 +71,17 @@ export function createView({
   // feeds the live card height into the layout. The spacing then re-fills the panel
   // around the new card size (see relayout). Persisted via onSizeChange.
   const SIZE_FACTORS = [0.8, 0.9, 1.0, 1.15, 1.3]
+  const MOBILE_MIN_H = 35 // touch density floor: on mobile a card is never shorter than this
+  let mobile = false // touch/mobile mode (toggled via setMobile): taller cards + tap (not hover) for the × control
   const BASE_FONT_PX = 15 // matches styles.css --synapses-node-font fallback (Logseq's default content size)
   const BASE_MAXW = 480 // matches styles.css --synapses-node-maxw fallback
   const clampLevel = (l: number) => Math.max(0, Math.min(SIZE_FACTORS.length - 1, Math.round(l)))
   let sizeLevel = initialSize == null ? SIZE_FACTORS.indexOf(1.0) : clampLevel(initialSize)
   const sizeFactor = () => SIZE_FACTORS[sizeLevel]
-  const cardHpx = () => Math.round(NODE.H * sizeFactor())
+  const cardHpx = () => {
+    const base = Math.round(NODE.H * sizeFactor())
+    return mobile ? Math.max(MOBILE_MIN_H, base) : base
+  }
   // Card WIDTH is content-sized (fit-content) up to a level-scaled cap; past it the
   // label clamps and gets a tooltip. HEIGHT/FONT/CAP all scale with the size level.
   function applySizeVars() {
@@ -250,6 +255,18 @@ export function createView({
     sizeLevel = next
     relayout(true)
     onSizeChange?.(sizeLevel)
+  }
+
+  // Toggle touch/mobile mode: taller cards (density floor), handles become non-interactive
+  // (CSS), and the × control is revealed by a tap instead of hover. Re-applies the size vars
+  // and snaps the layout to the new card heights (no glide) when a graph is present.
+  function setMobile(v: boolean) {
+    if (v === mobile) return
+    mobile = v
+    root.classList.toggle('synapses-mobile', mobile)
+    applySizeVars()
+    if (lastGraph) relayout(false)
+    else scheduleDraw()
   }
 
   // Map each handle direction to the gate side on the card. Jump-position cards
@@ -531,25 +548,16 @@ export function createView({
     if (hoveredKey) { hoveredKey = null; scheduleDraw() } // clear the hover highlight
   }
 
-  const onStageMove = (e: MouseEvent) => {
-    if (pending) { hideRemove(); return } // suppress while a handle drag is live
-    if (removeActions.classList.contains('confirm')) return // frozen while confirming
-    // Don't hit-test connectors while the cursor is over a card — a card sits on
-    // top of its own connectors' endpoints, so hovering it would otherwise light
-    // up (and arm removal of) a link the user isn't aiming at.
-    const tgt: any = e.target
-    if (tgt && tgt.closest && tgt.closest('.synapses-node')) {
-      if (hoveredEdge) hideRemove()
-      return
-    }
+  // Hit-test the connector under a screen point and, if one is hit, highlight it and show
+  // the unlink control anchored a fixed gap back from the non-active card. Returns true when
+  // an edge was hit (control shown). Shared by desktop hover (onStageMove) and the mobile
+  // tap-to-reveal handler (onStageClick).
+  function showRemoveAt(clientX: number, clientY: number): boolean {
     const rect = stage.getBoundingClientRect()
     const t = panzoom.getTransform()
-    const worldPt = screenToWorld(t, e.clientX - rect.left, e.clientY - rect.top)
+    const worldPt = screenToWorld(t, clientX - rect.left, clientY - rect.top)
     const edge = hitTest(worldPt, lastEdges, 10) as Edge | null
-    if (!edge) {
-      if (hoveredEdge) hideRemove()
-      return
-    }
+    if (!edge) return false
     hoveredEdge = edge
     const key = edgeKey(edge)
     if (key !== hoveredKey) { hoveredKey = key; scheduleDraw() } // highlight the hovered link
@@ -560,8 +568,53 @@ export function createView({
     removeActions.style.left = atScreen.x + 'px'
     removeActions.style.top = atScreen.y + 'px'
     removeActions.style.display = 'flex'
+    return true
+  }
+
+  const onStageMove = (e: MouseEvent) => {
+    if (mobile) return // hover is meaningless on touch — mobile uses tap-to-reveal (onStageClick)
+    if (pending) { hideRemove(); return } // suppress while a handle drag is live
+    if (removeActions.classList.contains('confirm')) return // frozen while confirming
+    // Don't hit-test connectors while the cursor is over a card — a card sits on
+    // top of its own connectors' endpoints, so hovering it would otherwise light
+    // up (and arm removal of) a link the user isn't aiming at.
+    const tgt: any = e.target
+    if (tgt && tgt.closest && tgt.closest('.synapses-node')) {
+      if (hoveredEdge) hideRemove()
+      return
+    }
+    if (!showRemoveAt(e.clientX, e.clientY)) {
+      if (hoveredEdge) hideRemove()
+    }
   }
   stage.addEventListener('mousemove', onStageMove)
+
+  // Mobile tap-to-reveal: touch has no hover, so a tap on a connector reveals its × control.
+  // Track stage pointer movement to tell a tap from a pan/drag — we never preventDefault /
+  // stopPropagation here, so panzoom (which also listens on the stage) keeps working.
+  let tapStartX = 0
+  let tapStartY = 0
+  let tapMoved = false
+  const onStageTapDown = (e: PointerEvent) => {
+    tapStartX = e.clientX
+    tapStartY = e.clientY
+    tapMoved = false
+  }
+  const onStageTapMove = (e: PointerEvent) => {
+    if (tapMoved) return
+    const dx = e.clientX - tapStartX
+    const dy = e.clientY - tapStartY
+    if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) tapMoved = true
+  }
+  const onStageTap = (e: MouseEvent) => {
+    if (!mobile || tapMoved) return
+    const tgt: any = e.target
+    if (tgt && tgt.closest && tgt.closest('.synapses-node')) return // tap on a card → its own activate handler
+    if (!showRemoveAt(e.clientX, e.clientY)) hideRemove()
+  }
+  stage.addEventListener('pointerdown', onStageTapDown)
+  stage.addEventListener('pointermove', onStageTapMove)
+  stage.addEventListener('click', onStageTap)
 
   removeBtn.addEventListener('click', (e) => {
     e.stopPropagation()
@@ -595,6 +648,7 @@ export function createView({
     setGraph,
     setTheme,
     setHandles,
+    setMobile,
     getRenderedNames,
     redraw: scheduleDraw,
     stepSize,
@@ -608,6 +662,9 @@ export function createView({
       stage.removeEventListener('mouseleave', hideRemove)
       stage.removeEventListener('pointerdown', onStageTooltipHide)
       stage.removeEventListener('wheel', onStageTooltipHide)
+      stage.removeEventListener('pointerdown', onStageTapDown)
+      stage.removeEventListener('pointermove', onStageTapMove)
+      stage.removeEventListener('click', onStageTap)
     },
   }
 }

@@ -281,6 +281,9 @@
 .handle-shown { background: var(--synapses-accent); border: 2px solid var(--synapses-accent); }
 .handle-more  { background: var(--synapses-dot-hidden, #2ecc71); border: 2px solid var(--synapses-dot-hidden, #2ecc71); }
 .synapses-handle:hover { transform: scale(2); }
+/* On touch, drag-to-link is impractical and a tiny dot is an easy mis-tap; keep the dots
+   visible (status colors intact) but let taps pass through to the card underneath. */
+.synapses-mobile .synapses-handle { pointer-events: none; }
 /* Reduced-motion: snap the hover scale (placed AFTER the base rule so it wins on
    equal specificity). */
 @media (prefers-reduced-motion: reduce) {
