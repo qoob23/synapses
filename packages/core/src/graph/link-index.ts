@@ -1,4 +1,4 @@
-import { buildIndex, queryGraph, applyEdge, removeEdge, getAdjacency, reconcilePatches } from './index-pure'
+import { buildIndex, queryGraph, applyEdge, removeEdge, getAdjacency, reconcilePatches, rolesBetween } from './index-pure'
 import type { LinkGraphIndex, Patch } from './index-pure'
 import type { DataSource, OntologyConfig, Graph, Adjacency, Role } from '../types'
 
@@ -9,6 +9,7 @@ export interface LinkIndex {
   hardReset(): Promise<void>
   buildGraph(name: string): Promise<Graph>
   nodeAdjacency(names: string[]): Promise<Adjacency>
+  rolesBetween(focus: string, target: string): Promise<Role[]>
   patchIndex(focus: string, role: Role, target: string): void
   patchRemove(focus: string, role: Role, target: string): void
 }
@@ -56,6 +57,9 @@ export function createLinkIndex(dataSource: DataSource, getOntology: () => Ontol
     hardReset,
     async buildGraph(name) { await ensureBuilt(); return queryGraph(liveIndex, name) },
     async nodeAdjacency(names) { await ensureBuilt(); return getAdjacency(liveIndex, names) },
+    // Reads the LIVE index (pending patches already applied), so it sees an unconfirmed
+    // write before the editor would — the right source of truth for the retype check.
+    async rolesBetween(focus, target) { await ensureBuilt(); return rolesBetween(liveIndex, focus, target) },
     patchIndex(focus, role, target) {
       if (same(focus, target)) return
       applyEdge(liveIndex, focus, role, target)

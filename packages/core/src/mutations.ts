@@ -16,9 +16,11 @@ export interface Mutations {
   removeLink(focus: string, name: string, role: Role): Promise<boolean>
 }
 
+const reciprocal = (role: Role): Role => (role === 'parent' ? 'child' : role === 'child' ? 'parent' : 'jump')
+
 export function createMutations(
   dataSource: DataSource,
-  index: Pick<LinkIndex, 'patchIndex' | 'patchRemove'>,
+  index: Pick<LinkIndex, 'patchIndex' | 'patchRemove' | 'rolesBetween'>,
   getOntology: () => OntologyConfig,
 ): Mutations {
   // Append `target` to `pageName`'s `key` property (dedupe, case-insensitive).
@@ -45,10 +47,31 @@ export function createMutations(
     }
   }
 
+  // Clear the `role` connection between `focus` and `target` on BOTH declaration sides
+  // (it may live as `focus`'s key or `target`'s reciprocal key), then patch the index.
+  async function unlink(focus: string, target: string, role: Role): Promise<void> {
+    await removeRoleLinks(focus, role, target)
+    await removeRoleLinks(target, reciprocal(role), focus)
+    index.patchRemove(focus, role, target)
+  }
+
+  // Make the connection between `focus` and `target` be exactly `role`. A pair has at most
+  // one connection, so any pre-existing connection of a different kind (incl. a direction
+  // flip, and any legacy multi-role leftovers) is removed first — otherwise both inline
+  // properties linger and which one wins is undefined. The same-role case dedupes to a no-op.
+  async function setLink(focus: string, target: string, role: Role): Promise<void> {
+    const existing = await index.rolesBetween(focus, target)
+    for (const e of existing) {
+      if (e === role) continue
+      await unlink(focus, target, e)
+    }
+    await addPropLink(focus, role, target)
+    index.patchIndex(focus, role, target)
+  }
+
   async function create(role: Role, focus: string, name: string): Promise<boolean> {
     await dataSource.ensurePage(name)
-    await addPropLink(focus, role, name)
-    index.patchIndex(focus, role, name)
+    await setLink(focus, name, role)
     return true
   }
 
@@ -57,15 +80,11 @@ export function createMutations(
     createParent: (focus, name) => create('parent', focus, name),
     createJump: (focus, name) => create('jump', focus, name),
     async linkExisting(focus, name, role) {
-      await addPropLink(focus, role, name)
-      index.patchIndex(focus, role, name)
+      await setLink(focus, name, role)
       return true
     },
     async removeLink(focus, target, role) {
-      const recip: Role = role === 'parent' ? 'child' : role === 'child' ? 'parent' : 'jump'
-      await removeRoleLinks(focus, role, target)
-      await removeRoleLinks(target, recip, focus)
-      index.patchRemove(focus, role, target)
+      await unlink(focus, target, role)
       return true
     },
   }

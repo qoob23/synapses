@@ -180,6 +180,21 @@ export function hasEdge(index: LinkGraphIndex, focusName: string, role: Role, ta
   return e.jumps.has(t)
 }
 
+// Which roles currently connect `focus` to `target`, read from `focus`'s adjacency
+// (already reciprocal-resolved by buildIndex/applyEdge). Normally one role, but a pair
+// in the buggy multi-role state returns several — the caller collapses them. [] when the
+// pair is unconnected or `focus` is absent from the index.
+export function rolesBetween(index: LinkGraphIndex, focusName: string, targetName: string): Role[] {
+  const e = index.pages.get(String(focusName).toLowerCase())
+  if (!e) return []
+  const t = String(targetName).toLowerCase()
+  const out: Role[] = []
+  if (e.parents.has(t)) out.push('parent')
+  if (e.children.has(t)) out.push('child')
+  if (e.jumps.has(t)) out.push('jump')
+  return out
+}
+
 // Pure: re-apply the patches a fresh read hasn't confirmed yet onto `fresh`,
 // dropping ones the read now confirms or that have outlived the settle window.
 // Mutates `fresh` (adds the surviving edges) and returns the patches to keep.

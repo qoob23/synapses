@@ -45,6 +45,16 @@ describe('createLinkIndex', () => {
     expect((await idx.buildGraph('A')).children).toEqual([])
   })
 
+  it('rolesBetween resolves reciprocal inference and reflects pending patches', async () => {
+    // B declares child:: A → from A's side B is a parent (reciprocal).
+    const ds = fakeDataSource([{ name: 'A', props: {} }, { name: 'B', props: { child: ['A'] } as PropMap }])
+    const idx = createLinkIndex(ds, () => ONT)
+    expect(await idx.rolesBetween('A', 'B')).toEqual(['parent'])
+    expect(await idx.rolesBetween('A', 'C')).toEqual([]) // unconnected
+    idx.patchIndex('A', 'jump', 'C') // unconfirmed add is visible immediately
+    expect(await idx.rolesBetween('A', 'C')).toEqual(['jump'])
+  })
+
   it('hardReset discards ALL pending patches and rebuilds purely from the editor', async () => {
     const ds = fakeDataSource([{ name: 'A', props: {} }, { name: 'B', props: {} }])
     const idx = createLinkIndex(ds, () => ONT)

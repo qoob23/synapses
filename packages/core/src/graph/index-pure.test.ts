@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildIndex, queryGraph, applyEdge, hasEdge, reconcilePatches, removeEdge, getAdjacency } from './index-pure'
+import { buildIndex, queryGraph, applyEdge, hasEdge, reconcilePatches, removeEdge, getAdjacency, rolesBetween } from './index-pure'
 import type { Patch } from './index-pure'
 import type { OntologyConfig, PropMap, Role } from '../types'
 
@@ -166,5 +166,29 @@ describe('getAdjacency', () => {
   it('omits names not in the index', () => {
     const idx = buildIndex([{ name: 'A', props: {} }], ONT)
     expect(getAdjacency(idx, ['Nope'])).toEqual({})
+  })
+})
+
+describe('rolesBetween', () => {
+  it('returns the declared role from the focus side', () => {
+    expect(rolesBetween(INDEX, 'Ethics', 'Philosophy')).toEqual(['parent'])
+    expect(rolesBetween(INDEX, 'Ethics', 'Virtue Ethics')).toEqual(['child'])
+    expect(rolesBetween(INDEX, 'Ethics', 'Aristotle')).toEqual(['jump'])
+  })
+  it('resolves a reciprocally-inferred role', () => {
+    // Philosophy declares child:: Ethics, so from Ethics' side Philosophy is a parent,
+    // and from Philosophy's side Ethics is a child.
+    expect(rolesBetween(INDEX, 'Philosophy', 'Ethics')).toEqual(['child'])
+  })
+  it('is case-insensitive on both names', () => {
+    expect(rolesBetween(INDEX, 'ethics', 'philosophy')).toEqual(['parent'])
+  })
+  it('returns [] when the pair is unconnected or the focus is absent', () => {
+    expect(rolesBetween(INDEX, 'Ethics', 'Descartes')).toEqual([])
+    expect(rolesBetween(INDEX, 'Nonexistent', 'Ethics')).toEqual([])
+  })
+  it('reports every role when a pair is in the buggy multi-role state', () => {
+    const idx = buildIndex([{ name: 'A', props: { parent: ['B'], jump: ['B'] } }, { name: 'B', props: {} }], ONT)
+    expect(rolesBetween(idx, 'A', 'B').sort()).toEqual(['jump', 'parent'])
   })
 })
