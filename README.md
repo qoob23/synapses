@@ -1,6 +1,7 @@
 # Synapses
 
-![Synapses — the active note centered, with parents above, children below, jumps left and siblings right](synapses_demo.png)
+<img src="synapses_demo.png" alt="Synapses — the active note centered, with parents above, children below, jumps left and siblings right" height="600">
+
 
 Synapses lays out your note links as a focused graph: the active note sits in the center with its
 **parents above, children below, jumps to the left, and siblings to the right**. Click a card to
