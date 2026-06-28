@@ -1,8 +1,5 @@
 # Synapses
 
-<img src="synapses_demo.png" alt="Synapses — the active note centered, with parents above, children below, jumps left and siblings right" height="600">
-
-
 Synapses lays out your note links as a focused graph: the active note sits in the center with its
 **parents above, children below, jumps to the left, and siblings to the right**. Click a card to
 **activate** that note, drag a handle to create a link, or hover a connector to remove one — a fast way
@@ -12,6 +9,8 @@ It runs in both **Obsidian** and **Logseq**, reading and writing the same Excali
 properties.
 
 > This plugin was written with LLM assistance.
+
+<img src="synapses_demo.png" alt="Synapses — the active note centered, with parents above, children below, jumps left and siblings right" height="600">
 
 ## Links are page properties
 
