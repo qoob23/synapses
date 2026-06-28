@@ -17,6 +17,10 @@ export type Adjacency = Record<string, { parents: string[]; children: string[]; 
 export interface Palette {
   mode: 'light' | 'dark'
   bg?: string; bg2?: string; text?: string; text2?: string; border?: string; accent?: string
+  // User-configured connector color overrides, already resolved for the current
+  // mode by the editor adapter (blank setting => undefined => auto-derived).
+  // primaryEdge = parent/child connectors; secondaryEdge = jump/sibling connectors.
+  primaryEdge?: string; secondaryEdge?: string
 }
 
 export type BackendEvent = 'recenter' | 'theme' | 'refresh' | 'uimode'

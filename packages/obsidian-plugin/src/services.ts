@@ -5,7 +5,7 @@ import type { SynapsesSettings } from './settings'
 
 type SettingsPlugin = Plugin & { settings: SynapsesSettings; onSettingsChanged(cb: () => void): void }
 
-const VARS: Record<Exclude<keyof Palette, 'mode'>, string> = {
+const VARS: Record<'bg' | 'bg2' | 'text' | 'text2' | 'border' | 'accent', string> = {
   bg: '--background-primary',
   bg2: '--background-secondary',
   text: '--text-normal',
@@ -14,7 +14,7 @@ const VARS: Record<Exclude<keyof Palette, 'mode'>, string> = {
   accent: '--interactive-accent',
 }
 
-function readPalette(): Palette {
+function readPalette(settings?: SynapsesSettings): Palette {
   const mode: 'light' | 'dark' = document.body.classList.contains('theme-dark') ? 'dark' : 'light'
   const out: Palette = { mode }
   try {
@@ -24,6 +24,13 @@ function readPalette(): Palette {
       if (v) (out as any)[k] = v
     }
   } catch { /* ignore */ }
+  if (settings) {
+    const dark = mode === 'dark'
+    const primary = (dark ? settings.primaryColorDark : settings.primaryColorLight).trim()
+    const secondary = (dark ? settings.secondaryColorDark : settings.secondaryColorLight).trim()
+    if (primary) out.primaryEdge = primary
+    if (secondary) out.secondaryEdge = secondary
+  }
   return out
 }
 
@@ -44,8 +51,12 @@ export function createObsidianServices(app: App, plugin: SettingsPlugin): Editor
       plugin.registerEvent(app.workspace.on('file-open', fire))
     },
     async navigateTo(name) { await app.workspace.openLinkText(name, '', false) },
-    getTheme() { return readPalette() },
-    onThemeChange(cb) { plugin.registerEvent(app.workspace.on('css-change', () => cb(readPalette()))) },
+    getTheme() { return readPalette(plugin.settings) },
+    onThemeChange(cb) {
+      plugin.registerEvent(app.workspace.on('css-change', () => cb(readPalette(plugin.settings))))
+      // Re-apply when the user edits the connector-color (or any) settings.
+      plugin.onSettingsChanged(() => cb(readPalette(plugin.settings)))
+    },
     getUiMode(): UiMode { return { mobile: Platform.isMobile || !!plugin.settings.mobileMode } },
     onUiModeChange(cb) { plugin.onSettingsChanged(cb) },
     // RAW forward — the 400ms debounce lives in createCoreBackend.

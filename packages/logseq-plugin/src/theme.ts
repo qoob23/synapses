@@ -5,7 +5,7 @@ import { type Palette, isDarkColor, isOpaqueColor, mixColors } from '@logseq-syn
 // (which doesn't inherit Logseq CSS) matches the active theme — including
 // custom/community themes that scope --ls-* overrides to body/app containers
 // rather than :root. See docs/superpowers/specs/2026-06-28-logseq-theme-adaptation-design.md.
-const VARS: Record<Exclude<keyof Palette, 'mode'>, string[]> = {
+const VARS: Record<'bg' | 'bg2' | 'text' | 'text2' | 'border' | 'accent', string[]> = {
   bg: ['--ls-primary-background-color'],
   bg2: ['--ls-secondary-background-color'],
   text: ['--ls-primary-text-color'],
@@ -95,6 +95,14 @@ export function readPalette(modeHint?: 'light' | 'dark'): Palette {
     || (hasDarkMarker(host) || hasDarkMarker(doc.documentElement) ? 'dark'
       : isDarkColor(out.bg) ? 'dark' : 'light')
 
+  // User-configured connector color overrides, resolved for the active mode.
+  const s = (logseq as any).settings || {}
+  const dark = out.mode === 'dark'
+  const primary = String((dark ? s.primaryColorDark : s.primaryColorLight) || '').trim()
+  const secondary = String((dark ? s.secondaryColorDark : s.secondaryColorLight) || '').trim()
+  if (primary) out.primaryEdge = primary
+  if (secondary) out.secondaryEdge = secondary
+
   // Drop unresolved keys so applyTheme keeps core defaults for them.
   for (const k of Object.keys(out) as (keyof Palette)[]) {
     if (out[k] == null) delete (out as Record<keyof Palette, unknown>)[k]
@@ -104,6 +112,8 @@ export function readPalette(modeHint?: 'light' | 'dark'): Palette {
 
 export function watchTheme(cb: (p: Palette) => void): void {
   try { (logseq as any).App.onThemeModeChanged((e: any) => cb(readPalette(e?.mode))) } catch { /* ignore */ }
+  // Re-apply when the user edits the connector-color (or any) settings.
+  try { (logseq as any).onSettingsChanged(() => cb(readPalette())) } catch { /* ignore */ }
 
   const doc = hostDoc()
   if (!doc || typeof MutationObserver === 'undefined') return
