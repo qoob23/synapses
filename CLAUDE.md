@@ -164,11 +164,13 @@ are `packages/obsidian-plugin/src/{datasource,services}.ts`.)
 - @WORKJOURNAL.md — dated log of what was built and why. **How to write entries:**
   - Dense, short, concise — capture key changes and decisions, nothing else.
   - One line per session (match the existing entries); use a nested list only when
-    one line won't do — never arbitrarily long lines.
+    one line won't do. **No line may exceed 120 characters** — split longer content
+    into nested list items rather than wrapping.
   - Document features and highlight important decisions; don't explain behaviour to
     the reader or walk through code (you can read it later).
   - Omit state readable from code (paddings, positions, test counts, etc.) and
-    process (worktrees, agents used, etc.).
+    process (worktrees, agents used, etc.) — but keep a decision even if it names a
+    value or tool (e.g. "px units throughout", "no React/SVG", "vanilla JS").
   - Write entries only on explicit user request; otherwise remind the user and print
     a work summary once the session's work is done.
 - Ontology (which property names map to parent/child/jump) is user-configurable per editor (Logseq
