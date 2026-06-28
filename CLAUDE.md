@@ -161,7 +161,16 @@ are `packages/obsidian-plugin/src/{datasource,services}.ts`.)
 ## Pointers
 
 - `README.md` — user-facing setup/validation steps.
-- @WORKJOURNAL.md — dated log of what was built and why.
+- @WORKJOURNAL.md — dated log of what was built and why. **How to write entries:**
+  - Dense, short, concise — capture key changes and decisions, nothing else.
+  - One line per session (match the existing entries); use a nested list only when
+    one line won't do — never arbitrarily long lines.
+  - Document features and highlight important decisions; don't explain behaviour to
+    the reader or walk through code (you can read it later).
+  - Omit state readable from code (paddings, positions, test counts, etc.) and
+    process (worktrees, agents used, etc.).
+  - Write entries only on explicit user request; otherwise remind the user and print
+    a work summary once the session's work is done.
 - Ontology (which property names map to parent/child/jump) is user-configurable per editor (Logseq
   settings schema in `packages/logseq-plugin/src/index.ts`; Obsidian settings tab in
   `packages/obsidian-plugin/src/settings.ts`); the parser/defaults are `buildOntology` in
