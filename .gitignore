@@ -1,9 +1,11 @@
 node_modules/
 dist/
-# obsidian-plugin build artifacts (esbuild emits to the package root; rebuildable from src)
+# obsidian-plugin build artifacts (esbuild emits to the package root; rebuildable from src).
+# manifest.json is mirrored from the repo-root manifest.json (the single source of truth).
 packages/obsidian-plugin/main.js
 packages/obsidian-plugin/main.css
 packages/obsidian-plugin/styles.css
+packages/obsidian-plugin/manifest.json
 # Obsidian writes plugin runtime data (settings/history) into the plugin dir at runtime
 packages/obsidian-plugin/data.json
 *.tsbuildinfo

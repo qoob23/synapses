@@ -28,18 +28,18 @@ jobs:
           npm run build -w obsidian-plugin
 
       - name: Verify release assets exist
-        working-directory: packages/obsidian-plugin
         run: |
-          for f in manifest.json main.js styles.css; do
-            test -f "$f" || { echo "::error::missing build artifact: $f"; exit 1; }
+          test -f manifest.json || { echo "::error::missing repo-root manifest.json"; exit 1; }
+          for f in main.js styles.css; do
+            test -f "packages/obsidian-plugin/$f" || { echo "::error::missing build artifact: $f"; exit 1; }
           done
 
       - name: Verify tag matches manifest version
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          version="$(node -p "require('./packages/obsidian-plugin/manifest.json').version")"
+          version="$(node -p "require('./manifest.json').version")"
           if [ "$tag" != "$version" ]; then
-            echo "::error::tag '$GITHUB_REF_NAME' (=$tag) does not match manifest version '$version'. Bump packages/obsidian-plugin/manifest.json or retag."
+            echo "::error::tag '$GITHUB_REF_NAME' (=$tag) does not match manifest version '$version'. Bump manifest.json or retag."
             exit 1
           fi
 
@@ -50,6 +50,6 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
             --notes "Synapses Obsidian plugin $GITHUB_REF_NAME. Install or update via BRAT (add this repository), or copy manifest.json + main.js + styles.css into your vault's .obsidian/plugins/synapses/ folder." \
-            packages/obsidian-plugin/manifest.json \
+            manifest.json \
             packages/obsidian-plugin/main.js \
             packages/obsidian-plugin/styles.css

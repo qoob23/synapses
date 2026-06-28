@@ -16,10 +16,8 @@ export default class SynapsesPlugin extends Plugin {
     this.addSettingTab(new SynapsesSettingTab(this.app, this))
     this.registerView(VIEW_TYPE_SYNAPSES, (leaf) => new SynapsesView(leaf, this))
     this.addRibbonIcon('brain', 'Open Synapses', () => void this.activateView())
-    this.addCommand({ id: 'open-synapses', name: 'Synapses: open in sidebar', callback: () => void this.activateView() })
+    this.addCommand({ id: 'open-in-sidebar', name: 'Open in sidebar', callback: () => void this.activateView() })
   }
-
-  onunload() { this.app.workspace.detachLeavesOfType(VIEW_TYPE_SYNAPSES) }
 
   // Durable backend, built once, gated on Dataview. Persists across view open/close.
   getBackend(): SynapsesBackend | null {

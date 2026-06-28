@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "type": "module",
   "license": "MIT",
+  "description": "Map out and edit note relations in a focused graph. Inspired by TheBrain.",
   "main": "dist/index.html",
   "logseq": { "id": "logseq-synapses", "title": "Synapses", "main": "dist/index.html" },
   "scripts": { "build": "vite build", "dev": "vite build --watch" },

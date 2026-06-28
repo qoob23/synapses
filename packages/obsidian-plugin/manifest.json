@@ -1,9 +1,0 @@
-{
-  "id": "synapses",
-  "name": "Synapses",
-  "version": "0.0.3",
-  "minAppVersion": "1.5.0",
-  "description": "Synapses view for note links. Requires Dataview.",
-  "author": "qoob23",
-  "isDesktopOnly": false
-}
