@@ -10,14 +10,18 @@ import sonarjs from 'eslint-plugin-sonarjs'
 // `any` flows, exhaustiveness) that non-type-checked linting cannot see.
 //
 // Policy:
-//  - Correctness rules are a hard ERROR everywhere — these catch real bugs.
-//  - The `any` cascade (no-explicit-any + no-unsafe-*) is a WARN in core/obsidian
-//    (the pragmatic boundary `any` stays visible but non-blocking) and ERROR in the
-//    logseq markdown plugin (already any-free; it can't regress). The plan is to
-//    RATCHET these to ERROR per-package as counts hit zero — `transport.ts` is the
-//    one documented allowlist (a generic reflective postMessage bridge).
-//  - High-churn stylistic/type rules land as WARN so the build never breaks in one
-//    shot; they are ratchet candidates.
+//  - Correctness rules that catch real bugs are a hard ERROR everywhere: no-floating-promises,
+//    no-misused-promises, switch-exhaustiveness, no-for-in-array.
+//  - The `any` cascade (no-explicit-any + no-unsafe-*) is ERROR everywhere — it has been driven
+//    to zero across all of core (except transport.ts), the obsidian adapter, and the logseq
+//    adapter. The sole allowlist is `transport.ts` (a generic reflective postMessage bridge),
+//    pinned back to WARN in a per-file override below.
+//  - A few type-aware rules stay WARN — false-positive-prone on imprecise external types or
+//    pure-style ratchet candidates: await-thenable + no-confusing-void-expression (defensive
+//    awaits on @logseq/libs calls whose types declare void), no-unnecessary-type-assertion
+//    (its autofix once stripped a load-bearing cast), unbound-method, no-base-to-string,
+//    no-redundant-type-constituents, require-await (async interface conformance), and the
+//    opinionated prefer-nullish / restrict-* / sonarjs rules.
 export default tseslint.config(
   {
     ignores: [
@@ -74,41 +78,37 @@ export default tseslint.config(
       'no-empty': ['warn', { allowEmptyCatch: true }],
       '@typescript-eslint/no-unused-expressions': ['error', { allowShortCircuit: true, allowTernary: true }],
 
-      // --- correctness, locked at ERROR (already at zero violations) ---
+      // --- correctness, ERROR (driven to zero) ---
       '@typescript-eslint/switch-exhaustiveness-check': 'error',
       '@typescript-eslint/no-for-in-array': 'error',
-      // WARN (not ERROR): the autofix wrongly stripped a load-bearing `as CardEl | null`
-      // (closest() returns Element) — the rule false-positives on `x && x.closest()` unions.
-      // Kept on to surface genuine redundant casts, but it must not autofix-break the build.
-      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
 
-      // --- correctness, WARN now → RATCHET to ERROR in Phase 3 ---
-      // These have existing violations concentrated in files the cleanup passes rewrite
-      // (app.ts/dialog.ts/backend.ts/transport.ts + the logseq adapter). Landing them as WARN
-      // keeps every commit green; each pass clears its files, then these graduate to ERROR.
-      '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-misused-promises': 'warn',
+      // --- WARN: false-positive-prone on imprecise external types / ratchet candidates ---
+      // no-unnecessary-type-assertion: its autofix once stripped a load-bearing `as CardEl | null`
+      //   (closest() returns Element); it false-positives on `x && x.closest()` unions.
+      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+      // await-thenable + no-confusing-void: fire on defensive awaits of @logseq/libs calls whose
+      //   types declare void; removing the awaits risks a real timing change in untested code.
       '@typescript-eslint/await-thenable': 'warn',
-      '@typescript-eslint/no-base-to-string': 'warn',
       '@typescript-eslint/no-confusing-void-expression': ['warn', { ignoreArrowShorthand: true }],
+      '@typescript-eslint/no-base-to-string': 'warn',
       '@typescript-eslint/unbound-method': 'warn',
       '@typescript-eslint/no-redundant-type-constituents': 'warn',
-      // WARN permanently: the DataSource/EditorServices adapters implement Promise-returning
-      // interface methods whose bodies are legitimately synchronous (`async foo() { return x }`
-      // is cleaner than `foo() { return Promise.resolve(x) }`). Not a correctness bug.
+      // adapters implement Promise-returning interface methods with sync bodies (interface conformance).
       '@typescript-eslint/require-await': 'warn',
 
       // --- normalization: ERROR + autofix ---
       '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'separate-type-imports' }],
       '@typescript-eslint/consistent-type-exports': 'error',
 
-      // --- the any cascade: WARN in core/obsidian (logseq overrides to ERROR below) ---
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unsafe-assignment': 'warn',
-      '@typescript-eslint/no-unsafe-member-access': 'warn',
-      '@typescript-eslint/no-unsafe-call': 'warn',
-      '@typescript-eslint/no-unsafe-return': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
+      // --- the any cascade: ERROR everywhere (transport.ts is pinned back to WARN below) ---
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unsafe-assignment': 'error',
+      '@typescript-eslint/no-unsafe-member-access': 'error',
+      '@typescript-eslint/no-unsafe-call': 'error',
+      '@typescript-eslint/no-unsafe-return': 'error',
+      '@typescript-eslint/no-unsafe-argument': 'error',
 
       // --- opinionated / high-churn: WARN (ratchet candidates) ---
       '@typescript-eslint/prefer-nullish-coalescing': 'warn',
@@ -119,13 +119,27 @@ export default tseslint.config(
     },
   },
 
-  // logseq-plugin — hard standard: explicit `any` and dead code stay ERROR (existing,
-  // already at zero). The NEW no-unsafe-* family is WARN here too for now (1 violation at the
-  // transport/wheel boundary) and ratchets to ERROR in Phase 3 once that boundary is typed.
+  // transport.ts — the documented `any` allowlist. A generic reflective postMessage bridge
+  // (handler maps, dynamic dispatch, untyped message payloads); end-to-end types are enforced
+  // at the typed serve/proxy edge (the BACKEND_METHODS completeness check), so the interior
+  // stays `any`. Pinned to WARN so it surfaces without blocking.
+  {
+    files: ['packages/core/src/transport.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unsafe-assignment': 'warn',
+      '@typescript-eslint/no-unsafe-member-access': 'warn',
+      '@typescript-eslint/no-unsafe-call': 'warn',
+      '@typescript-eslint/no-unsafe-return': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn',
+    },
+  },
+
+  // logseq-plugin — hard standard: unused vars / dead code are ERROR here (stricter than the
+  // repo-wide warn). The any cascade is already ERROR repo-wide.
   {
     files: ['packages/logseq-plugin/**/*.ts'],
     rules: {
-      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': 'error',
       'no-empty': ['error', { allowEmptyCatch: true }],
     },

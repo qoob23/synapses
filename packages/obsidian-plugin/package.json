@@ -9,5 +9,5 @@
     "typecheck": "tsc -p . --noEmit"
   },
   "dependencies": { "@logseq-synapses/core": "*" },
-  "devDependencies": { "obsidian": "^1.5.0", "obsidian-dataview": "^0.5.67", "esbuild": "^0.21.0" }
+  "devDependencies": { "obsidian": "^1.5.0", "esbuild": "^0.21.0" }
 }
