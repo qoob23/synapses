@@ -1,3 +1,4 @@
+import { bezierControls } from './curve'
 import { NODE } from './layout'
 import type { Adjacency } from '../types'
 
@@ -194,13 +195,8 @@ export function computeSecondaryEdges(
 function curve(ctx: CanvasRenderingContext2D, a: Point, b: Point, zone: string): void {
   ctx.beginPath()
   ctx.moveTo(a.x, a.y)
-  if (zone === 'parent' || zone === 'child') {
-    const midY = (a.y + b.y) / 2
-    ctx.bezierCurveTo(a.x, midY, b.x, midY, b.x, b.y)
-  } else {
-    const midX = (a.x + b.x) / 2
-    ctx.bezierCurveTo(midX, a.y, midX, b.y, b.x, b.y)
-  }
+  const { c1, c2 } = bezierControls(a, b, zone)
+  ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y)
   ctx.stroke()
 }
 

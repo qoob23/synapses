@@ -1,5 +1,8 @@
-// Pure hover hit-testing for the canvas edges: sample each bézier (using the same
-// control points as edges.ts curve()) into points, then point-to-polyline distance.
+// Pure hover hit-testing for the canvas edges: sample each bézier (using the shared
+// bezierControls so the sampled curve matches edges.ts curve() exactly) into points,
+// then point-to-polyline distance.
+
+import { bezierControls } from './curve'
 
 export interface Point {
   x: number
@@ -35,17 +38,7 @@ function cubic(p0: Point, p1: Point, p2: Point, p3: Point, t: number): Point {
 }
 
 export function sampleEdge(a: Point, b: Point, zone: string, n = 16): Point[] {
-  let c1: Point
-  let c2: Point
-  if (zone === 'parent' || zone === 'child') {
-    const midY = (a.y + b.y) / 2
-    c1 = { x: a.x, y: midY }
-    c2 = { x: b.x, y: midY }
-  } else {
-    const midX = (a.x + b.x) / 2
-    c1 = { x: midX, y: a.y }
-    c2 = { x: midX, y: b.y }
-  }
+  const { c1, c2 } = bezierControls(a, b, zone)
   const pts: Point[] = []
   for (let i = 0; i <= n; i++) pts.push(cubic(a, c1, c2, b, i / n))
   return pts

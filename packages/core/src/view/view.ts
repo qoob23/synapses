@@ -277,21 +277,28 @@ export function createView({
   const DIR_SIDE: Record<string, string> = { parent: 'top', child: 'bottom', jump: 'left' }
   const jumpSide = (zone: string) => (zone === 'jump' ? 'right' : 'left')
 
+  // Decode a card's live world-center from its CSS transform. positionEl writes
+  // translate(x,y) translate(-50%,-50%), so m41/m42 is the translate-to-center offset;
+  // adding half the box dims gives the true center. Returns `fallback` when there's no
+  // usable transform (or DOMMatrix can't parse it).
+  function liveCenterFromTransform(el: HTMLElement, w: number, h: number, fallback: Pt): Pt {
+    const t = getComputedStyle(el).transform
+    if (t && t !== 'none') {
+      try {
+        const m = new DOMMatrixReadOnly(t)
+        return { x: m.m41 + w / 2, y: m.m42 + h / 2 }
+      } catch { /* fall through */ }
+    }
+    return fallback
+  }
+
   // Get the current world-center (+ width) of a card element from its live CSS
   // transform. Width comes from offsetWidth since cards are content-sized.
   function liveCenterOf(el: CardEl): Pt & { w: number } {
     const w = el.offsetWidth || NODE.W
     const h = el.offsetHeight || cardHpx() // height scales with the size level
-    const t = getComputedStyle(el).transform
-    if (t && t !== 'none') {
-      try {
-        const m = new DOMMatrixReadOnly(t)
-        // positionEl uses translate(x,y) translate(-50%,-50%), so m.m41/m.m42 is
-        // the translate-to-center offset; add half the box dims to get the center.
-        return { x: m.m41 + w / 2, y: m.m42 + h / 2, w }
-      } catch (e) { /* fall through */ }
-    }
-    return { x: 0, y: 0, w }
+    const { x, y } = liveCenterFromTransform(el, w, h, { x: 0, y: 0 })
+    return { x, y, w }
   }
 
   // Drag-to-connect state. One drag is live at a time (single pointer). The
@@ -509,16 +516,7 @@ export function createView({
       if (el) {
         w = el.offsetWidth || n.w // content-sized; connectors meet the actual edge
         h = el.offsetHeight || h
-        const t = getComputedStyle(el).transform
-        if (t && t !== 'none') {
-          try {
-            const m = new DOMMatrixReadOnly(t)
-            x = m.m41 + w / 2 // undo the translate(-50%,-50%) to get the center
-            y = m.m42 + h / 2
-          } catch (e) {
-            /* keep layout coords */
-          }
-        }
+        ;({ x, y } = liveCenterFromTransform(el, w, h, { x, y })) // follow the card mid-glide
       }
       return { name: n.name, zone: n.zone, x, y, w, h, via: n.via }
     })
