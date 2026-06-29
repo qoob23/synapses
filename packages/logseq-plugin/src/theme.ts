@@ -4,7 +4,7 @@ import { type Palette, isDarkColor, isOpaqueColor, mixColors } from '@logseq-syn
 // Logseq theme CSS variables, read from the HOST document so the synapses iframe
 // (which doesn't inherit Logseq CSS) matches the active theme — including
 // custom/community themes that scope --ls-* overrides to body/app containers
-// rather than :root. See docs/superpowers/specs/2026-06-28-logseq-theme-adaptation-design.md.
+// rather than :root. See the 2026-06-28 "Theme rework" entry in WORKJOURNAL.md.
 const VARS: Record<'bg' | 'bg2' | 'text' | 'text2' | 'border' | 'accent', string[]> = {
   bg: ['--ls-primary-background-color'],
   bg2: ['--ls-secondary-background-color'],
