@@ -1,28 +1,19 @@
 import { isInLogseqFolder, matchesIgnoreFilters } from '@logseq-synapses/core'
 import { TFile } from 'obsidian'
-import { getAPI } from 'obsidian-dataview'
+import { getDataviewApi } from './dataview'
 import { pageToPropMap } from './dataview-map'
 import { upsertInlineField, removeInlineField, hasInlineField } from './inline-fields'
 import { newNotePath } from './paths'
 import { chooseWriteTarget } from './write-target'
-import type { DvPage } from './dataview-map'
 import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
 import type { App } from 'obsidian'
-
-// The slice of the Dataview API we depend on. The published `DataviewApi` type does
-// not resolve here (its declaration uses bare-specifier imports that need Dataview's
-// own `baseUrl`), so it degrades to `any`; we narrow `getAPI()`'s result to this.
-interface DvApi {
-  page(path: string): DvPage | undefined
-  pages(query?: string): Iterable<DvPage>
-}
 
 // Obsidian's Vault exposes an untyped `getConfig` for app settings (e.g. the
 // "Excluded files" list); model just the slice we read.
 interface VaultWithConfig { getConfig(key: string): unknown }
 
 export function createObsidianDataSource(app: App): DataSource {
-  const dv = (): DvApi | undefined => getAPI(app) as DvApi | undefined
+  const dv = () => getDataviewApi(app)
 
   // Obsidian's "Excluded files" setting (Settings → Files and links). Dataview does not
   // honor it, so we read it ourselves and apply it to listPages/searchPages.

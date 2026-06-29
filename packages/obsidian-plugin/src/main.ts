@@ -1,8 +1,8 @@
 import { createCoreBackend, type SynapsesBackend } from '@logseq-synapses/core'
 import { Plugin, Notice } from 'obsidian'
-import { isPluginEnabled } from 'obsidian-dataview'
 import '@logseq-synapses/core/styles.css'
 import { createObsidianDataSource } from './datasource'
+import { isDataviewEnabled } from './dataview'
 import { createObsidianServices } from './services'
 import { type SynapsesSettings, DEFAULT_SETTINGS, SynapsesSettingTab } from './settings'
 import { SynapsesView, VIEW_TYPE_SYNAPSES } from './view'
@@ -34,7 +34,7 @@ export default class SynapsesPlugin extends Plugin {
   // Durable backend, built once, gated on Dataview. Persists across view open/close.
   getBackend(): SynapsesBackend | null {
     if (this.backend) return this.backend
-    if (!isPluginEnabled(this.app)) { new Notice('Synapses requires the Dataview plugin to be installed and enabled.'); return null }
+    if (!isDataviewEnabled(this.app)) { new Notice('Synapses requires the Dataview plugin to be installed and enabled.'); return null }
     this.backend = createCoreBackend(createObsidianDataSource(this.app), createObsidianServices(this.app, this))
     return this.backend
   }
