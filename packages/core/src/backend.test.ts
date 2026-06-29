@@ -113,4 +113,18 @@ describe('createCoreBackend', () => {
     await be.setSize(null) // immediate, no debounce
     expect(await be.getSize()).toBeNull()
   })
+
+  it('setConnectorColors then getConnectorColors round-trips the overrides', async () => {
+    const { ds, services } = fakes()
+    const be = createCoreBackend(ds, services)
+    await be.setConnectorColors({ primaryDark: '#ff0000', primaryLight: '#00ff00' })
+    expect(await be.getConnectorColors()).toEqual({ primaryDark: '#ff0000', primaryLight: '#00ff00' })
+  })
+
+  it('getConnectorColors falls back to {} when the stored value is malformed JSON', async () => {
+    const { ds, services } = fakes()
+    await services.persistence.save('connectorColors', 'not json{')
+    const be = createCoreBackend(ds, services)
+    expect(await be.getConnectorColors()).toEqual({})
+  })
 })
