@@ -1,20 +1,36 @@
 import { isInLogseqFolder, matchesIgnoreFilters } from '@logseq-synapses/core'
 import { TFile } from 'obsidian'
+import { getAPI } from 'obsidian-dataview'
 import { pageToPropMap } from './dataview-map'
 import { upsertInlineField, removeInlineField, hasInlineField } from './inline-fields'
 import { newNotePath } from './paths'
 import { chooseWriteTarget } from './write-target'
+import type { DvPage } from './dataview-map'
 import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
 import type { App } from 'obsidian'
-import type { DataviewApi } from 'obsidian-dataview'
+
+// The slice of the Dataview API we depend on. The published `DataviewApi` type does
+// not resolve here (its declaration uses bare-specifier imports that need Dataview's
+// own `baseUrl`), so it degrades to `any`; we narrow `getAPI()`'s result to this.
+interface DvApi {
+  page(path: string): DvPage | undefined
+  pages(query?: string): Iterable<DvPage>
+}
+
+// Obsidian's Vault exposes an untyped `getConfig` for app settings (e.g. the
+// "Excluded files" list); model just the slice we read.
+interface VaultWithConfig { getConfig(key: string): unknown }
 
 export function createObsidianDataSource(app: App): DataSource {
-  const dv = (): DataviewApi | undefined => (app as any).plugins?.plugins?.dataview?.api
+  const dv = (): DvApi | undefined => getAPI(app) as DvApi | undefined
 
   // Obsidian's "Excluded files" setting (Settings → Files and links). Dataview does not
   // honor it, so we read it ourselves and apply it to listPages/searchPages.
   const userIgnoreFilters = (): string[] => {
-    try { return (app.vault as any).getConfig?.('userIgnoreFilters') || [] } catch { return [] }
+    try {
+      const cfg = (app.vault as unknown as VaultWithConfig).getConfig('userIgnoreFilters')
+      return Array.isArray(cfg) ? (cfg as string[]) : []
+    } catch { return [] }
   }
   // A path is hidden if it lives in a logseq/ folder (always — Logseq's bak/recycle
   // markdown backups must never surface as notes) or matches the user's excluded files.
@@ -53,9 +69,9 @@ export function createObsidianDataSource(app: App): DataSource {
       const api = dv(); if (!api) return []
       const out: PageEntry[] = []
       for (const page of api.pages()) {
-        const path = (page as any)?.file?.path
+        const path = page.file?.path
         if (path && isIgnoredPath(path)) continue // excluded folder / logseq backups
-        const name = (page as any)?.file?.name
+        const name = page.file?.name
         if (!name) continue
         out.push({ name, props: pageToPropMap(page) })
       }
@@ -76,7 +92,7 @@ export function createObsidianDataSource(app: App): DataSource {
         hasInlineKey: hasInlineField(text, key),
       })
       if (target === 'frontmatter') {
-        await app.fileManager.processFrontMatter(file, (fm) => {
+        await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
           fm[key] = targets.map((t) => `[[${t}]]`)
         })
       } else {
@@ -88,7 +104,7 @@ export function createObsidianDataSource(app: App): DataSource {
     async removePropertyKey(name, key) {
       const file = resolveFile(name); if (!file) return
       if (frontmatterHasKey(file, key)) {
-        await app.fileManager.processFrontMatter(file, (fm) => { delete fm[key] })
+        await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => { delete fm[key] })
       }
       await app.vault.process(file, (data) => removeInlineField(data, key))
     },
