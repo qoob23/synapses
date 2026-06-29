@@ -58,6 +58,7 @@ export interface SynapsesBackend {
   createJump(focus: string, name: string): Promise<boolean>
   linkExisting(focus: string, name: string, role: Role): Promise<boolean>
   removeLink(focus: string, name: string, role: Role): Promise<boolean>
+  repairSymmetryOnce(): Promise<void>   // one-time link-symmetry normalization per graph/vault (persisted flag), then no-ops
   searchPages(q: string): Promise<string[]>
   getSize(): Promise<number | null>
   setSize(level: number | null): Promise<void> // discrete card/text size level; null resets to default
@@ -76,6 +77,9 @@ export interface DataSource {
   setPropertyLinks(name: string, key: string, targets: string[]): Promise<void>
   removePropertyKey(name: string, key: string): Promise<void>
   searchPages(q: string): Promise<string[]>
+  // One-time full enumeration for the symmetry-repair migration only (NOT used by the
+  // on-demand read path). Returns every real page with its link-valued props.
+  listAllPages?(): Promise<PageEntry[]>
 }
 
 export interface Persistence {

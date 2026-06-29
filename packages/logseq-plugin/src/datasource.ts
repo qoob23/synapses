@@ -1,7 +1,7 @@
 import '@logseq/libs'
 import { toNames } from '@logseq-synapses/core'
 import type { PageEntity } from './logseq-types'
-import type { DataSource, PropMap } from '@logseq-synapses/core'
+import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
 
 // Page properties live on the first (pre-)block; some Logseq versions surface
 // them on the page entity, others only on the block. Raw wiki-link values are
@@ -61,6 +61,18 @@ export function createLogseqDataSource(): DataSource {
     async removePropertyKey(name, key) {
       const uuid = await firstBlockUuid(name); if (!uuid) return
       await logseq.Editor.removeBlockProperty(uuid, key)
+    },
+    async listAllPages() {
+      let pages: PageEntity[] = []
+      try { pages = (await logseq.Editor.getAllPages()) ?? [] } catch {}
+      const out: PageEntry[] = []
+      for (const p of pages) {
+        if (!p.file) continue                          // real-file pages only (skip phantoms / uncreated entities)
+        const nm = p.originalName ?? p.name; if (!nm) continue
+        if (nm.toLowerCase() === 'synapses') continue   // the sidebar host page, not user content
+        out.push({ name: nm, props: await getPagePropsRaw(nm, p) })
+      }
+      return out
     },
     async searchPages(q) {
       const query = String(q || '').toLowerCase().trim(); if (!query) return []

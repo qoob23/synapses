@@ -5,7 +5,7 @@ import { pageToPropMap } from './dataview-map'
 import { upsertInlineField, removeInlineField, hasInlineField } from './inline-fields'
 import { newNotePath } from './paths'
 import { chooseWriteTarget } from './write-target'
-import type { DataSource, PropMap } from '@logseq-synapses/core'
+import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
 import type { App } from 'obsidian'
 
 // Obsidian's Vault exposes an untyped `getConfig` for app settings (e.g. the
@@ -94,6 +94,14 @@ export function createObsidianDataSource(app: App): DataSource {
         if (isIgnoredPath(f.path)) continue // don't offer excluded files / logseq backups as link targets
         if (f.basename.toLowerCase().includes(query)) out.push(f.basename)
         if (out.length >= 20) break
+      }
+      return out
+    },
+    async listAllPages() {
+      const out: PageEntry[] = []
+      for (const f of app.vault.getMarkdownFiles()) {
+        if (isIgnoredPath(f.path)) continue
+        out.push({ name: f.basename, props: await readProps(f.basename) })
       }
       return out
     },

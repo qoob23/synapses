@@ -135,3 +135,12 @@
       (`insertBlock` `before`+`sibling` — `prependBlockInPage` with empty content lands the block last) so the
       content stays untouched. No first block at all → `appendBlockInPage` materializes page + returns the new
       uuid directly (no post-write stale-read).
+- **One-time link-symmetry repair at plugin load** — fire-and-forget, gated by a persisted `symmetryRepairDone`
+  flag (set only on success, so a failed run retries); runs once per graph/vault, then never again.
+    - **Decision — resolve to ONE connection per pair, not additive completion.** Structural (parent/child) beats
+      jump; opposing structural claims → alphabetically-first page wins; losing kinds dropped on both sides.
+    - Pure `computeSymmetryRepairs` → minimal ops: untouched pages stay untouched, alias keys collapse to canonical
+      only on roles it changes, ghost (referenced-but-uncreated) targets get materialized.
+    - New `DataSource.listAllPages` (migration-only; Logseq gates on real files + skips host page, Obsidian honors
+      ignore filters) + `backend.repairSymmetryOnce`; Obsidian fires on `onLayoutReady` gated on Dataview.
+- **Obsidian "recording is running" Notice** on debug-logging enable (load + toggle), mirroring Logseq's `showMsg`.

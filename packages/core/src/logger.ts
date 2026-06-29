@@ -128,6 +128,7 @@ const BACKEND_LOGGED = [
   'getActivePage', 'getTheme', 'getUiMode', 'buildGraph', 'nodeAdjacency',
   'histState', 'histPush', 'histJump', 'histRemove',
   'navigate', 'createChild', 'createParent', 'createJump', 'linkExisting', 'removeLink',
+  'repairSymmetryOnce',
   'searchPages', 'getSize', 'setSize', 'getConnectorColors', 'setConnectorColors',
 ] as const satisfies readonly Exclude<keyof SynapsesBackend, 'on'>[]
 
@@ -157,8 +158,9 @@ export function wrapBackendWithLogging(backend: SynapsesBackend, logger: Logger)
 // Wrap the three write methods so the actual property mutation is logged where it
 // happens. Reads pass through (a `call` line for buildGraph/searchPages already
 // implies the reads, and logging every getPageProps would drown the signal).
+// listAllPages is optional and passed through without logging (migration read only).
 export function wrapDataSource(ds: DataSource, logger: Logger): DataSource {
-  return {
+  const wrapped: DataSource = {
     getPageProps: ds.getPageProps.bind(ds),
     searchPages: ds.searchPages.bind(ds),
     async ensurePage(name) {
@@ -174,4 +176,6 @@ export function wrapDataSource(ds: DataSource, logger: Logger): DataSource {
       return ds.removePropertyKey(name, key)
     },
   }
+  if (ds.listAllPages) wrapped.listAllPages = ds.listAllPages.bind(ds)
+  return wrapped
 }

@@ -71,6 +71,9 @@ async function main() {
     if (on && !logWasOn) startRecording()
     logWasOn = on
   })
+
+  // One-time, fire-and-forget: normalize asymmetric links across the whole graph, then never again.
+  void backend.repairSymmetryOnce()
 }
 
 // bridge-host.connectIframe, folded in: hand the freshly-injected iframe's window

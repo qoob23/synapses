@@ -2,6 +2,7 @@ import { adjacencyFromProps, collect, queryGraphFromProps, uniqNames } from './g
 import { createHistory, serialize, deserialize } from './history'
 import { log } from './log'
 import { noopLogger, type Logger } from './logger'
+import { runSymmetryRepair } from './migrate'
 import { createMutations } from './mutations'
 import type { HistoryStack } from './history'
 import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, BackendEventPayloads, Palette, ConnectorColors, Adjacency, PropMap } from './types'
@@ -11,6 +12,7 @@ export const SIZE_SAVE_DEBOUNCE_MS = 300
 const HISTORY_KEY = 'history.json'
 const SIZE_KEY = 'size'
 const COLORS_KEY = 'connectorColors'
+const SYMMETRY_REPAIR_KEY = 'symmetryRepairDone'
 
 export function createCoreBackend(dataSource: DataSource, services: EditorServices, logger: Logger = noopLogger): SynapsesBackend {
   const getOntology = () => services.getOntology()
@@ -89,6 +91,14 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
     createJump: mut.createJump,
     linkExisting: mut.linkExisting,
     removeLink: mut.removeLink,
+    repairSymmetryOnce: async () => {
+      try {
+        if (await services.persistence.load(SYMMETRY_REPAIR_KEY)) return
+        const n = await runSymmetryRepair(dataSource, getOntology())
+        await services.persistence.save(SYMMETRY_REPAIR_KEY, '1')
+        log.info(`symmetry repair complete: ${n} link(s) completed`)
+      } catch (e) { log.warn('symmetry repair failed', e) }
+    },
     searchPages: (q) => dataSource.searchPages(q),
     getSize: async () => {
       try {

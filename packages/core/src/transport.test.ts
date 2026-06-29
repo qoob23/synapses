@@ -125,9 +125,10 @@ describe('transport wiring', () => {
   })
 
   it('declares the full method + event manifest', () => {
-    expect(BACKEND_METHODS).toHaveLength(20)
+    expect(BACKEND_METHODS).toHaveLength(21)
     expect(BACKEND_METHODS).toContain('buildGraph')
     expect(BACKEND_METHODS).toContain('removeLink')
+    expect(BACKEND_METHODS).toContain('repairSymmetryOnce')
     expect(BACKEND_METHODS).toContain('getSize')
     expect(BACKEND_METHODS).toContain('setSize')
     expect(BACKEND_METHODS).toContain('getConnectorColors')

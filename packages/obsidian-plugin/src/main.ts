@@ -36,11 +36,15 @@ export default class SynapsesPlugin extends Plugin {
     })
     const sink = this.logSink
     this.logger = createLogger((line) => sink.write(line), { ctx: 'main', enabled: this.settings.fileLogging })
-    if (this.settings.fileLogging) { this.logSink.clear(); this.announceLogPath() }
+    if (this.settings.fileLogging) { this.logSink.clear(); this.announceLogPath(); new Notice('Synapses: debug recording is running') }
     this.addSettingTab(new SynapsesSettingTab(this.app, this))
     this.registerView(VIEW_TYPE_SYNAPSES, (leaf) => new SynapsesView(leaf, this))
     this.addRibbonIcon('brain', 'Open Synapses', () => void this.activateView())
     this.addCommand({ id: 'open-in-sidebar', name: 'Open in sidebar', callback: () => void this.activateView() })
+    // One-time, fire-and-forget: normalize asymmetric links across the whole vault, then never again.
+    this.app.workspace.onLayoutReady(() => {
+      if (isDataviewEnabled(this.app)) void this.getBackend()?.repairSymmetryOnce()
+    })
   }
 
   onunload() { this.logSink?.dispose() }
@@ -78,7 +82,7 @@ export default class SynapsesPlugin extends Plugin {
     const wasOn = this.logger?.enabled() ?? false
     await this.persistData((data) => { data.settings = this.settings })
     this.logger?.setEnabled(this.settings.fileLogging)
-    if (this.settings.fileLogging && !wasOn) { this.logSink?.clear(); this.announceLogPath() }
+    if (this.settings.fileLogging && !wasOn) { this.logSink?.clear(); this.announceLogPath(); new Notice('Synapses: debug recording is running') }
     this.settingsListeners.forEach((cb) => cb())
   }
 
