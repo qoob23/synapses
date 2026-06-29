@@ -34,7 +34,11 @@ export function createLogseqServices(): EditorServices {
   })()
   return {
     async getActivePageName() { return pageNameOf(await logseq.Editor.getCurrentPage()) },
-    onActivePageChange(cb) { logseq.App.onRouteChanged(async () => cb(pageNameOf(await logseq.Editor.getCurrentPage()))) },
+    onActivePageChange(cb) {
+      logseq.App.onRouteChanged(() => {
+        void logseq.Editor.getCurrentPage().then((p) => cb(pageNameOf(p)))
+      })
+    },
     async navigateTo(name) { await logseq.App.pushState('page', { name }) },
     getTheme() { return readPalette() },
     onThemeChange(cb) { watchTheme(cb) },

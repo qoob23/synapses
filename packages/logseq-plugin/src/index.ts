@@ -16,7 +16,7 @@ async function main() {
   logseq.useSettingsSchema(settingsSchema)
   const backend = createCoreBackend(createLogseqDataSource(), createLogseqServices())
   const server = serveBackend(backend, (method, payload, source) => {
-    if (method === 'hostScroll') scrollSidebarForFrame(source, payload)
+    if (method === 'hostScroll') scrollSidebarForFrame(source, payload as { dx: number; dy: number })
   })
 
   logseq.provideStyle(synapsesFrameStyle())
@@ -27,7 +27,7 @@ async function main() {
   })
 
   logseq.Editor.registerSlashCommand('Synapses: open in sidebar', async () => { await openSynapsesSidebar() })
-  logseq.provideModel({ openSynapses() { openSynapsesSidebar() } })
+  logseq.provideModel({ openSynapses() { void openSynapsesSidebar() } })
   logseq.App.registerUIItem('toolbar', { key: 'synapses-open', template: '<a class="button" data-on-click="openSynapses" title="Open Synapses"><span style="font-size:18px">🧠</span></a>' })
   console.log('[synapses] plugin ready')
 }
