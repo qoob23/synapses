@@ -24,7 +24,7 @@ export class SynapsesView extends ItemView {
       })
       return
     }
-    this.teardown = mountSynapses(this.contentEl, backend)
+    this.teardown = mountSynapses(this.contentEl, backend, this.plugin.logger ?? undefined)
   }
   async onClose() { this.teardown?.(); this.teardown = null }
 }

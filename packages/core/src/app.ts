@@ -1,5 +1,6 @@
 import { graphKey, sameName as same, isUnlinked } from './app-logic'
 import { errText } from './errText'
+import { noopLogger, type Logger } from './logger'
 import { openColorsPopover } from './view/colors'
 import { openContextMenu } from './view/context-menu'
 import { openCreateDialog } from './view/dialog'
@@ -17,7 +18,7 @@ interface GotoOpts {
 // `backend`. Builds the DOM subtree that the old `synapses.html` provided,
 // stamps `.synapses-root` on the container, runs an initial restore, and returns
 // a teardown that unsubscribes from backend events and clears the container.
-export function mountSynapses(container: HTMLElement, backend: SynapsesBackend): () => void {
+export function mountSynapses(container: HTMLElement, backend: SynapsesBackend, logger: Logger = noopLogger): () => void {
   container.classList.add('synapses-root')
   container.innerHTML = `
     <div id="synapses-app">
@@ -90,6 +91,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     if (!name) return
     const mine = ++navToken
     focus = name
+    logger.log('user', 'activate', { name, fromEditor: !!opts.fromLogseq, noHistory: !!opts.noHistory })
 
     try {
       lastHist = opts.noHistory ? await backend.histState() : await backend.histPush(name)
@@ -116,8 +118,11 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     // Skip the re-render if nothing visually changed (avoids reconcile flicker).
     const key = graphKey(graph)
     if (!(opts.ifChanged && key === lastRenderKey)) {
+      logger.log('ui', 'render', { focus: name, p: graph.parents.length, c: graph.children.length, j: graph.jumps.length, s: graph.siblings.length })
       view.setGraph(graph)
       lastRenderKey = key
+    } else {
+      logger.log('ui', 'render', { focus: name, skipped: true })
     }
 
     const names = view.getRenderedNames()
@@ -187,6 +192,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   // (lastRenderKey reset) so the skip-if-unchanged path can't suppress the redraw. There is
   // no in-memory index to discard anymore; this just re-fetches the focus note's neighborhood.
   function hardRefresh() {
+    logger.log('user', 'refresh')
     clearWait()
     lastRenderKey = null
     if (focus) {
@@ -200,6 +206,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   // The dialog performs the writes itself; on success we wait for the editor's 'refresh'
   // to render (beginWait), rather than re-reading optimistically.
   async function create(role: Role) {
+    logger.log('user', 'create', { role })
     const src = focus
     if (!src) return
     const changed = await openCreateDialog({ root: els.dialogRoot, role, sourcePage: src, backend })
@@ -207,6 +214,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   }
 
   async function createAt(fromNode: string, role: Role, at: { x: number; y: number } | null) {
+    logger.log('user', 'createAt', { from: fromNode, role })
     const changed = await openCreateDialog({ root: els.dialogRoot, role, sourcePage: fromNode, backend, at })
     if (changed) beginWait()
   }
@@ -374,6 +382,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     showSpinner(false)
   }
   function onWatchdog() {
+    logger.log('ui', 'watchdog')
     clearWait()
     flash('⚠ The editor didn\'t report the change. Showing the latest state.')
     if (focus) { lastRenderKey = null; void goto(focus, { noHistory: true, fromLogseq: true }) }
@@ -416,10 +425,12 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       // No optimistic re-render: write, then wait for the editor's 'refresh' to render
       // confirmed state (the spinner shows meanwhile; the watchdog covers a silent failure).
       onRemoveLink: ({ from, to, role }) => {
+        logger.log('user', 'unlink', { from, to, role })
         beginWait()
         void backend.removeLink(from, to, role as Role).catch(failWait)
       },
       onLinkExisting: (fromNode, toNode, role) => {
+        logger.log('user', 'link', { from: fromNode, to: toNode, role })
         beginWait()
         void backend.linkExisting(fromNode, toNode, role as Role).catch(failWait)
       },

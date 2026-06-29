@@ -1,4 +1,4 @@
-import { createBackendProxy, mountSynapses } from '@logseq-synapses/core'
+import { createBackendProxy, mountSynapses, createLogger } from '@logseq-synapses/core'
 import '@logseq-synapses/core/styles.css'
 
 // The backend proxy reaches the plugin host over postMessage; its calls only work
@@ -10,9 +10,15 @@ const { backend, client } = createBackendProxy({
   onConnect: () => {
     if (mounted) return
     mounted = true
-    mountSynapses(document.body, backend)
+    // logger is initialized synchronously below; onConnect fires asynchronously
+    // (after the postMessage handshake), so it is always defined by then.
+    mountSynapses(document.body, backend, logger)
   },
 })
+
+// The iframe (P) can't write files; forward every record to the plugin main context
+// (M), which owns the log file and decides — via its setting — whether to persist.
+const logger = createLogger((line) => client.post('log', line), { ctx: 'P', enabled: true })
 
 // The view swallows the wheel (panzoom calls preventDefault to kill zoom/host
 // scroll-chaining), so the cross-origin iframe would otherwise trap every scroll

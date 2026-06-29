@@ -1,6 +1,7 @@
 import { adjacencyFromProps, collect, queryGraphFromProps, uniqNames } from './graph/index-pure'
 import { createHistory, serialize, deserialize } from './history'
 import { log } from './log'
+import { noopLogger, type Logger } from './logger'
 import { createMutations } from './mutations'
 import type { HistoryStack } from './history'
 import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, BackendEventPayloads, Palette, ConnectorColors, Adjacency, PropMap } from './types'
@@ -11,7 +12,7 @@ const HISTORY_KEY = 'history.json'
 const SIZE_KEY = 'size'
 const COLORS_KEY = 'connectorColors'
 
-export function createCoreBackend(dataSource: DataSource, services: EditorServices): SynapsesBackend {
+export function createCoreBackend(dataSource: DataSource, services: EditorServices, logger: Logger = noopLogger): SynapsesBackend {
   const getOntology = () => services.getOntology()
   const mut = createMutations(dataSource, getOntology)
 
@@ -66,11 +67,11 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
   // No index to rebuild: every editor change just tells the app to re-read + re-render the
   // focus note on demand. Undebounced — reads are small and the app's graphKey guard absorbs
   // the duplicate/two-sided-write events without flicker.
-  services.onGraphChange(() => emit('refresh', undefined))
-  services.onActivePageChange((name) => { if (name) emit('recenter', { page: name }) })
-  services.onThemeChange((p: Palette) => emit('theme', p))
-  services.onUiModeChange(() => emit('uimode', undefined))
-  services.onOntologyChange(() => emit('refresh', undefined))
+  services.onGraphChange(() => { logger.log('editor', 'graphChange'); emit('refresh', undefined) })
+  services.onActivePageChange((name) => { if (name) { logger.log('editor', 'activePage', { page: name }); emit('recenter', { page: name }) } })
+  services.onThemeChange((p: Palette) => { logger.log('editor', 'theme', { mode: p.mode }); emit('theme', p) })
+  services.onUiModeChange(() => { logger.log('editor', 'uimode'); emit('uimode', undefined) })
+  services.onOntologyChange(() => { logger.log('editor', 'ontology'); emit('refresh', undefined) })
 
   return {
     getActivePage: async () => services.getActivePageName(),

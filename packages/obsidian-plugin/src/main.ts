@@ -1,4 +1,4 @@
-import { createCoreBackend, type SynapsesBackend } from '@logseq-synapses/core'
+import { createCoreBackend, createLogger, createBufferedSink, wrapBackendWithLogging, wrapDataSource, type SynapsesBackend, type Logger, type BufferedSink } from '@logseq-synapses/core'
 import { Plugin, Notice } from 'obsidian'
 import '@logseq-synapses/core/styles.css'
 import { createObsidianDataSource } from './datasource'
@@ -17,6 +17,8 @@ export interface PersistedData {
 export default class SynapsesPlugin extends Plugin {
   settings: SynapsesSettings = DEFAULT_SETTINGS
   backend: SynapsesBackend | null = null
+  logger: Logger | null = null
+  private logSink: BufferedSink | null = null
   private settingsListeners: (() => void)[] = []
   // Every data.json write funnels through this chain so concurrent read-modify-writes
   // (settings + the persistence saves below) can't clobber each other: each waits for
@@ -25,17 +27,31 @@ export default class SynapsesPlugin extends Plugin {
 
   async onload() {
     await this.loadSettings()
+    const dir = this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`
+    const logPath = `${dir}/synapses-log.jsonl`
+    this.logSink = createBufferedSink({
+      load: () => this.app.vault.adapter.read(logPath).then((t) => t).catch(() => null),
+      persist: (t) => this.app.vault.adapter.write(logPath, t),
+    })
+    const sink = this.logSink
+    this.logger = createLogger((line) => sink.write(line), { ctx: 'main', enabled: this.settings.fileLogging })
     this.addSettingTab(new SynapsesSettingTab(this.app, this))
     this.registerView(VIEW_TYPE_SYNAPSES, (leaf) => new SynapsesView(leaf, this))
     this.addRibbonIcon('brain', 'Open Synapses', () => void this.activateView())
     this.addCommand({ id: 'open-in-sidebar', name: 'Open in sidebar', callback: () => void this.activateView() })
   }
 
+  onunload() { this.logSink?.dispose() }
+
   // Durable backend, built once, gated on Dataview. Persists across view open/close.
   getBackend(): SynapsesBackend | null {
     if (this.backend) return this.backend
     if (!isDataviewEnabled(this.app)) { new Notice('Synapses requires the Dataview plugin to be installed and enabled.'); return null }
-    this.backend = createCoreBackend(createObsidianDataSource(this.app), createObsidianServices(this.app, this))
+    const logger = this.logger ?? createLogger(() => {}, { ctx: 'main', enabled: false })
+    this.backend = wrapBackendWithLogging(
+      createCoreBackend(wrapDataSource(createObsidianDataSource(this.app), logger), createObsidianServices(this.app, this), logger),
+      logger,
+    )
     return this.backend
   }
 
@@ -58,6 +74,7 @@ export default class SynapsesPlugin extends Plugin {
   }
   async saveSettings() {
     await this.persistData((data) => { data.settings = this.settings })
+    this.logger?.setEnabled(this.settings.fileLogging)
     this.settingsListeners.forEach((cb) => cb())
   }
 

@@ -1,5 +1,5 @@
 import '@logseq/libs'
-import { createCoreBackend, serveBackend, log } from '@logseq-synapses/core'
+import { createCoreBackend, serveBackend, log, createLogger, createBufferedSink, wrapBackendWithLogging, wrapDataSource } from '@logseq-synapses/core'
 import { createLogseqDataSource } from './datasource'
 import { createLogseqServices } from './services'
 import { renderSynapsesSlot, openSynapsesSidebar, synapsesFrameStyle, scrollSidebarForFrame } from './sidebar'
@@ -10,13 +10,28 @@ const settingsSchema: SettingSchemaDesc[] = [
   { key: 'childFields', type: 'string', default: 'child, children, down', title: 'Child property names', description: 'Comma-separated property names treated as "child".' },
   { key: 'jumpFields', type: 'string', default: 'jump, jumps, friend, friends', title: 'Jump property names', description: 'Comma-separated property names treated as "jump".' },
   { key: 'mobileMode', type: 'boolean', default: false, title: 'Mobile mode (testing)', description: 'Force the mobile layout & interactions even on desktop, for testing.' },
+  { key: 'fileLogging', type: 'boolean', default: false, title: 'Debug file logging', description: 'Write a JSONL interaction log to the plugin sandbox storage (synapses-log.jsonl) for troubleshooting communication problems. Off by default.' },
 ]
+
+const fileLoggingOn = (): boolean => !!(logseq.settings as { fileLogging?: boolean } | undefined)?.fileLogging
 
 async function main() {
   logseq.useSettingsSchema(settingsSchema)
-  const backend = createCoreBackend(createLogseqDataSource(), createLogseqServices())
+
+  const logStore = logseq.Assets.makeSandboxStorage()
+  const logSink = createBufferedSink({
+    load: () => logStore.getItem('synapses-log.jsonl').then((v) => v ?? null),
+    persist: (t) => logStore.setItem('synapses-log.jsonl', t),
+  })
+  const logger = createLogger((line) => logSink.write(line), { ctx: 'M', enabled: fileLoggingOn() })
+
+  const backend = wrapBackendWithLogging(
+    createCoreBackend(wrapDataSource(createLogseqDataSource(), logger), createLogseqServices(), logger),
+    logger,
+  )
   const server = serveBackend(backend, (method, payload, source) => {
     if (method === 'hostScroll') scrollSidebarForFrame(source, payload as { dx: number; dy: number })
+    else if (method === 'log' && typeof payload === 'string') logger.ingest(payload)
   })
 
   logseq.provideStyle(synapsesFrameStyle())
@@ -29,6 +44,8 @@ async function main() {
   logseq.Editor.registerSlashCommand('Synapses: Open in sidebar', async () => { await openSynapsesSidebar() })
   logseq.provideModel({ openSynapses() { void openSynapsesSidebar() } })
   logseq.App.registerUIItem('toolbar', { key: 'synapses-open', template: '<a class="button" data-on-click="openSynapses" title="Open Synapses"><span style="font-size:18px">🧠</span></a>' })
+
+  logseq.onSettingsChanged(() => logger.setEnabled(fileLoggingOn()))
 }
 
 // bridge-host.connectIframe, folded in: hand the freshly-injected iframe's window

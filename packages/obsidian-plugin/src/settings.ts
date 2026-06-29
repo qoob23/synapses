@@ -7,6 +7,7 @@ export interface SynapsesSettings {
   childFields: string
   jumpFields: string
   mobileMode: boolean
+  fileLogging: boolean
 }
 
 export const DEFAULT_SETTINGS: SynapsesSettings = {
@@ -14,6 +15,7 @@ export const DEFAULT_SETTINGS: SynapsesSettings = {
   childFields: 'child, children, down',
   jumpFields: 'jump, jumps, friend, friends',
   mobileMode: false,
+  fileLogging: false,
 }
 
 export class SynapsesSettingTab extends PluginSettingTab {
@@ -33,5 +35,6 @@ export class SynapsesSettingTab extends PluginSettingTab {
     field('Child property names', 'Comma-separated fields treated as "child".', 'childFields')
     field('Jump property names', 'Comma-separated fields treated as "jump".', 'jumpFields')
     new Setting(containerEl).setName('Mobile mode (testing)').setDesc('Force the mobile layout & interactions even on desktop, for testing.').addToggle((t) => t.setValue(this.plugin.settings.mobileMode).onChange(async (v) => { this.plugin.settings.mobileMode = v; await this.plugin.saveSettings() }))
+    new Setting(containerEl).setName('Debug file logging').setDesc('Write a JSONL interaction log to the plugin folder (synapses-log.jsonl) for troubleshooting communication problems. Off by default.').addToggle((t) => t.setValue(this.plugin.settings.fileLogging).onChange(async (v) => { this.plugin.settings.fileLogging = v; await this.plugin.saveSettings() }))
   }
 }

@@ -23,7 +23,9 @@ properties and the datascript schema). Plain **TypeScript** (no React, no SVG, n
   utils `errText.ts` + `log.ts`, the view (`view/` — `view.ts`, `edges.ts`, `layout.ts`, `panzoom.ts`,
   `dialog.ts`, `context-menu.ts`, `colors.ts` (in-iframe connector-color popover), `theme.ts`,
   `color.ts`, `curve.ts` (shared bezier control points), `handles.ts`, `edge-hit.ts`, `styles.css`),
-  `app.ts` = `mountSynapses` (pure helpers in `app-logic.ts`), `backend.ts` = `createCoreBackend`.
+  `app.ts` = `mountSynapses` (pure helpers in `app-logic.ts`), `backend.ts` = `createCoreBackend`,
+  `logger.ts` (opt-in JSONL debug logging — `createLogger` / `createBufferedSink` / `wrapBackendWithLogging`
+  / `wrapDataSource`).
 - `packages/logseq-plugin` — Logseq adapter: M entry `src/index.ts` (has `logseq`), P iframe entry
   `src/frame.ts`, `sidebar.ts`, `datasource.ts`, `services.ts`, `theme.ts`, `logseq-types.ts`.
 - `packages/obsidian-plugin` — Obsidian adapter, **in-process `ItemView` (no iframe)**: `main.ts`,
@@ -205,6 +207,29 @@ are `packages/obsidian-plugin/src/{datasource,services}.ts`.)
 - **Theme colors are clamped to opacity ≥ 0.5** (`clampColorAlpha`, `view/color.ts`) before `applyTheme`
   sets CSS vars and edge colors — Obsidian's translucent `--background-modifier-border` otherwise renders
   parent/child connectors invisible.
+
+## Debug file logging (opt-in, off by default)
+
+A per-editor **"Debug file logging"** setting writes a JSONL interaction trace for diagnosing
+communication problems across the seams. The machinery is editor-agnostic in `packages/core/src/logger.ts`;
+each adapter only supplies a file sink + the setting.
+
+- **Records** are one compact JSON object per line: `{t, ctx, cat, act, ...}`. Five `cat`s trace one
+  interaction end-to-end: `user` (view action) · `call` (backend method: args + ok|err + ms) · `edit`
+  (DataSource write: page/key/targets) · `editor` (editor change event emitted) · `ui` (render: focus +
+  per-zone counts). Keep records small — never log full graphs (the wrappers collapse array args to a count).
+- **Two injection points, all logic in core:** `createCoreBackend(ds, services, logger?)` logs `editor`
+  events; `mountSynapses(container, backend, logger?)` logs `user`/`ui`. Adapters additionally wrap their
+  seams: `wrapDataSource` (edits) + `wrapBackendWithLogging` (calls). Both params default to `noopLogger`,
+  so logging is fully removable.
+- **`ctx` tags the origin context, which is the whole point for Logseq.** The view (P, the iframe) can't
+  touch the filesystem, so its `user`/`ui` records are forwarded to M over the existing transport
+  `post`/`onClientEvent` channel (`method:'log'`), and **M owns the single file and gates on the setting**.
+  A `user` line in P with no matching `call` line in M pinpoints a dropped bridge message. P forwards
+  unconditionally (cheap, interaction-rate); M is the gate. Obsidian is single-context (`ctx:'main'`).
+- **Sink** = `createBufferedSink` (lazy load to seed across reloads, ~1 MB rolling cap dropping oldest whole
+  lines, debounced whole-file rewrite — no append API needed). Files: Obsidian `<plugin-dir>/synapses-log.jsonl`
+  (vault adapter); Logseq sandbox-storage `synapses-log.jsonl`.
 
 ## Pointers
 
