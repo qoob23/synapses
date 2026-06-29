@@ -36,7 +36,6 @@ function fakeDataSource(initial: Record<string, PropMap> = {}) {
       const e = store.get(n.toLowerCase()); if (e) delete e[k]
     },
     searchPages: async () => [],
-    pageExists: async (n) => store.has(n.toLowerCase()),
   }
   const props = (n: string) => store.get(n.toLowerCase()) ?? {}
   return { ds, sets, removes, props }

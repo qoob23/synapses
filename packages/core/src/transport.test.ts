@@ -125,7 +125,7 @@ describe('transport wiring', () => {
   })
 
   it('declares the full method + event manifest', () => {
-    expect(BACKEND_METHODS).toHaveLength(21)
+    expect(BACKEND_METHODS).toHaveLength(20)
     expect(BACKEND_METHODS).toContain('buildGraph')
     expect(BACKEND_METHODS).toContain('removeLink')
     expect(BACKEND_METHODS).toContain('getSize')
@@ -134,7 +134,6 @@ describe('transport wiring', () => {
     expect(BACKEND_METHODS).toContain('setConnectorColors')
     expect(BACKEND_METHODS).toContain('getUiMode')
     expect(BACKEND_METHODS).toContain('histRemove')
-    expect(BACKEND_METHODS).toContain('histRemoveMissing')
     expect(BACKEND_EVENTS).toEqual(['recenter', 'theme', 'refresh', 'uimode'])
   })
 })

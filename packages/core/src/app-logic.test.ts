@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { sameName, graphKey, isUnlinked } from './app-logic'
+import { sameName, graphKey } from './app-logic'
 import type { Graph } from './types'
 
 const g = (over: Partial<Graph>): Graph => ({
@@ -44,14 +44,3 @@ describe('graphKey', () => {
   })
 })
 
-describe('isUnlinked', () => {
-  it('is true only when every link list is empty', () => {
-    expect(isUnlinked(g({}))).toBe(true)
-  })
-  it('is false when any link list is non-empty', () => {
-    expect(isUnlinked(g({ parents: ['p'] }))).toBe(false)
-    expect(isUnlinked(g({ children: ['c'] }))).toBe(false)
-    expect(isUnlinked(g({ jumps: ['j'] }))).toBe(false)
-    expect(isUnlinked(g({ siblings: ['s'] }))).toBe(false)
-  })
-})

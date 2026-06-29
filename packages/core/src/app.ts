@@ -1,4 +1,4 @@
-import { graphKey, sameName as same, isUnlinked } from './app-logic'
+import { graphKey, sameName as same } from './app-logic'
 import { errText } from './errText'
 import { noopLogger, type Logger } from './logger'
 import { openColorsPopover } from './view/colors'
@@ -62,18 +62,11 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend, 
   // otherwise fall back to the currently open page in the editor.
   async function restore() {
     try {
-      let st = await backend.histState()
+      const st = await backend.histState()
       if (st && st.list && st.list.length) {
-        try {
-          st = (await backend.histRemoveMissing(st.list)).state
-        } catch (e) {
-          /* keep the unswept state if the existence check fails */
-        }
-        if (st.list.length) {
-          lastHist = st
-          void goto(st.list[st.index], { noHistory: true, fromLogseq: true })
-          return
-        }
+        lastHist = st
+        void goto(st.list[st.index], { noHistory: true, fromLogseq: true })
+        return
       }
     } catch {
       /* ignore */
@@ -110,15 +103,6 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend, 
     }
     if (mine !== navToken) return // superseded by a newer navigation
 
-    // An activated note that renders unlinked may be a file deleted on disk; pruneIfMissing
-    // decides (and returns true when it has handled/redirected navigation, so we stop here).
-    // Only guard editor-originated / history-restore navigations (opts.fromLogseq): a deliberate
-    // forward click on a card — including a child/sibling that's merely *referenced* and not yet
-    // created (no backing file) — must fall through and render, then mirror-navigate to open/create
-    // it in the editor (like clicking a [[link]]). Otherwise the deleted-page guard bounces every
-    // not-yet-created referenced page back to the current page.
-    if (opts.fromLogseq && isUnlinked(graph) && (await pruneIfMissing(name, mine))) return
-
     hideFlash()
     // Skip the re-render if nothing visually changed (avoids reconcile flicker).
     const key = graphKey(graph)
@@ -139,30 +123,6 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend, 
     // Mirror the active note into the main pane unless this navigation came FROM the editor.
     // On mobile we never mirror — switching the editor page closes the mobile drawer.
     if (!opts.fromLogseq && !mobile) backend.navigate(name).catch(() => {})
-  }
-
-  // An unlinked active note may be a file deleted on disk. Prune it via the editor's
-  // existence check; returns true when it has handled navigation (redirected to the
-  // current editor page or flashed "no longer exists") so goto() stops, false to render
-  // the (possibly genuinely-empty) graph. navToken re-checks preserve the supersession guard.
-  async function pruneIfMissing(name: string, mine: number): Promise<boolean> {
-    try {
-      const { removed } = await backend.histRemoveMissing([name])
-      if (mine !== navToken) return true // superseded by a newer navigation
-      if (!removed.length) return false // note exists → render it
-      lastHist = await backend.histState()
-      renderToolbar()
-      renderBreadcrumb()
-      const active = await backend.getActivePage()
-      if (active && !same(active, name)) {
-        void goto(active, { fromLogseq: true })
-        return true
-      }
-      flash('This note no longer exists.')
-      return true
-    } catch {
-      return false // existence check failed → fall through and render the empty graph
-    }
   }
 
   async function removeFromHistory(name: string) {

@@ -133,7 +133,6 @@ describe('wrapDataSource', () => {
       setPropertyLinks: vi.fn(async () => {}),
       removePropertyKey: vi.fn(async () => {}),
       searchPages: vi.fn(async () => []),
-      pageExists: vi.fn(async () => true),
     }
     const ds = wrapDataSource(inner, lg)
     await ds.getPageProps('A')

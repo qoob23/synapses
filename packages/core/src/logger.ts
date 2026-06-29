@@ -119,7 +119,7 @@ function brief(args: unknown[]): unknown[] {
 
 const BACKEND_LOGGED = [
   'getActivePage', 'getTheme', 'getUiMode', 'buildGraph', 'nodeAdjacency',
-  'histState', 'histPush', 'histJump', 'histRemove', 'histRemoveMissing',
+  'histState', 'histPush', 'histJump', 'histRemove',
   'navigate', 'createChild', 'createParent', 'createJump', 'linkExisting', 'removeLink',
   'searchPages', 'getSize', 'setSize', 'getConnectorColors', 'setConnectorColors',
 ] as const satisfies readonly Exclude<keyof SynapsesBackend, 'on'>[]
@@ -154,7 +154,6 @@ export function wrapDataSource(ds: DataSource, logger: Logger): DataSource {
   return {
     getPageProps: ds.getPageProps.bind(ds),
     searchPages: ds.searchPages.bind(ds),
-    pageExists: ds.pageExists.bind(ds),
     async ensurePage(name) {
       logger.log('edit', 'ensurePage', { page: name })
       return ds.ensurePage(name)
