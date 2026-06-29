@@ -36,7 +36,7 @@ export default class SynapsesPlugin extends Plugin {
     })
     const sink = this.logSink
     this.logger = createLogger((line) => sink.write(line), { ctx: 'main', enabled: this.settings.fileLogging })
-    if (this.settings.fileLogging) this.announceLogPath()
+    if (this.settings.fileLogging) { this.logSink.clear(); this.announceLogPath() }
     this.addSettingTab(new SynapsesSettingTab(this.app, this))
     this.registerView(VIEW_TYPE_SYNAPSES, (leaf) => new SynapsesView(leaf, this))
     this.addRibbonIcon('brain', 'Open Synapses', () => void this.activateView())
@@ -78,7 +78,7 @@ export default class SynapsesPlugin extends Plugin {
     const wasOn = this.logger?.enabled() ?? false
     await this.persistData((data) => { data.settings = this.settings })
     this.logger?.setEnabled(this.settings.fileLogging)
-    if (this.settings.fileLogging && !wasOn) this.announceLogPath()
+    if (this.settings.fileLogging && !wasOn) { this.logSink?.clear(); this.announceLogPath() }
     this.settingsListeners.forEach((cb) => cb())
   }
 

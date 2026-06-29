@@ -57,7 +57,7 @@ export const noopLogger: Logger = {
 // ---- buffered file sink (editor-agnostic) ----
 // The editor supplies how to read/write its one log file; this owns batching, a size
 // cap, and a debounce so a chatty session can't thrash the disk or grow unbounded.
-export interface BufferedSink { write(line: string): void; flush(): void; dispose(): void }
+export interface BufferedSink { write(line: string): void; flush(): void; clear(): void; dispose(): void }
 
 const DEFAULT_CAP = 1_000_000
 const DEFAULT_FLUSH = 500
@@ -83,10 +83,11 @@ export function createBufferedSink(opts: {
   const pre: string[] = [] // lines written before the initial load resolved
   let timer: ReturnType<typeof setTimeout> | undefined
   let disposed = false
+  let cleared = false // clear() wins over a still-pending initial load
 
   void opts.load()
-    .then((txt) => { buffer = capFront((txt ?? '') + pre.join(''), cap) })
-    .catch(() => { buffer = capFront(pre.join(''), cap) })
+    .then((txt) => { if (!cleared) buffer = capFront((txt ?? '') + pre.join(''), cap) })
+    .catch(() => { if (!cleared) buffer = capFront(pre.join(''), cap) })
     .finally(() => { loaded = true; pre.length = 0; if (buffer) schedule() })
 
   function doFlush() {
@@ -106,6 +107,12 @@ export function createBufferedSink(opts: {
       schedule()
     },
     flush() { if (timer) { clearTimeout(timer); doFlush() } },
+    clear() {
+      if (disposed) return
+      cleared = true; loaded = true; pre.length = 0; buffer = ''
+      if (timer) clearTimeout(timer)
+      doFlush() // overwrite any prior on-disk log with an empty file
+    },
     dispose() { disposed = true; if (timer) { clearTimeout(timer); doFlush() } },
   }
 }

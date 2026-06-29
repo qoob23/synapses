@@ -36,6 +36,13 @@ async function main() {
   })
   const logger = createLogger((line) => logSink.write(line), { ctx: 'M', enabled: fileLoggingOn() })
 
+  // A logging session starts fresh: clear any prior on-disk log when recording is on.
+  const startRecording = () => {
+    logSink.clear()
+    void announceLogPath()
+    void logseq.UI.showMsg('Synapses: debug recording is running', 'warning', { timeout: 4000 })
+  }
+
   const backend = wrapBackendWithLogging(
     createCoreBackend(wrapDataSource(createLogseqDataSource(), logger), createLogseqServices(), logger),
     logger,
@@ -56,12 +63,12 @@ async function main() {
   logseq.provideModel({ openSynapses() { void openSynapsesSidebar() } })
   logseq.App.registerUIItem('toolbar', { key: 'synapses-open', template: '<a class="button" data-on-click="openSynapses" title="Open Synapses"><span style="font-size:18px">🧠</span></a>' })
 
-  if (fileLoggingOn()) void announceLogPath()
+  if (fileLoggingOn()) startRecording()
   let logWasOn = fileLoggingOn()
   logseq.onSettingsChanged(() => {
     const on = fileLoggingOn()
     logger.setEnabled(on)
-    if (on && !logWasOn) void announceLogPath()
+    if (on && !logWasOn) startRecording()
     logWasOn = on
   })
 }

@@ -57,6 +57,21 @@ describe('createBufferedSink', () => {
     expect(saved).toBe('a\nb\n')
   })
 
+  it('clear() empties the buffer and overwrites the on-disk log immediately', async () => {
+    let saved = 'stale\n'
+    const sink = createBufferedSink({
+      load: async () => 'old\n',
+      persist: async (t) => { saved = t },
+      flushMs: 100,
+    })
+    sink.clear()
+    expect(saved).toBe('') // persisted synchronously, no debounce
+    await vi.advanceTimersByTimeAsync(0) // a late load() must not resurrect 'old\n'
+    sink.write('new')
+    await vi.advanceTimersByTimeAsync(100)
+    expect(saved).toBe('new\n')
+  })
+
   it('drops oldest whole lines past capBytes (rolling JSONL)', async () => {
     let saved = ''
     const sink = createBufferedSink({

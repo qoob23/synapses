@@ -124,3 +124,5 @@
     - History is pruned only manually (right-click → Remove history); dropped the "no longer exists" flash.
     - Activating a referenced-but-not-yet-created card now renders empty + mirror-navigates, creating it in the
       editor (like clicking a [[link]]) instead of bouncing back to the current page.
+- **Debug log starts fresh each session** — `BufferedSink.clear()` (guarded against a late seed) wipes the file
+  when recording turns on (plugin load + enable-toggle, both editors); Logseq also `showMsg`s "recording is running".
