@@ -1,4 +1,4 @@
-export * from './types'
+export type * from './types'
 export * from './ontology'
 export * from './ignore'
 export * from './graph/index-pure'

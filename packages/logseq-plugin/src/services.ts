@@ -1,7 +1,7 @@
 import '@logseq/libs'
 import { type EditorServices, type OntologyConfig, type Persistence, type UiMode, buildOntology } from '@logseq-synapses/core'
-import type { PageEntity, BlockEntity } from './logseq-types'
 import { readPalette, watchTheme } from './theme'
+import type { PageEntity, BlockEntity } from './logseq-types'
 
 // The settings keys this plugin reads. `logseq.settings` is typed as an opaque
 // Record<string, unknown>, so we project it through this shape at the read sites.

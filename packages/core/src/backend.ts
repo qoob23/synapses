@@ -1,6 +1,6 @@
 import { createLinkIndex } from './graph/link-index'
-import { createMutations } from './mutations'
 import { createHistory, serialize, deserialize } from './history'
+import { createMutations } from './mutations'
 import type { HistoryStack } from './history'
 import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, Palette, ConnectorColors } from './types'
 

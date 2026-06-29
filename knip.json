@@ -1,0 +1,9 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    "packages/core": { "project": ["src/**/*.ts"] },
+    "packages/logseq-plugin": { "entry": ["src/frame.ts"], "project": ["src/**/*.ts"] },
+    "packages/obsidian-plugin": { "project": ["src/**/*.ts"] }
+  }
+}

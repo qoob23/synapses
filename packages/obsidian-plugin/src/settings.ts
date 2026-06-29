@@ -1,5 +1,6 @@
-import { App, PluginSettingTab, Setting } from 'obsidian'
+import { PluginSettingTab, Setting } from 'obsidian'
 import type SynapsesPlugin from './main'
+import type { App } from 'obsidian'
 
 export interface SynapsesSettings {
   parentFields: string

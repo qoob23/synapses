@@ -26,7 +26,7 @@ function hostDoc(): Document | null {
 // element is a cross-document call that returns empty values.
 function cssOf(el: Element | null): CSSStyleDeclaration | null {
   if (!el) return null
-  try { return (parent as Window).getComputedStyle(el) } catch { return null }
+  try { return (parent).getComputedStyle(el) } catch { return null }
 }
 
 function themedHost(doc: Document): HTMLElement {

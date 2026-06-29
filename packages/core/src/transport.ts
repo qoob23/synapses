@@ -104,7 +104,7 @@ export function createClient(
 
   function call(method: string, ...args: any[]): Promise<any> {
     return new Promise((resolve, reject) => {
-      if (!peer) return reject(new Error('synapses bridge not connected'))
+      if (!peer) { reject(new Error('synapses bridge not connected')); return; }
       const id = ++seq
       pending.set(id, { resolve, reject })
       peer.postMessage({ [TAG]: true, kind: 'req', id, method, args }, '*')
@@ -156,7 +156,7 @@ export function buildProxy(
   const proxy: any = {
     on(event: BackendEvent, handler: (p?: any) => void) { listeners.get(event)!.add(handler); return () => listeners.get(event)!.delete(handler) },
   }
-  for (const m of methods) proxy[m] = (...args: any[]) => call(m as string, ...args)
+  for (const m of methods) proxy[m] = (...args: any[]) => call(m, ...args)
   return proxy as SynapsesBackend
 }
 

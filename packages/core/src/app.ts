@@ -1,8 +1,8 @@
-import { createView } from './view/view'
-import { openCreateDialog } from './view/dialog'
-import { openContextMenu } from './view/context-menu'
 import { openColorsPopover } from './view/colors'
+import { openContextMenu } from './view/context-menu'
+import { openCreateDialog } from './view/dialog'
 import { applyTheme, connectorColors } from './view/theme'
+import { createView } from './view/view'
 import type { SynapsesBackend, Graph, HistoryState, Role, Palette } from './types'
 
 interface GotoOpts {

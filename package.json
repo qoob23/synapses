@@ -12,6 +12,7 @@
     "test": "vitest run",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "knip": "knip",
     "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/logseq-plugin --noEmit && tsc -p packages/obsidian-plugin --noEmit",
     "build": "npm run build -w @logseq-synapses/core && npm run build -w logseq-plugin && npm run build -w obsidian-plugin"
   },
@@ -19,7 +20,10 @@
     "@eslint/js": "^9.39.4",
     "@types/node": "^24.0.0",
     "eslint": "^9.39.4",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-sonarjs": "^4.1.0",
     "globals": "^17.7.0",
+    "knip": "^6.23.0",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.62.0",
     "vite": "^8.1.0",

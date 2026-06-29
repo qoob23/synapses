@@ -1,6 +1,6 @@
 import { roleForKey } from './ontology'
-import type { DataSource, OntologyConfig, Role } from './types'
 import type { LinkIndex } from './graph/link-index'
+import type { DataSource, OntologyConfig, Role } from './types'
 
 // Pure: drop `target` (case-insensitive) from a list of link names.
 export function removeFromLinkList(names: string[], target: string): string[] {

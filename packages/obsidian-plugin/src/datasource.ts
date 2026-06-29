@@ -1,11 +1,12 @@
-import { App, TFile } from 'obsidian'
-import type { DataviewApi } from 'obsidian-dataview'
-import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
 import { isInLogseqFolder, matchesIgnoreFilters } from '@logseq-synapses/core'
+import { TFile } from 'obsidian'
+import { pageToPropMap } from './dataview-map'
 import { upsertInlineField, removeInlineField, hasInlineField } from './inline-fields'
 import { newNotePath } from './paths'
 import { chooseWriteTarget } from './write-target'
-import { pageToPropMap } from './dataview-map'
+import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
+import type { App } from 'obsidian'
+import type { DataviewApi } from 'obsidian-dataview'
 
 export function createObsidianDataSource(app: App): DataSource {
   const dv = (): DataviewApi | undefined => (app as any).plugins?.plugins?.dataview?.api
@@ -44,7 +45,7 @@ export function createObsidianDataSource(app: App): DataSource {
     const api = dv(); if (!api) return {}
     const file = resolveFile(name)
     const page = file ? api.page(file.path) : api.page(name)
-    return page ? pageToPropMap(page as unknown as Record<string, unknown>) : {}
+    return page ? pageToPropMap(page) : {}
   }
 
   return {
@@ -56,7 +57,7 @@ export function createObsidianDataSource(app: App): DataSource {
         if (path && isIgnoredPath(path)) continue // excluded folder / logseq backups
         const name = (page as any)?.file?.name
         if (!name) continue
-        out.push({ name, props: pageToPropMap(page as unknown as Record<string, unknown>) })
+        out.push({ name, props: pageToPropMap(page) })
       }
       return out
     },

@@ -19,7 +19,7 @@ function fakeDataSource(pages: PageEntry[]): DataSource {
 
 describe('createLinkIndex', () => {
   it('builds once and queries reciprocals', async () => {
-    const ds = fakeDataSource([{ name: 'A', props: { child: ['B'] } as PropMap }, { name: 'B', props: {} }])
+    const ds = fakeDataSource([{ name: 'A', props: { child: ['B'] } }, { name: 'B', props: {} }])
     const idx = createLinkIndex(ds, () => ONT)
     const g = await idx.buildGraph('B')
     expect(g.parents).toEqual(['A'])
@@ -36,7 +36,7 @@ describe('createLinkIndex', () => {
   })
 
   it('patchRemove hides an edge and survives rebuild until the read confirms it', async () => {
-    const ds = fakeDataSource([{ name: 'A', props: { child: ['B'] } as PropMap }, { name: 'B', props: {} }])
+    const ds = fakeDataSource([{ name: 'A', props: { child: ['B'] } }, { name: 'B', props: {} }])
     const idx = createLinkIndex(ds, () => ONT)
     await idx.buildGraph('A')
     idx.patchRemove('A', 'child', 'B')
@@ -47,7 +47,7 @@ describe('createLinkIndex', () => {
 
   it('rolesBetween resolves reciprocal inference and reflects pending patches', async () => {
     // B declares child:: A → from A's side B is a parent (reciprocal).
-    const ds = fakeDataSource([{ name: 'A', props: {} }, { name: 'B', props: { child: ['A'] } as PropMap }])
+    const ds = fakeDataSource([{ name: 'A', props: {} }, { name: 'B', props: { child: ['A'] } }])
     const idx = createLinkIndex(ds, () => ONT)
     expect(await idx.rolesBetween('A', 'B')).toEqual(['parent'])
     expect(await idx.rolesBetween('A', 'C')).toEqual([]) // unconnected

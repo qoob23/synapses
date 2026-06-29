@@ -1,9 +1,10 @@
-import { Plugin, Notice, WorkspaceLeaf } from 'obsidian'
+import type { WorkspaceLeaf } from 'obsidian'
 import { createCoreBackend, type SynapsesBackend } from '@logseq-synapses/core'
+import { Plugin, Notice } from 'obsidian'
 import '@logseq-synapses/core/styles.css'
-import { type SynapsesSettings, DEFAULT_SETTINGS, SynapsesSettingTab } from './settings'
 import { createObsidianDataSource } from './datasource'
 import { createObsidianServices } from './services'
+import { type SynapsesSettings, DEFAULT_SETTINGS, SynapsesSettingTab } from './settings'
 import { SynapsesView, VIEW_TYPE_SYNAPSES } from './view'
 
 export default class SynapsesPlugin extends Plugin {

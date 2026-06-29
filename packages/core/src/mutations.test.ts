@@ -43,7 +43,7 @@ describe('createMutations', () => {
   it('createChild ensures the target page, appends the child link, and patches the index', async () => {
     const ds = spyDataSource({ A: {} })
     const index = spyIndex([])
-    const mut = createMutations(ds, index as any, () => ONT)
+    const mut = createMutations(ds, index, () => ONT)
     const ok = await mut.createChild('A', 'B')
     expect(ok).toBe(true)
     expect(ds.ensurePage).toHaveBeenCalledWith('B')
@@ -55,7 +55,7 @@ describe('createMutations', () => {
   it('createChild merges onto an existing child list, keeping the originals', async () => {
     const ds = spyDataSource({ A: { child: ['B'] } })
     const index = spyIndex(['child']) // B already a child — same role, no removal
-    const mut = createMutations(ds, index as any, () => ONT)
+    const mut = createMutations(ds, index, () => ONT)
     await mut.createChild('A', 'C')
     expect(ds.sets).toContainEqual(['A', 'child', ['B', 'C']]) // merged, original kept
     expect(index.patchIndex).toHaveBeenCalledWith('A', 'child', 'C')
@@ -64,7 +64,7 @@ describe('createMutations', () => {
   it('removeLink rewrites the key with the remainder when other targets remain', async () => {
     const ds = spyDataSource({ A: { child: ['B', 'C'] } })
     const index = spyIndex()
-    const mut = createMutations(ds, index as any, () => ONT)
+    const mut = createMutations(ds, index, () => ONT)
     await mut.removeLink('A', 'B', 'child')
     expect(ds.sets).toContainEqual(['A', 'child', ['C']]) // rewrite with the remainder
     expect(ds.removes).not.toContainEqual(['A', 'child']) // NOT removed wholesale
@@ -74,7 +74,7 @@ describe('createMutations', () => {
   it('removeLink strips the alias key on both sides and patches removal', async () => {
     const ds = spyDataSource({ A: { up: ['P'] }, P: { child: ['A'] } })
     const index = spyIndex()
-    const mut = createMutations(ds, index as any, () => ONT)
+    const mut = createMutations(ds, index, () => ONT)
     await mut.removeLink('A', 'P', 'parent')
     expect(ds.removes).toContainEqual(['A', 'up']) // 'up' is a parent alias, became empty
     expect(ds.removes).toContainEqual(['P', 'child'])
@@ -84,7 +84,7 @@ describe('createMutations', () => {
   it('linkExisting on an unconnected pair only adds, with no removal', async () => {
     const ds = spyDataSource({ A: {} })
     const index = spyIndex([])
-    const mut = createMutations(ds, index as any, () => ONT)
+    const mut = createMutations(ds, index, () => ONT)
     await mut.linkExisting('A', 'B', 'jump')
     expect(ds.sets).toContainEqual(['A', 'jump', ['B']])
     expect(ds.removes).toEqual([])
@@ -96,7 +96,7 @@ describe('createMutations', () => {
     // B is the parent of A, declared as A.parent::B (and the reciprocal B.child::A on B).
     const ds = spyDataSource({ A: { parent: ['B'] }, B: { child: ['A'] } })
     const index = spyIndex(['parent'])
-    const mut = createMutations(ds, index as any, () => ONT)
+    const mut = createMutations(ds, index, () => ONT)
     await mut.linkExisting('A', 'B', 'jump')
     // old parent declaration removed on both pages
     expect(ds.removes).toContainEqual(['A', 'parent']) // A.parent::B was the only value → key removed
@@ -110,7 +110,7 @@ describe('createMutations', () => {
   it('linkExisting flips a parent into a child (direction reversal)', async () => {
     const ds = spyDataSource({ A: { parent: ['B'] }, B: { child: ['A'] } })
     const index = spyIndex(['parent'])
-    const mut = createMutations(ds, index as any, () => ONT)
+    const mut = createMutations(ds, index, () => ONT)
     await mut.linkExisting('A', 'B', 'child')
     expect(ds.removes).toContainEqual(['A', 'parent'])
     expect(ds.removes).toContainEqual(['B', 'child'])
@@ -122,7 +122,7 @@ describe('createMutations', () => {
   it('linkExisting re-affirming the same role does not remove anything', async () => {
     const ds = spyDataSource({ A: { jump: ['B'] }, B: { jump: ['A'] } })
     const index = spyIndex(['jump'])
-    const mut = createMutations(ds, index as any, () => ONT)
+    const mut = createMutations(ds, index, () => ONT)
     await mut.linkExisting('A', 'B', 'jump')
     expect(ds.removes).toEqual([])
     expect(index.patchRemove).not.toHaveBeenCalled()
@@ -133,7 +133,7 @@ describe('createMutations', () => {
     // Buggy pre-existing state: A declares BOTH parent::B and jump::B.
     const ds = spyDataSource({ A: { parent: ['B'], jump: ['B'] }, B: {} })
     const index = spyIndex(['parent', 'jump'])
-    const mut = createMutations(ds, index as any, () => ONT)
+    const mut = createMutations(ds, index, () => ONT)
     await mut.linkExisting('A', 'B', 'parent') // keep parent, drop the stray jump
     expect(ds.removes).toContainEqual(['A', 'jump'])
     expect(index.patchRemove).toHaveBeenCalledWith('A', 'jump', 'B')

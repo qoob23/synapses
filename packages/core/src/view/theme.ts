@@ -1,5 +1,5 @@
-import type { Palette } from '../types'
 import { clampColorAlpha, mixColors, fadeAlpha, withAlpha } from './color'
+import type { Palette } from '../types'
 
 // Connections are always shades of GRAY, never the picked color; transparency
 // distinguishes the link kinds: direct (parent/child) links draw the gray at the
@@ -46,7 +46,7 @@ export function applyTheme(root: HTMLElement, palette: Palette) {
     '--synapses-accent': clampColorAlpha(palette.accent),
   }
   for (const k in map) {
-    if (map[k]) root.style.setProperty(k, map[k] as string)
+    if (map[k]) root.style.setProperty(k, map[k])
   }
   root.classList.toggle('synapses-dark', palette.mode === 'dark')
 

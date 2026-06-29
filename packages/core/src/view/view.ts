@@ -1,10 +1,10 @@
-import { computeLayout, NODE } from './layout'
+import { hitTest, pointAtDistanceFromEnd } from './edge-hit'
 import { computeEdges, computeSecondaryEdges, drawEdges, gatePoint, edgeKey } from './edges'
+import { nodeHandleStates } from './handles'
+import { computeLayout, NODE } from './layout'
+import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom'
 import type { Edge, EdgeRemove } from './edges'
 import type { Adjacency } from '../types'
-import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom'
-import { hitTest, pointAtDistanceFromEnd } from './edge-hit'
-import { nodeHandleStates } from './handles'
 import type { Graph } from '../types'
 
 const TRANSITION_MS = 840

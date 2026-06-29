@@ -1,7 +1,7 @@
 import '@logseq/libs'
-import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
 import { toNames, isInLogseqFolder } from '@logseq-synapses/core'
 import type { PageEntity } from './logseq-types'
+import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
 
 // Best-effort path of a page's backing file. The published type models `file` as an
 // entity ref (`{ id }`, no path — then we can't tell, and Logseq doesn't list those

@@ -1,7 +1,8 @@
-import { App, Plugin, Platform } from 'obsidian'
-import type { EditorServices, Palette, OntologyConfig, Persistence, UiMode } from '@logseq-synapses/core'
 import { buildOntology } from '@logseq-synapses/core'
+import { Platform } from 'obsidian'
 import type { SynapsesSettings } from './settings'
+import type { EditorServices, Palette, OntologyConfig, Persistence, UiMode } from '@logseq-synapses/core'
+import type { App, Plugin } from 'obsidian'
 
 type SettingsPlugin = Plugin & { settings: SynapsesSettings; onSettingsChanged(cb: () => void): void }
 
