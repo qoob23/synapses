@@ -15,8 +15,10 @@ properties and the datascript schema). Plain **TypeScript** (no React, no SVG, n
 > Some prose/code below uses older names; **the pre-monorepo `src/main/*` / `src/synapses/*` /
 > `src/shared/rpc.js` paths are gone** — code now lives in npm workspaces under `packages/`.
 
-- `packages/core` (`@logseq-synapses/core`) — editor-agnostic engine + view: graph link-index
-  (`graph/index-pure.ts` + `graph/link-index.ts`), `mutations.ts`, `history.ts`, `ontology.ts`,
+- `packages/core` (`@logseq-synapses/core`) — editor-agnostic engine + view: pure on-demand graph
+  query helpers (`graph/index-pure.ts` — `collect`, `uniqNames`, `adjacencyFromProps`,
+  `queryGraphFromProps`, `adjacencyFor`, `toNames`, `SIBLING_CAP`; no in-memory index),
+  `mutations.ts` (symmetric two-sided writes), `history.ts`, `ontology.ts`,
   `ignore.ts` (folder/ignore-filter exclusion), the generic postMessage `transport.ts`, the small
   utils `errText.ts` + `log.ts`, the view (`view/` — `view.ts`, `edges.ts`, `layout.ts`, `panzoom.ts`,
   `dialog.ts`, `context-menu.ts`, `colors.ts` (in-iframe connector-color popover), `theme.ts`,
@@ -30,7 +32,7 @@ properties and the datascript schema). Plain **TypeScript** (no React, no SVG, n
 
 **Two-seam architecture:** the view consumes a high-level `SynapsesBackend`; each editor supplies a
 `DataSource` (read/write properties + change events) + `EditorServices` (theme/assets/nav/ontology);
-`createCoreBackend` implements the index lifecycle, mutations, history, and debounce once. A new editor
+`createCoreBackend` implements on-demand graph reads, mutations, and history once. A new editor
 = those two adapters.
 
 ### Cross-editor invariants
@@ -63,9 +65,10 @@ connect prose to code.
 - **Card** — the on-screen box that represents a note. (Code says *node*: `NODE` geometry,
   `nodeAdjacency`, the `<div>` elements.)
 - **Link** — a connection between two notes. Each link **kind** is a many-to-many relationship,
-  declared one direction via page properties; reciprocals are inferred and siblings computed. The
-  in-memory index of all links is the **link index** (`packages/core/src/graph/`; historically the
-  *relationship index* / `src/main/graph.js`).
+  written **symmetrically on both pages** (`setLink`/`unlink` in `mutations.ts`); siblings are
+  computed. There is no in-memory index — relationships are read **on demand** from page properties
+  via `queryGraphFromProps` / `adjacencyFor` (`packages/core/src/graph/index-pure.ts`;
+  historically the *relationship index* / `src/main/graph.js`).
 - **Connector** — the line drawn on the `<canvas>` for a link. (Code says *edge*: `view/edges.ts`,
   `computeEdges`/`drawEdges`, `view/edge-hit.ts`.) Link is to connector as note is to card — the
   relation vs. its drawing.
@@ -80,9 +83,9 @@ The four **link kinds**, named by where their cards sit relative to the active n
 
 | Kind | Position | Detail |
 |------|----------|-------|
-| **Parent** | above | |
-| **Child** | below, in two columns | |
-| **Jump** | left | association link |
+| **Parent** | above | written on both pages: A parent of B → A gets `child:: B`, B gets `parent:: A` |
+| **Child** | below, in two columns | symmetric with Parent |
+| **Jump** | left | association link — written on both pages: both get `jump::` the other |
 | **Sibling** | right | computed — the children of the active note's parents (never declared directly) |
 
 ## Commands
@@ -103,8 +106,8 @@ The four **link kinds**, named by where their cards sit relative to the active n
   A few rules stay WARN (FP-prone / style): await-thenable, no-confusing-void, no-unnecessary-type-assertion,
   unbound-method, require-await, prefer-nullish, restrict-*, sonarjs.
 - `npm run knip` — unused files / exports / dependencies guard (`knip.json`; `ignoreExportsUsedInFile`).
-- The view + the editor seams (datasource/services/iframe) need a live editor; the pure index, ontology,
-  history, mutations, transport, and view geometry are unit-tested in `packages/core`.
+- The view + the editor seams (datasource/services/iframe) need a live editor; the pure graph helpers,
+  ontology, history, mutations, transport, and view geometry are unit-tested in `packages/core`.
 
 ## Loading & dev loop (no headless harness for either editor)
 
@@ -140,15 +143,17 @@ P  packages/logseq-plugin/src/frame.ts   the synapses UI (core's mountSynapses +
   `onMacroRendererSlotted`, where M `provideUI`s an `<iframe>` (its `src` is set via the DOM, not the
   template, so DOMPurify can't strip it). Full-sidebar width is enforced with `:has()` **CSS** in
   `synapsesFrameStyle()`.
-- **Link index (`packages/core/src/graph/`) — the engine, and the source of most subtlety.** A note's
-  links come from page **properties** (`parent:: / child:: / jump::`), declared one direction; reciprocals
-  (parent↔child) and symmetric jumps are inferred, siblings are computed. Built once, **patched immediately**
-  on plugin writes, and **rebuilt debounced** on editor change events — the rebuild **replays unconfirmed
-  patches** (`reconcilePatches` in `link-index.ts`) so a write isn't clobbered by a stale read.
+- **On-demand graph reads (`packages/core/src/graph/index-pure.ts`) — no in-memory index.** A note's
+  links come from page **properties** (`parent:: / child:: / jump::`), written symmetrically on both
+  pages; siblings are computed. `backend.ts` calls `queryGraphFromProps` / `adjacencyFor` on demand
+  via the `DataSource` — reading the focus's own properties plus each parent's properties for siblings.
+  No caching, no rebuild lifecycle, no debounce, no patch replay.
 - **Rendering (`packages/core/src/view/`):** `view.ts` manages absolutely-positioned `<div>` cards (keyed
   by name so positions tween) over a `<canvas>` connector layer (`edges.ts`); `layout.ts` is banded
   arithmetic; `panzoom.ts` centers on the **active note** (the `focus` in code). `app.ts`
-  (`mountSynapses`) is the orchestrator (navigation, history, create dialog, theme).
+  (`mountSynapses`) is the orchestrator (navigation, history, create dialog, theme, and the
+  pending-write spinner + ~2s watchdog: `beginWait`/`decWait`/`clearWait`/`onWatchdog`/`failWait`,
+  `#synapses-spinner`).
 - **History is durable** (`history.ts` reducer, persisted via each editor's `EditorServices.persistence`),
   so it survives the Logseq iframe being re-injected when the sidebar re-renders.
 
@@ -157,27 +162,27 @@ P  packages/logseq-plugin/src/frame.ts   the synapses UI (core's mountSynapses +
 These are non-obvious and caused real bugs; respect them. (Several are Logseq-specific; Obsidian's seams
 are `packages/obsidian-plugin/src/{datasource,services}.ts`.)
 
-- **Editor reads can be stale right after a write.** Logseq's `getPage().properties` (and datascript
-  `:block/refs`) and Obsidian's Dataview index both lag after a write. Therefore: reverse links are derived
-  from page **properties**, never from datascript refs; never do an immediate index rebuild after a write —
-  `reconcilePatches` replays unconfirmed `pendingPatches` onto each fresh build and only drops a patch once
-  a read confirms it (or after `PATCH_TTL_MS`, so external removals eventually win). Keep the replay→swap
-  synchronous (no `await` between them) or the race returns.
-- **A deleted `.md` leaves a lingering datascript entity** (Logseq): `getPage()`/`listPages` still report a
-  referenced page whose file is gone, resurrecting dead links and re-materialising an empty file on nav.
-  Gate on a backing **file** — `listPages` filters on `page.file`, `DataSource.pageExists` requires a file,
-  and history prunes missing entries. `link-index.hardReset` (exposed as `backend.rebuildIndex`, wired to
-  the toolbar ↻) is the manual escape hatch: it discards the live index **and** all pending patches and
-  rebuilds purely from the editor.
-- **Markdown backups under `logseq/` index as phantom notes.** Logseq's `bak/` + `.recycle/` copies get
-  read by the index (Dataview indexes them in Obsidian; resolvable paths in Logseq) and inject phantom
-  parent/child links into real pages. Both adapters drop the `logseq/` folder; Obsidian also honours its
-  native `userIgnoreFilters` (Dataview ignores that setting). Pure helpers `isInLogseqFolder` /
-  `matchesIgnoreFilters` live in `packages/core/src/ignore.ts`.
+- **After a write, do NOT re-read immediately.** Logseq's `getPage().properties` and Obsidian's Dataview
+  index both lag after a write. The new model: mutations write and return; the UI re-renders only when the
+  editor reports the change via the `refresh` event (triggering a fresh on-demand read). A corner spinner
+  (`#synapses-spinner`) shows while waiting; a ~2s watchdog (`onWatchdog`) flashes a warning + best-effort
+  render if the editor never fires. There is no optimistic patch layer.
+- **A deleted `.md` leaves a lingering datascript entity** (Logseq): `getPage()` may still report a
+  referenced page whose file is gone. Caught at the focus boundary — `DataSource.pageExists` requires a
+  backing file (`pruneIfMissing` in `backend.ts`), and history prunes missing entries. `listPages` was
+  removed; the index no longer scans all pages. The toolbar ↻ is now a plain "Refresh from editor"
+  (`hardRefresh` in `app.ts`) — re-reads and re-renders the focus, no index reset needed.
+- **Markdown backups under `logseq/` as phantom search results.** The index no longer scans all pages, so
+  backups can't inject phantom links. They can still appear in `searchPages` results — both adapters filter
+  `logseq/` + user ignores; Obsidian also honours its native `userIgnoreFilters`. Pure helpers
+  `isInLogseqFolder` / `matchesIgnoreFilters` live in `packages/core/src/ignore.ts` (used by
+  `searchPages`).
 - **One connection per pair — route every link write through `setLink`/`unlink` (`mutations.ts`).**
-  Connecting an already-linked pair **retypes** it: `setLink` queries `rolesBetween` and `unlink`s every
-  differing role on both declaration sides before writing. Writing a property directly instead leaves two
-  inline declarations with an undefined winner (and breaks parent↔child flips / legacy multi-role self-heal).
+  Writes are **symmetric**: `setLink` writes the appropriate property on **both** pages; `unlink` clears
+  it on both. Connecting an already-linked pair **retypes** it: `setLink` reads `rolesBetween` from the
+  focus page's own props and `unlink`s every differing role on both sides before writing. Writing a
+  property directly instead leaves asymmetric or duplicate declarations (breaks parent↔child flips /
+  legacy multi-role self-heal).
 - **Menus and modals use the full-bleed overlay pattern, never fixed-position or native.**
   `view/dialog.ts`, `view/context-menu.ts`, and `view/colors.ts` each render an overlay covering the
   stage with an absolutely-positioned child clamped on-screen (`clampDialogPosition` /
@@ -194,8 +199,9 @@ are `packages/obsidian-plugin/src/{datasource,services}.ts`.)
   to a slot id.
 - **Logseq page properties live on the page's first block** — the Logseq `DataSource` resolves
   `getPageBlocksTree(name)[0].uuid` before writing with `upsertBlockProperty`.
-- The synapses skips re-rendering when the graph key is unchanged (anti-flicker on reconcile) — see
-  `graphKey` in `packages/core/src/app.ts`.
+- The synapses skips re-rendering when the graph key is unchanged — see `graphKey` in
+  `packages/core/src/app.ts`. This is now **more central**: with no debounce, a two-sided write emits
+  two rapid `refresh` events; `graphKey` absorbs the duplicate and prevents a double render.
 - **Theme colors are clamped to opacity ≥ 0.5** (`clampColorAlpha`, `view/color.ts`) before `applyTheme`
   sets CSS vars and edge colors — Obsidian's translucent `--background-modifier-border` otherwise renders
   parent/child connectors invisible.

@@ -1,17 +1,7 @@
 import '@logseq/libs'
-import { toNames, isInLogseqFolder, log } from '@logseq-synapses/core'
+import { toNames } from '@logseq-synapses/core'
 import type { PageEntity } from './logseq-types'
-import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
-
-// Best-effort path of a page's backing file. The published type models `file` as an
-// entity ref (`{ id }`, no path — then we can't tell, and Logseq doesn't list those
-// files as pages anyway), but some Logseq versions surface a `{ path }`/string we can
-// inspect — the one spot the runtime outruns the types, so we widen it locally.
-function pageFilePath(page: PageEntity | null | undefined): string {
-  const f = page?.file as string | { id?: number; path?: string } | undefined
-  if (!f) return ''
-  return typeof f === 'string' ? f : (f.path || '')
-}
+import type { DataSource, PropMap } from '@logseq-synapses/core'
 
 // Page properties live on the first (pre-)block; some Logseq versions surface
 // them on the page entity, others only on the block. Raw wiki-link values are
@@ -38,28 +28,6 @@ async function firstBlockUuid(name: string): Promise<string | undefined> {
 
 export function createLogseqDataSource(): DataSource {
   return {
-    async listPages(): Promise<PageEntry[]> {
-      let list: PageEntity[] = []
-      try { list = (await logseq.Editor.getAllPages()) || [] } catch (e) { log.warn('getAllPages failed', e) }
-      const entries = await Promise.all(list.map(async (p) => {
-        const name = p?.originalName || p?.name
-        if (!name) return null
-        // Only file-backed pages are real. After an .md file is deleted, Logseq keeps a
-        // phantom datascript page entity — including its stale property blocks — so
-        // getAllPages still lists it and its declared links re-enter the index, resurrecting
-        // connections that no longer exist on disk (surviving plugin refresh AND restart
-        // until a manual Logseq re-index). Gating on `page.file` keeps the on-disk markdown
-        // the sole source of truth; the fetched entity is reused for props (no extra call).
-        let page: PageEntity | null
-        try { page = await logseq.Editor.getPage(name) } catch { return null }
-        if (!page || !page.file) return null
-        // Never surface Logseq's own logseq/ folder (its bak/recycle markdown backups of
-        // real pages) as notes — when a path is resolvable. No-op when file is a bare ref.
-        if (isInLogseqFolder(pageFilePath(page))) return null
-        return { name, props: await getPagePropsRaw(name, page) }
-      }))
-      return entries.filter(Boolean) as PageEntry[]
-    },
     getPageProps: (name) => getPagePropsRaw(name),
     async ensurePage(name) {
       const p = await logseq.Editor.getPage(name)

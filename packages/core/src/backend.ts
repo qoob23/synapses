@@ -1,11 +1,10 @@
-import { createLinkIndex } from './graph/link-index'
+import { adjacencyFromProps, collect, queryGraphFromProps, uniqNames } from './graph/index-pure'
 import { createHistory, serialize, deserialize } from './history'
 import { log } from './log'
 import { createMutations } from './mutations'
 import type { HistoryStack } from './history'
-import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, BackendEventPayloads, Palette, ConnectorColors } from './types'
+import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, BackendEventPayloads, Palette, ConnectorColors, Adjacency, PropMap } from './types'
 
-export const GRAPH_DEBOUNCE_MS = 400
 export const HISTORY_SAVE_DEBOUNCE_MS = 300
 export const SIZE_SAVE_DEBOUNCE_MS = 300
 const HISTORY_KEY = 'history.json'
@@ -14,8 +13,28 @@ const COLORS_KEY = 'connectorColors'
 
 export function createCoreBackend(dataSource: DataSource, services: EditorServices): SynapsesBackend {
   const getOntology = () => services.getOntology()
-  const index = createLinkIndex(dataSource, getOntology)
-  const mut = createMutations(dataSource, index, getOntology)
+  const mut = createMutations(dataSource, getOntology)
+
+  // On-demand neighborhood reads (no in-memory index — the editor is the index engine).
+  // A focus note's parents/children/jumps come from its own props; siblings need each
+  // parent's children, so we read the parents' props too. Symmetric writes make a note's
+  // own props its complete adjacency.
+  async function buildGraph(name: string) {
+    const ont = getOntology()
+    const focusProps = await dataSource.getPageProps(name)
+    const parents = uniqNames(collect(focusProps, 'parent', ont), name.toLowerCase())
+    const parentsProps: Record<string, PropMap> = {}
+    await Promise.all(parents.map(async (p) => { parentsProps[p.toLowerCase()] = await dataSource.getPageProps(p) }))
+    return queryGraphFromProps(name, focusProps, parentsProps, ont)
+  }
+  async function nodeAdjacency(names: string[]): Promise<Adjacency> {
+    const ont = getOntology()
+    const out: Adjacency = {}
+    await Promise.all((names || []).map(async (n) => {
+      out[n.toLowerCase()] = adjacencyFromProps(n, await dataSource.getPageProps(n), ont)
+    }))
+    return out
+  }
 
   // history with debounced persistence
   let saveTimer: ReturnType<typeof setTimeout> | undefined
@@ -44,32 +63,21 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
   // remembered card/text size level, persisted with the same debounce shape as history
   let sizeTimer: ReturnType<typeof setTimeout> | undefined
 
-  // Shared by the debounced graph-change and the ontology-change listeners.
-  async function rebuildAndRefresh() {
-    try { await index.rebuild() } catch (e) { log.warn('rebuild failed', e) }
-    emit('refresh', undefined)
-  }
-
-  let graphTimer: ReturnType<typeof setTimeout> | undefined
-  services.onGraphChange(() => {
-    if (graphTimer) clearTimeout(graphTimer)
-    graphTimer = setTimeout(() => void rebuildAndRefresh(), GRAPH_DEBOUNCE_MS)
-  })
+  // No index to rebuild: every editor change just tells the app to re-read + re-render the
+  // focus note on demand. Undebounced — reads are small and the app's graphKey guard absorbs
+  // the duplicate/two-sided-write events without flicker.
+  services.onGraphChange(() => emit('refresh', undefined))
   services.onActivePageChange((name) => { if (name) emit('recenter', { page: name }) })
   services.onThemeChange((p: Palette) => emit('theme', p))
   services.onUiModeChange(() => emit('uimode', undefined))
-  services.onOntologyChange(() => void rebuildAndRefresh())
+  services.onOntologyChange(() => emit('refresh', undefined))
 
   return {
     getActivePage: async () => services.getActivePageName(),
     getTheme: async () => services.getTheme(),
     getUiMode: async () => services.getUiMode(),
-    buildGraph: (name) => index.buildGraph(name),
-    nodeAdjacency: (names) => index.nodeAdjacency(names),
-    // Hard refresh: blow away the in-memory index + pending patches and rebuild
-    // straight from the editor. The app forces a full re-render after awaiting this,
-    // so we deliberately don't emit 'refresh' (which the view may skip if unchanged).
-    rebuildIndex: () => index.hardReset(),
+    buildGraph,
+    nodeAdjacency,
     histState: async () => { await ready; return history.state() },
     histPush: async (name) => { await ready; return history.push(name) },
     histJump: async (i) => { await ready; return history.jump(i) },

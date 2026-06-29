@@ -31,6 +31,8 @@
      <body> that fills the sidebar; in Obsidian it's a leaf contentEl shorter than
      the window — `100vh` there overflows the leaf and clips the bottom breadcrumb. */
   height: 100%;
+  /* Positioning context for the absolute pending-write spinner. */
+  position: relative;
 }
 
 /* ---- toolbar ---- */
@@ -433,6 +435,34 @@
 }
 .synapses-flash.is-shown {
   display: flex;
+}
+
+/* ---- pending-write spinner (toolbar corner) ----
+   Non-blocking: sits in the top-right over the toolbar while we wait for the editor to
+   apply a write; cards stay interactive. Shown by toggling .is-shown. */
+.synapses-spinner {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  z-index: 10;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--synapses-border);
+  border-top-color: var(--synapses-accent);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  animation: synapses-spin 0.6s linear infinite;
+}
+.synapses-spinner.is-shown {
+  opacity: 1;
+}
+@keyframes synapses-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .synapses-spinner { animation: none; }
 }
 
 /* ---- create/link dialog ---- */

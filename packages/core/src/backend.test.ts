@@ -7,7 +7,6 @@ function fakes(pages: PageEntry[] = []) {
   const store = new Map<string, string>()
   let graphCb = () => {}, activeCb = (_: string | null) => {}
   const ds: DataSource = {
-    listPages: async () => [...map.values()],
     getPageProps: async (n) => map.get(n.toLowerCase())?.props ?? {},
     ensurePage: async (n) => { if (!map.has(n.toLowerCase())) map.set(n.toLowerCase(), { name: n, props: {} }) },
     setPropertyLinks: async (n, k, t) => { const e = map.get(n.toLowerCase())!; e.props = { ...e.props, [k]: t } },
@@ -38,30 +37,39 @@ describe('createCoreBackend', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('buildGraph reflects a createChild mutation immediately (via patch)', async () => {
+  it('createChild writes both sides; buildGraph reads them back from the editor on demand', async () => {
     const { ds, services } = fakes([{ name: 'A', props: {} }])
     const be = createCoreBackend(ds, services)
     await be.createChild('A', 'B')
     expect((await be.buildGraph('A')).children).toEqual(['B'])
+    expect((await be.buildGraph('B')).parents).toEqual(['A']) // symmetric reciprocal
   })
 
-  it('rebuildIndex discards pending patches and rebuilds purely from the editor', async () => {
+  it('buildGraph always reflects the editor (no cache): a manual removal shows immediately', async () => {
     const { ds, services } = fakes([{ name: 'A', props: {} }, { name: 'B', props: {} }])
     const be = createCoreBackend(ds, services)
-    await be.createChild('A', 'B') // writes A.child=[B] in the editor + a pending add-patch
+    await be.createChild('A', 'B')
     expect((await be.buildGraph('A')).children).toEqual(['B'])
-    await ds.removePropertyKey('A', 'child') // user manually deletes the link in the editor
-    await be.rebuildIndex() // hard refresh: editor is the sole source of truth
+    await ds.removePropertyKey('A', 'child') // user deletes the link directly in the editor
     expect((await be.buildGraph('A')).children).toEqual([])
   })
 
-  it('onGraphChange debounces a rebuild then emits refresh', async () => {
+  it('computes siblings from a parent\'s children read on demand', async () => {
+    const { ds, services } = fakes([
+      { name: 'P', props: { child: ['A', 'B'] } },
+      { name: 'A', props: { parent: ['P'] } },
+      { name: 'B', props: { parent: ['P'] } },
+    ])
+    const be = createCoreBackend(ds, services)
+    expect((await be.buildGraph('A')).siblings).toEqual(['B'])
+  })
+
+  it('onGraphChange emits refresh immediately (no debounce), once per editor event', () => {
     const { ds, services, fireGraph } = fakes([{ name: 'A', props: {} }])
     const be = createCoreBackend(ds, services)
     const refresh = vi.fn(); be.on('refresh', refresh)
     fireGraph(); fireGraph()
-    await vi.advanceTimersByTimeAsync(400)
-    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(refresh).toHaveBeenCalledTimes(2)
   })
 
   it('histRemove removes an entry, returns new state, and persists', async () => {

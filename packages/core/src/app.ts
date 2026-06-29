@@ -21,6 +21,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   container.classList.add('synapses-root')
   container.innerHTML = `
     <div id="synapses-app">
+      <div id="synapses-spinner" class="synapses-spinner" aria-hidden="true"></div>
       <div id="synapses-toolbar"></div>
       <div id="synapses-stage">
         <canvas id="synapses-canvas"></canvas>
@@ -37,6 +38,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     world: container.querySelector('#synapses-world') as HTMLElement,
     canvas: container.querySelector('#synapses-canvas') as HTMLCanvasElement,
     flash: container.querySelector('#synapses-flash') as HTMLElement,
+    spinner: container.querySelector('#synapses-spinner') as HTMLElement,
     breadcrumb: container.querySelector('#synapses-breadcrumb') as HTMLElement,
     dialogRoot: container.querySelector('#synapses-dialog-root') as HTMLElement,
   }
@@ -181,18 +183,11 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     flash('Open a note to see its links.')
   }
 
-  // Toolbar "rebuild" action — the escape hatch for wedged internal state. Throws
-  // away the whole in-memory index + pending patches and rebuilds it purely from the
-  // editor, then forces a full re-render (lastRenderKey reset) so the skip-if-unchanged
-  // path can't suppress the redraw.
-  async function hardRefresh() {
-    flash('Rebuilding from editor…')
-    try {
-      await backend.rebuildIndex()
-    } catch (e) {
-      flashError(e)
-      return
-    }
+  // Toolbar "refresh" action — re-read straight from the editor and force a full re-render
+  // (lastRenderKey reset) so the skip-if-unchanged path can't suppress the redraw. There is
+  // no in-memory index to discard anymore; this just re-fetches the focus note's neighborhood.
+  function hardRefresh() {
+    clearWait()
     lastRenderKey = null
     if (focus) {
       hideFlash()
@@ -202,21 +197,23 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     }
   }
 
+  // The dialog performs the writes itself; on success we wait for the editor's 'refresh'
+  // to render (beginWait), rather than re-reading optimistically.
   async function create(role: Role) {
     const src = focus
     if (!src) return
     const changed = await openCreateDialog({ root: els.dialogRoot, role, sourcePage: src, backend })
-    if (changed) void goto(focus, { noHistory: true })
+    if (changed) beginWait()
   }
 
   async function createAt(fromNode: string, role: Role, at: { x: number; y: number } | null) {
     const changed = await openCreateDialog({ root: els.dialogRoot, role, sourcePage: fromNode, backend, at })
-    if (changed) void goto(focus, { noHistory: true })
+    if (changed) beginWait()
   }
 
   function renderToolbar() {
     els.toolbar.innerHTML = ''
-    const refresh = btn('↻', 'Rebuild from editor', () => { void hardRefresh() })
+    const refresh = btn('↻', 'Refresh from editor', () => { hardRefresh() })
     refresh.classList.add('synapses-btn-refresh') // bumps the thin glyph up to the triangles' weight
 
     const add = document.createElement('div')
@@ -343,6 +340,50 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     els.flash.classList.remove('is-shown')
   }
 
+  // Pending-write feedback. We no longer render optimistically: after a write we wait for the
+  // editor to report the change (the 'refresh' event), then re-render from confirmed state. The
+  // spinner shows during that wait; a watchdog covers the case where the editor never reports it
+  // (e.g. a silently-failed write) — we flash a warning and render best-effort.
+  const WATCHDOG_MS = 2000
+  let pending = 0
+  let watchdog: ReturnType<typeof setTimeout> | undefined
+  function showSpinner(on: boolean) { els.spinner.classList.toggle('is-shown', on) }
+  function armWatchdog() {
+    if (watchdog) clearTimeout(watchdog)
+    watchdog = setTimeout(onWatchdog, WATCHDOG_MS)
+  }
+  function beginWait() {
+    pending++
+    showSpinner(true)
+    armWatchdog()
+  }
+  // One pending write was confirmed (a refresh arrived) or failed: drop it. If others are
+  // still in flight, keep the spinner up and re-arm the watchdog for the remainder; only
+  // tear everything down once the last one resolves. (One logical write can emit several
+  // editor events, so this is approximate — but it never clears the whole batch on the
+  // first refresh, and the watchdog still fires if the remainder never lands.)
+  function decWait() {
+    if (pending > 0) pending--
+    if (pending > 0) armWatchdog()
+    else clearWait()
+  }
+  // Full teardown — no pending writes remain (watchdog timeout, hard refresh, dispose).
+  function clearWait() {
+    pending = 0
+    if (watchdog) { clearTimeout(watchdog); watchdog = undefined }
+    showSpinner(false)
+  }
+  function onWatchdog() {
+    clearWait()
+    flash('⚠ The editor didn\'t report the change. Showing the latest state.')
+    if (focus) { lastRenderKey = null; void goto(focus, { noHistory: true, fromLogseq: true }) }
+  }
+  // A write threw outright (vs. just lagging) — drop that one and surface the error.
+  function failWait(e: unknown) {
+    decWait()
+    flashError(e)
+  }
+
   // Contract: the caller passes a backend that is ready to take calls. Obsidian's
   // in-process backend always is; the Logseq proxy is mounted from its onConnect,
   // after the postMessage handshake. boot() loads the remembered zoom, builds the
@@ -372,17 +413,15 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       stage: els.stage,
       onNavigate: (name) => { void goto(name) },
       onOpenMain: (name) => { void backend.navigate(name).catch(() => {}) },
+      // No optimistic re-render: write, then wait for the editor's 'refresh' to render
+      // confirmed state (the spinner shows meanwhile; the watchdog covers a silent failure).
       onRemoveLink: ({ from, to, role }) => {
-        void backend
-          .removeLink(from, to, role as Role)
-          .then(() => goto(focus, { noHistory: true }))
-          .catch(flashError)
+        beginWait()
+        void backend.removeLink(from, to, role as Role).catch(failWait)
       },
       onLinkExisting: (fromNode, toNode, role) => {
-        void backend
-          .linkExisting(fromNode, toNode, role as Role)
-          .then(() => goto(focus, { noHistory: true }))
-          .catch(flashError)
+        beginWait()
+        void backend.linkExisting(fromNode, toNode, role as Role).catch(failWait)
       },
       onCreateAt: (fromNode, dir, at) => { void createAt(fromNode, dir as Role, at) },
       initialSize,
@@ -407,7 +446,12 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
         void applyThemeWithOverrides(payload)
       }),
       backend.on('refresh', () => {
-        if (focus) void goto(focus, { noHistory: true, fromLogseq: true, ifChanged: true })
+        // If we were waiting on our own write, the editor has now applied it: stop the spinner
+        // and render unconditionally (the change should show). Otherwise it's an external edit —
+        // re-render only if the graph actually changed (anti-flicker).
+        const wasWaiting = pending > 0
+        if (wasWaiting) decWait()
+        if (focus) void goto(focus, { noHistory: true, fromLogseq: true, ifChanged: !wasWaiting })
       }),
       backend.on('uimode', () => {
         void (async () => {
@@ -424,6 +468,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
 
   return () => {
     disposed = true
+    if (watchdog) clearTimeout(watchdog)
     for (const u of unsubs) u()
     if (view) view.destroy()
     container.innerHTML = ''

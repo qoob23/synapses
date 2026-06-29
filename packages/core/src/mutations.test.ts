@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { removeFromLinkList, createMutations } from './mutations'
-import type { DataSource, OntologyConfig, Role } from './types'
+import type { DataSource, OntologyConfig, PropMap } from './types'
 
 describe('removeFromLinkList', () => {
   it('removes the target case-insensitively, preserving the rest and order', () => {
@@ -16,128 +16,115 @@ describe('removeFromLinkList', () => {
 
 const ONT: OntologyConfig = { parent: ['parent', 'up'], child: ['child'], jump: ['jump'] }
 
-function spyDataSource(initial: Record<string, Record<string, string[]>> = {}): DataSource & { sets: any[]; removes: any[] } {
-  const props = new Map(Object.entries(initial).map(([k, v]) => [k.toLowerCase(), v]))
-  const sets: any[] = []; const removes: any[] = []
-  return {
-    sets, removes,
-    listPages: async () => [],
-    getPageProps: async (n: string) => props.get(n.toLowerCase()) ?? {},
-    ensurePage: vi.fn(async () => {}),
-    setPropertyLinks: async (n: string, k: string, t: string[]) => { sets.push([n, k, t]) },
-    removePropertyKey: async (n: string, k: string) => { removes.push([n, k]) },
+// A live in-memory DataSource: writes mutate the store (so symmetric both-sides effects are
+// observable) AND are recorded for assertions.
+function fakeDataSource(initial: Record<string, PropMap> = {}) {
+  const store = new Map<string, PropMap>(Object.entries(initial).map(([k, v]) => [k.toLowerCase(), { ...v }]))
+  const sets: Array<[string, string, string[]]> = []
+  const removes: Array<[string, string]> = []
+  const ds: DataSource = {
+    getPageProps: async (n) => ({ ...(store.get(n.toLowerCase()) ?? {}) }),
+    ensurePage: async (n) => { if (!store.has(n.toLowerCase())) store.set(n.toLowerCase(), {}) },
+    setPropertyLinks: async (n, k, t) => {
+      sets.push([n, k, t])
+      const e = store.get(n.toLowerCase()) ?? {}
+      e[k] = t
+      store.set(n.toLowerCase(), e)
+    },
+    removePropertyKey: async (n, k) => {
+      removes.push([n, k])
+      const e = store.get(n.toLowerCase()); if (e) delete e[k]
+    },
     searchPages: async () => [],
-  } as any
-}
-
-// A stub index whose rolesBetween returns a fixed set, recording the patch calls.
-function spyIndex(existing: Role[] = []) {
-  return {
-    patchIndex: vi.fn(),
-    patchRemove: vi.fn(),
-    rolesBetween: vi.fn(async () => existing),
+    pageExists: async (n) => store.has(n.toLowerCase()),
   }
+  const props = (n: string) => store.get(n.toLowerCase()) ?? {}
+  return { ds, sets, removes, props }
 }
 
-describe('createMutations', () => {
-  it('createChild ensures the target page, appends the child link, and patches the index', async () => {
-    const ds = spyDataSource({ A: {} })
-    const index = spyIndex([])
-    const mut = createMutations(ds, index, () => ONT)
-    const ok = await mut.createChild('A', 'B')
+describe('createMutations — symmetric writes', () => {
+  it('createChild writes child on focus AND parent on the target (both sides)', async () => {
+    const { ds, props } = fakeDataSource({ A: {} })
+    const ok = await createMutations(ds, () => ONT).createChild('A', 'B')
     expect(ok).toBe(true)
-    expect(ds.ensurePage).toHaveBeenCalledWith('B')
-    expect(ds.sets).toContainEqual(['A', 'child', ['B']])
-    expect(index.patchIndex).toHaveBeenCalledWith('A', 'child', 'B')
-    expect(index.patchRemove).not.toHaveBeenCalled() // brand-new page: nothing to retype
+    expect(props('A')).toEqual({ child: ['B'] })
+    expect(props('B')).toEqual({ parent: ['A'] })
+  })
+
+  it('createParent writes parent on focus AND child on the target', async () => {
+    const { ds, props } = fakeDataSource({ A: {} })
+    await createMutations(ds, () => ONT).createParent('A', 'P')
+    expect(props('A')).toEqual({ parent: ['P'] })
+    expect(props('P')).toEqual({ child: ['A'] })
+  })
+
+  it('createJump writes jump on both sides (symmetric)', async () => {
+    const { ds, props } = fakeDataSource({ A: {} })
+    await createMutations(ds, () => ONT).createJump('A', 'B')
+    expect(props('A')).toEqual({ jump: ['B'] })
+    expect(props('B')).toEqual({ jump: ['A'] })
   })
 
   it('createChild merges onto an existing child list, keeping the originals', async () => {
-    const ds = spyDataSource({ A: { child: ['B'] } })
-    const index = spyIndex(['child']) // B already a child — same role, no removal
-    const mut = createMutations(ds, index, () => ONT)
-    await mut.createChild('A', 'C')
-    expect(ds.sets).toContainEqual(['A', 'child', ['B', 'C']]) // merged, original kept
-    expect(index.patchIndex).toHaveBeenCalledWith('A', 'child', 'C')
+    const { ds, props } = fakeDataSource({ A: { child: ['B'] }, B: { parent: ['A'] } })
+    await createMutations(ds, () => ONT).createChild('A', 'C')
+    expect(props('A').child).toEqual(['B', 'C'])
+    expect(props('C')).toEqual({ parent: ['A'] })
   })
 
-  it('removeLink rewrites the key with the remainder when other targets remain', async () => {
-    const ds = spyDataSource({ A: { child: ['B', 'C'] } })
-    const index = spyIndex()
-    const mut = createMutations(ds, index, () => ONT)
-    await mut.removeLink('A', 'B', 'child')
-    expect(ds.sets).toContainEqual(['A', 'child', ['C']]) // rewrite with the remainder
-    expect(ds.removes).not.toContainEqual(['A', 'child']) // NOT removed wholesale
-    expect(index.patchRemove).toHaveBeenCalledWith('A', 'child', 'B')
+  it('removeLink rewrites the remainder and clears the reciprocal on the other page', async () => {
+    const { ds, props, removes } = fakeDataSource({ A: { child: ['B', 'C'] }, B: { parent: ['A'] } })
+    await createMutations(ds, () => ONT).removeLink('A', 'B', 'child')
+    expect(props('A').child).toEqual(['C']) // remainder kept
+    expect(removes).not.toContainEqual(['A', 'child']) // not removed wholesale
+    expect(removes).toContainEqual(['B', 'parent']) // reciprocal cleared on B (became empty)
   })
 
-  it('removeLink strips the alias key on both sides and patches removal', async () => {
-    const ds = spyDataSource({ A: { up: ['P'] }, P: { child: ['A'] } })
-    const index = spyIndex()
-    const mut = createMutations(ds, index, () => ONT)
-    await mut.removeLink('A', 'P', 'parent')
-    expect(ds.removes).toContainEqual(['A', 'up']) // 'up' is a parent alias, became empty
-    expect(ds.removes).toContainEqual(['P', 'child'])
-    expect(index.patchRemove).toHaveBeenCalledWith('A', 'parent', 'P')
+  it('removeLink strips the alias key on both sides', async () => {
+    const { ds, removes } = fakeDataSource({ A: { up: ['P'] }, P: { child: ['A'] } })
+    await createMutations(ds, () => ONT).removeLink('A', 'P', 'parent')
+    expect(removes).toContainEqual(['A', 'up']) // 'up' is a parent alias, became empty
+    expect(removes).toContainEqual(['P', 'child'])
   })
 
-  it('linkExisting on an unconnected pair only adds, with no removal', async () => {
-    const ds = spyDataSource({ A: {} })
-    const index = spyIndex([])
-    const mut = createMutations(ds, index, () => ONT)
-    await mut.linkExisting('A', 'B', 'jump')
-    expect(ds.sets).toContainEqual(['A', 'jump', ['B']])
-    expect(ds.removes).toEqual([])
-    expect(index.patchRemove).not.toHaveBeenCalled()
-    expect(index.patchIndex).toHaveBeenCalledWith('A', 'jump', 'B')
+  it('linkExisting on an unconnected pair only adds, on both sides', async () => {
+    const { ds, props, removes } = fakeDataSource({ A: {}, B: {} })
+    await createMutations(ds, () => ONT).linkExisting('A', 'B', 'jump')
+    expect(props('A')).toEqual({ jump: ['B'] })
+    expect(props('B')).toEqual({ jump: ['A'] })
+    expect(removes).toEqual([])
   })
 
-  it('linkExisting retypes an existing parent into a jump, clearing both declaration sides', async () => {
-    // B is the parent of A, declared as A.parent::B (and the reciprocal B.child::A on B).
-    const ds = spyDataSource({ A: { parent: ['B'] }, B: { child: ['A'] } })
-    const index = spyIndex(['parent'])
-    const mut = createMutations(ds, index, () => ONT)
-    await mut.linkExisting('A', 'B', 'jump')
-    // old parent declaration removed on both pages
-    expect(ds.removes).toContainEqual(['A', 'parent']) // A.parent::B was the only value → key removed
-    expect(ds.removes).toContainEqual(['B', 'child']) // reciprocal cleared on B
-    expect(index.patchRemove).toHaveBeenCalledWith('A', 'parent', 'B')
-    // new jump declaration written
-    expect(ds.sets).toContainEqual(['A', 'jump', ['B']])
-    expect(index.patchIndex).toHaveBeenCalledWith('A', 'jump', 'B')
+  it('retypes an existing parent into a jump, clearing the old role on both pages', async () => {
+    const { ds, props, removes } = fakeDataSource({ A: { parent: ['B'] }, B: { child: ['A'] } })
+    await createMutations(ds, () => ONT).linkExisting('A', 'B', 'jump')
+    expect(removes).toContainEqual(['A', 'parent']) // old declaration cleared on A
+    expect(removes).toContainEqual(['B', 'child']) // and its reciprocal on B
+    expect(props('A')).toEqual({ jump: ['B'] })
+    expect(props('B')).toEqual({ jump: ['A'] })
   })
 
-  it('linkExisting flips a parent into a child (direction reversal)', async () => {
-    const ds = spyDataSource({ A: { parent: ['B'] }, B: { child: ['A'] } })
-    const index = spyIndex(['parent'])
-    const mut = createMutations(ds, index, () => ONT)
-    await mut.linkExisting('A', 'B', 'child')
-    expect(ds.removes).toContainEqual(['A', 'parent'])
-    expect(ds.removes).toContainEqual(['B', 'child'])
-    expect(ds.sets).toContainEqual(['A', 'child', ['B']])
-    expect(index.patchRemove).toHaveBeenCalledWith('A', 'parent', 'B')
-    expect(index.patchIndex).toHaveBeenCalledWith('A', 'child', 'B')
+  it('flips a parent into a child (direction reversal), symmetric on both pages', async () => {
+    const { ds, props } = fakeDataSource({ A: { parent: ['B'] }, B: { child: ['A'] } })
+    await createMutations(ds, () => ONT).linkExisting('A', 'B', 'child')
+    expect(props('A')).toEqual({ child: ['B'] })
+    expect(props('B')).toEqual({ parent: ['A'] })
   })
 
-  it('linkExisting re-affirming the same role does not remove anything', async () => {
-    const ds = spyDataSource({ A: { jump: ['B'] }, B: { jump: ['A'] } })
-    const index = spyIndex(['jump'])
-    const mut = createMutations(ds, index, () => ONT)
-    await mut.linkExisting('A', 'B', 'jump')
-    expect(ds.removes).toEqual([])
-    expect(index.patchRemove).not.toHaveBeenCalled()
-    expect(ds.sets).toContainEqual(['A', 'jump', ['B']]) // deduped append (no-op set)
+  it('re-affirming the same role removes nothing and dedupes', async () => {
+    const { ds, props, removes } = fakeDataSource({ A: { jump: ['B'] }, B: { jump: ['A'] } })
+    await createMutations(ds, () => ONT).linkExisting('A', 'B', 'jump')
+    expect(removes).toEqual([])
+    expect(props('A').jump).toEqual(['B']) // deduped, not doubled
+    expect(props('B').jump).toEqual(['A'])
   })
 
-  it('linkExisting collapses a legacy multi-role pair to the single chosen role', async () => {
-    // Buggy pre-existing state: A declares BOTH parent::B and jump::B.
-    const ds = spyDataSource({ A: { parent: ['B'], jump: ['B'] }, B: {} })
-    const index = spyIndex(['parent', 'jump'])
-    const mut = createMutations(ds, index, () => ONT)
-    await mut.linkExisting('A', 'B', 'parent') // keep parent, drop the stray jump
-    expect(ds.removes).toContainEqual(['A', 'jump'])
-    expect(index.patchRemove).toHaveBeenCalledWith('A', 'jump', 'B')
-    expect(index.patchRemove).not.toHaveBeenCalledWith('A', 'parent', 'B') // parent kept
-    expect(ds.sets).toContainEqual(['A', 'parent', ['B']])
+  it('collapses a legacy multi-role pair to the single chosen role', async () => {
+    const { ds, props, removes } = fakeDataSource({ A: { parent: ['B'], jump: ['B'] }, B: { child: ['A'] } })
+    await createMutations(ds, () => ONT).linkExisting('A', 'B', 'parent') // keep parent, drop the stray jump
+    expect(removes).toContainEqual(['A', 'jump'])
+    expect(removes).not.toContainEqual(['A', 'parent']) // parent kept
+    expect(props('A').parent).toEqual(['B'])
+    expect(props('B').child).toEqual(['A'])
   })
 })

@@ -127,7 +127,7 @@ export function createClient(
 // ---- typed SynapsesBackend serve/proxy layer ----
 
 export const BACKEND_METHODS = [
-  'getActivePage', 'getTheme', 'getUiMode', 'buildGraph', 'nodeAdjacency', 'rebuildIndex', 'histState', 'histPush', 'histJump',
+  'getActivePage', 'getTheme', 'getUiMode', 'buildGraph', 'nodeAdjacency', 'histState', 'histPush', 'histJump',
   'histRemove', 'histRemoveMissing',
   'navigate', 'createChild', 'createParent', 'createJump', 'linkExisting', 'removeLink', 'searchPages',
   'getSize', 'setSize', 'getConnectorColors', 'setConnectorColors',

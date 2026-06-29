@@ -48,7 +48,6 @@ export interface SynapsesBackend {
   getUiMode(): Promise<UiMode>
   buildGraph(name: string): Promise<Graph>
   nodeAdjacency(names: string[]): Promise<Adjacency>
-  rebuildIndex(): Promise<void> // hard refresh: discard in-memory index + patches, rebuild from the editor
   histState(): Promise<HistoryState>
   histPush(name: string): Promise<HistoryState>
   histJump(i: number): Promise<HistoryJump | null>
@@ -73,7 +72,6 @@ export type PropMap = Record<string, string[]>   // link-valued fields only; pla
 export interface PageEntry { name: string; props: PropMap }
 
 export interface DataSource {
-  listPages(): Promise<PageEntry[]>
   getPageProps(name: string): Promise<PropMap>
   ensurePage(name: string): Promise<void>
   setPropertyLinks(name: string, key: string, targets: string[]): Promise<void>
