@@ -1,5 +1,5 @@
-import { createCoreBackend, createLogger, createBufferedSink, wrapBackendWithLogging, wrapDataSource, type SynapsesBackend, type Logger, type BufferedSink } from '@logseq-synapses/core'
-import { Plugin, Notice } from 'obsidian'
+import { createCoreBackend, createLogger, createBufferedSink, wrapBackendWithLogging, wrapDataSource, log, type SynapsesBackend, type Logger, type BufferedSink } from '@logseq-synapses/core'
+import { Plugin, Notice, FileSystemAdapter } from 'obsidian'
 import '@logseq-synapses/core/styles.css'
 import { createObsidianDataSource } from './datasource'
 import { isDataviewEnabled } from './dataview'
@@ -19,6 +19,7 @@ export default class SynapsesPlugin extends Plugin {
   backend: SynapsesBackend | null = null
   logger: Logger | null = null
   private logSink: BufferedSink | null = null
+  private logPath = ''
   private settingsListeners: (() => void)[] = []
   // Every data.json write funnels through this chain so concurrent read-modify-writes
   // (settings + the persistence saves below) can't clobber each other: each waits for
@@ -28,13 +29,14 @@ export default class SynapsesPlugin extends Plugin {
   async onload() {
     await this.loadSettings()
     const dir = this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`
-    const logPath = `${dir}/synapses-log.jsonl`
+    this.logPath = `${dir}/synapses-log.jsonl`
     this.logSink = createBufferedSink({
-      load: () => this.app.vault.adapter.read(logPath).then((t) => t).catch(() => null),
-      persist: (t) => this.app.vault.adapter.write(logPath, t),
+      load: () => this.app.vault.adapter.read(this.logPath).then((t) => t).catch(() => null),
+      persist: (t) => this.app.vault.adapter.write(this.logPath, t),
     })
     const sink = this.logSink
     this.logger = createLogger((line) => sink.write(line), { ctx: 'main', enabled: this.settings.fileLogging })
+    if (this.settings.fileLogging) this.announceLogPath()
     this.addSettingTab(new SynapsesSettingTab(this.app, this))
     this.registerView(VIEW_TYPE_SYNAPSES, (leaf) => new SynapsesView(leaf, this))
     this.addRibbonIcon('brain', 'Open Synapses', () => void this.activateView())
@@ -73,9 +75,17 @@ export default class SynapsesPlugin extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data.settings ?? {})
   }
   async saveSettings() {
+    const wasOn = this.logger?.enabled() ?? false
     await this.persistData((data) => { data.settings = this.settings })
     this.logger?.setEnabled(this.settings.fileLogging)
+    if (this.settings.fileLogging && !wasOn) this.announceLogPath()
     this.settingsListeners.forEach((cb) => cb())
+  }
+
+  private announceLogPath() {
+    const adapter = this.app.vault.adapter
+    const abs = adapter instanceof FileSystemAdapter ? adapter.getFullPath(this.logPath) : this.logPath
+    log.info(`debug file logging on → ${abs}`)
   }
 
   async activateView() {

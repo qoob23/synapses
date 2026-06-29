@@ -15,6 +15,17 @@ const settingsSchema: SettingSchemaDesc[] = [
 
 const fileLoggingOn = (): boolean => !!(logseq.settings as { fileLogging?: boolean } | undefined)?.fileLogging
 
+async function announceLogPath() {
+  try {
+    const graph = await logseq.App.getCurrentGraph()
+    const id = 'logseq-synapses'
+    const base = graph?.path ? `${graph.path}/assets/storages/${id}` : `assets/storages/${id}`
+    log.info(`debug file logging on → ${base}/synapses-log.jsonl`)
+  } catch {
+    log.info('debug file logging on → <graph>/assets/storages/logseq-synapses/synapses-log.jsonl')
+  }
+}
+
 async function main() {
   logseq.useSettingsSchema(settingsSchema)
 
@@ -45,7 +56,14 @@ async function main() {
   logseq.provideModel({ openSynapses() { void openSynapsesSidebar() } })
   logseq.App.registerUIItem('toolbar', { key: 'synapses-open', template: '<a class="button" data-on-click="openSynapses" title="Open Synapses"><span style="font-size:18px">🧠</span></a>' })
 
-  logseq.onSettingsChanged(() => logger.setEnabled(fileLoggingOn()))
+  if (fileLoggingOn()) void announceLogPath()
+  let logWasOn = fileLoggingOn()
+  logseq.onSettingsChanged(() => {
+    const on = fileLoggingOn()
+    logger.setEnabled(on)
+    if (on && !logWasOn) void announceLogPath()
+    logWasOn = on
+  })
 }
 
 // bridge-host.connectIframe, folded in: hand the freshly-injected iframe's window

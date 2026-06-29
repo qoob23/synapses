@@ -228,8 +228,12 @@ each adapter only supplies a file sink + the setting.
   A `user` line in P with no matching `call` line in M pinpoints a dropped bridge message. P forwards
   unconditionally (cheap, interaction-rate); M is the gate. Obsidian is single-context (`ctx:'main'`).
 - **Sink** = `createBufferedSink` (lazy load to seed across reloads, ~1 MB rolling cap dropping oldest whole
-  lines, debounced whole-file rewrite — no append API needed). Files: Obsidian `<plugin-dir>/synapses-log.jsonl`
-  (vault adapter); Logseq sandbox-storage `synapses-log.jsonl`.
+  lines, debounced whole-file rewrite — no append API needed). Files: Obsidian
+  `<vault>/.obsidian/plugins/synapses/synapses-log.jsonl` (vault adapter); Logseq
+  `<graph>/assets/storages/logseq-synapses/synapses-log.jsonl` (`makeSandboxStorage` roots at
+  `<graph>/assets/storages/<plugin-id>/`). Written lazily — only after the setting is on and one
+  interaction occurs; the resolved absolute path is printed to the console (`log.info`) when the
+  setting is enabled.
 
 ## Pointers
 
