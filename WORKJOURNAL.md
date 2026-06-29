@@ -126,3 +126,9 @@
       editor (like clicking a [[link]]) instead of bouncing back to the current page.
 - **Debug log starts fresh each session** — `BufferedSink.clear()` (guarded against a late seed) wipes the file
   when recording turns on (plugin load + enable-toggle, both editors); Logseq also `showMsg`s "recording is running".
+- **Fix dropped symmetric write to a non-materialized Logseq page** — linking A as parent of an unsaved B wrote
+  A's child but silently lost B's `parent::`, leaving the link asymmetric.
+    - Cause: a referenced-but-uncreated page keeps a lingering datascript entity, so `getPage` is truthy and
+      `ensurePage` skips `createPage`; with no first block `setPropertyLinks` bailed on the undefined uuid.
+    - Logseq `setPropertyLinks` now resolves via `ensureFirstBlockUuid` — `appendBlockInPage(name,'')`
+      materializes the page + returns the new block uuid directly (no post-write stale-read).

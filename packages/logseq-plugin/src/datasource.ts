@@ -26,6 +26,20 @@ async function firstBlockUuid(name: string): Promise<string | undefined> {
   return tree?.[0]?.uuid
 }
 
+// Resolve the first-block uuid to write page properties onto, MATERIALIZING the
+// page when it has none. A referenced-but-not-yet-created page surfaces a
+// lingering datascript entity (so `getPage` is truthy and `ensurePage` skips
+// `createPage`) yet has no first block — `firstBlockUuid` would then be undefined
+// and the write would be silently dropped, breaking the symmetric two-sided link.
+// `appendBlockInPage` both creates the page (if absent) and returns the new
+// block's uuid directly, avoiding the post-write stale-read race.
+async function ensureFirstBlockUuid(name: string): Promise<string | undefined> {
+  const existing = await firstBlockUuid(name)
+  if (existing) return existing
+  const block = await logseq.Editor.appendBlockInPage(name, '')
+  return block?.uuid
+}
+
 export function createLogseqDataSource(): DataSource {
   return {
     getPageProps: (name) => getPagePropsRaw(name),
@@ -34,7 +48,7 @@ export function createLogseqDataSource(): DataSource {
       if (!p) await logseq.Editor.createPage(name, {}, { redirect: false, createFirstBlock: true, journal: false })
     },
     async setPropertyLinks(name, key, targets) {
-      const uuid = await firstBlockUuid(name); if (!uuid) return
+      const uuid = await ensureFirstBlockUuid(name); if (!uuid) return
       await logseq.Editor.upsertBlockProperty(uuid, key, targets.map((t) => `[[${t}]]`).join(', '))
     },
     async removePropertyKey(name, key) {
