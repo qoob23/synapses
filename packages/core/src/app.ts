@@ -112,7 +112,12 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend, 
 
     // An activated note that renders unlinked may be a file deleted on disk; pruneIfMissing
     // decides (and returns true when it has handled/redirected navigation, so we stop here).
-    if (isUnlinked(graph) && (await pruneIfMissing(name, mine))) return
+    // Only guard editor-originated / history-restore navigations (opts.fromLogseq): a deliberate
+    // forward click on a card — including a child/sibling that's merely *referenced* and not yet
+    // created (no backing file) — must fall through and render, then mirror-navigate to open/create
+    // it in the editor (like clicking a [[link]]). Otherwise the deleted-page guard bounces every
+    // not-yet-created referenced page back to the current page.
+    if (opts.fromLogseq && isUnlinked(graph) && (await pruneIfMissing(name, mine))) return
 
     hideFlash()
     // Skip the re-render if nothing visually changed (avoids reconcile flicker).
