@@ -26,18 +26,22 @@ async function firstBlockUuid(name: string): Promise<string | undefined> {
   return tree?.[0]?.uuid
 }
 
-// Resolve the first-block uuid to write page properties onto, MATERIALIZING the
-// page when it has none. A referenced-but-not-yet-created page surfaces a
-// lingering datascript entity (so `getPage` is truthy and `ensurePage` skips
-// `createPage`) yet has no first block — `firstBlockUuid` would then be undefined
-// and the write would be silently dropped, breaking the symmetric two-sided link.
-// `appendBlockInPage` both creates the page (if absent) and returns the new
-// block's uuid directly, avoiding the post-write stale-read race.
-async function ensureFirstBlockUuid(name: string): Promise<string | undefined> {
-  const existing = await firstBlockUuid(name)
-  if (existing) return existing
-  const block = await logseq.Editor.appendBlockInPage(name, '')
-  return block?.uuid
+// Resolve the block to write page properties onto, creating one when needed.
+// Page properties live on the page's first (pre-)block, but that block may already
+// hold the user's own content — we must not pollute it. Reuse the first block only
+// when it is already a properties block (has parsed properties) or is blank;
+// otherwise PREPEND a fresh pre-block so the existing content stays untouched.
+// When there is no first block at all (a referenced-but-not-yet-created page keeps
+// a lingering datascript entity, so `getPage` is truthy and `ensurePage` skips
+// `createPage`, yet no block exists), `prependBlockInPage` both materializes the
+// page and returns the new block's uuid directly — avoiding the post-write
+// stale-read race and the silent-drop that broke the symmetric two-sided link.
+async function propertyBlockUuid(name: string): Promise<string | undefined> {
+  const first = (await logseq.Editor.getPageBlocksTree(name))?.[0]
+  if (!first) return (await logseq.Editor.prependBlockInPage(name, ''))?.uuid
+  const hasProps = Object.keys(first.properties ?? {}).length > 0
+  if (hasProps || first.content.trim() === '') return first.uuid
+  return (await logseq.Editor.prependBlockInPage(name, ''))?.uuid
 }
 
 export function createLogseqDataSource(): DataSource {
@@ -48,7 +52,7 @@ export function createLogseqDataSource(): DataSource {
       if (!p) await logseq.Editor.createPage(name, {}, { redirect: false, createFirstBlock: true, journal: false })
     },
     async setPropertyLinks(name, key, targets) {
-      const uuid = await ensureFirstBlockUuid(name); if (!uuid) return
+      const uuid = await propertyBlockUuid(name); if (!uuid) return
       await logseq.Editor.upsertBlockProperty(uuid, key, targets.map((t) => `[[${t}]]`).join(', '))
     },
     async removePropertyKey(name, key) {

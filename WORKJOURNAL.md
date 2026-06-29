@@ -130,5 +130,7 @@
   A's child but silently lost B's `parent::`, leaving the link asymmetric.
     - Cause: a referenced-but-uncreated page keeps a lingering datascript entity, so `getPage` is truthy and
       `ensurePage` skips `createPage`; with no first block `setPropertyLinks` bailed on the undefined uuid.
-    - Logseq `setPropertyLinks` now resolves via `ensureFirstBlockUuid` — `appendBlockInPage(name,'')`
-      materializes the page + returns the new block uuid directly (no post-write stale-read).
+    - `setPropertyLinks` now resolves the write target via `propertyBlockUuid`: reuse the first block only when
+      it already holds properties or is blank; if it holds user content, `prependBlockInPage` a fresh pre-block
+      so the content stays untouched. No first block at all → `prependBlockInPage` materializes page + returns
+      the new uuid directly (no post-write stale-read).
