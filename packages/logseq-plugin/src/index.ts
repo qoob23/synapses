@@ -26,7 +26,7 @@ async function main() {
     renderSynapsesSlot(slot, (el) => connectIframe(server, el))
   })
 
-  logseq.Editor.registerSlashCommand('Synapses: open in sidebar', async () => { await openSynapsesSidebar() })
+  logseq.Editor.registerSlashCommand('Synapses: Open in sidebar', async () => { await openSynapsesSidebar() })
   logseq.provideModel({ openSynapses() { void openSynapsesSidebar() } })
   logseq.App.registerUIItem('toolbar', { key: 'synapses-open', template: '<a class="button" data-on-click="openSynapses" title="Open Synapses"><span style="font-size:18px">🧠</span></a>' })
 }

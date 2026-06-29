@@ -17,15 +17,16 @@ properties and the datascript schema). Plain **TypeScript** (no React, no SVG, n
 
 - `packages/core` (`@logseq-synapses/core`) — editor-agnostic engine + view: graph link-index
   (`graph/index-pure.ts` + `graph/link-index.ts`), `mutations.ts`, `history.ts`, `ontology.ts`,
-  `ignore.ts` (folder/ignore-filter exclusion), the generic postMessage `transport.ts`, the view
-  (`view/` — `view.ts`, `edges.ts`, `layout.ts`, `panzoom.ts`, `dialog.ts`, `context-menu.ts`,
-  `theme.ts`, `color.ts`, `handles.ts`, `edge-hit.ts`, `styles.css`), `app.ts` = `mountSynapses`,
-  `backend.ts` = `createCoreBackend`.
+  `ignore.ts` (folder/ignore-filter exclusion), the generic postMessage `transport.ts`, the small
+  utils `errText.ts` + `log.ts`, the view (`view/` — `view.ts`, `edges.ts`, `layout.ts`, `panzoom.ts`,
+  `dialog.ts`, `context-menu.ts`, `colors.ts` (in-iframe connector-color popover), `theme.ts`,
+  `color.ts`, `curve.ts` (shared bezier control points), `handles.ts`, `edge-hit.ts`, `styles.css`),
+  `app.ts` = `mountSynapses` (pure helpers in `app-logic.ts`), `backend.ts` = `createCoreBackend`.
 - `packages/logseq-plugin` — Logseq adapter: M entry `src/index.ts` (has `logseq`), P iframe entry
-  `src/frame.ts`, `sidebar.ts`, `datasource.ts`, `services.ts`.
+  `src/frame.ts`, `sidebar.ts`, `datasource.ts`, `services.ts`, `theme.ts`, `logseq-types.ts`.
 - `packages/obsidian-plugin` — Obsidian adapter, **in-process `ItemView` (no iframe)**: `main.ts`,
-  `view.ts`, `datasource.ts`, `services.ts`, `inline-fields.ts`, `dataview-map.ts`, `write-target.ts`,
-  `paths.ts`, `settings.ts`.
+  `view.ts`, `datasource.ts`, `services.ts`, `dataview.ts` (typed Dataview live-accessor),
+  `inline-fields.ts`, `dataview-map.ts`, `write-target.ts`, `paths.ts`, `settings.ts`.
 
 **Two-seam architecture:** the view consumes a high-level `SynapsesBackend`; each editor supplies a
 `DataSource` (read/write properties + change events) + `EditorServices` (theme/assets/nav/ontology);
@@ -92,10 +93,16 @@ The four **link kinds**, named by where their cards sit relative to the active n
 - `npm run typecheck` — tsc across all 3 packages. `npm test` — runs the vitest suite (the count isn't
   pinned here; run it to get the current number before relying on it). Single test:
   `npx vitest run <file>` or filter by name with `-t "<substring>"`.
-- `npm run lint` (`lint:fix` to autofix) — ESLint flat config (`eslint.config.js`, typescript-eslint,
-  non-type-checked). **`@typescript-eslint/no-explicit-any` is an `error` in `packages/logseq-plugin`,
-  a `warn` in core/obsidian** — so the Logseq adapter uses the real `@logseq/libs` types (no
-  `logseq as any`; model types come from `packages/logseq-plugin/src/logseq-types.ts`) and can't regress.
+- `npm run lint` (`lint:fix` to autofix) — ESLint flat config (`eslint.config.js`), **type-aware**
+  (typescript-eslint `recommendedTypeChecked` via `projectService`) + `eslint-plugin-import`
+  (`import/no-cycle`) + `sonarjs` (cognitive-complexity). **Policy (see the header comment in
+  `eslint.config.js`): no-floating/misused-promises + the whole `any` cascade (no-explicit-any,
+  no-unsafe-*) are ERROR everywhere; `transport.ts` (the reflective postMessage bridge) is the one
+  documented WARN allowlist.** So there is effectively no `any` outside `transport.ts` — model
+  external types instead (`@logseq/libs` via `logseq-types.ts`; Dataview via `obsidian-plugin/dataview.ts`).
+  A few rules stay WARN (FP-prone / style): await-thenable, no-confusing-void, no-unnecessary-type-assertion,
+  unbound-method, require-await, prefer-nullish, restrict-*, sonarjs.
+- `npm run knip` — unused files / exports / dependencies guard (`knip.json`; `ignoreExportsUsedInFile`).
 - The view + the editor seams (datasource/services/iframe) need a live editor; the pure index, ontology,
   history, mutations, transport, and view geometry are unit-tested in `packages/core`.
 
@@ -171,9 +178,10 @@ are `packages/obsidian-plugin/src/{datasource,services}.ts`.)
   Connecting an already-linked pair **retypes** it: `setLink` queries `rolesBetween` and `unlink`s every
   differing role on both declaration sides before writing. Writing a property directly instead leaves two
   inline declarations with an undefined winner (and breaks parent↔child flips / legacy multi-role self-heal).
-- **Menus and modals use the full-bleed overlay pattern, never fixed-position or native.** Both
-  `view/dialog.ts` and `view/context-menu.ts` render an overlay covering the stage with an
-  absolutely-positioned child (`clampMenuPosition`). `window.prompt`/`alert` are blocked in the sandboxed
+- **Menus and modals use the full-bleed overlay pattern, never fixed-position or native.**
+  `view/dialog.ts`, `view/context-menu.ts`, and `view/colors.ts` each render an overlay covering the
+  stage with an absolutely-positioned child clamped on-screen (`clampDialogPosition` /
+  `clampMenuPosition`). `window.prompt`/`alert` are blocked in the sandboxed
   Logseq iframe; a `position:fixed` menu resolves against Obsidian's transformed pane (lands off-screen)
   and a Logseq dismisser tears it down between mousedown and mouseup.
 - **An iframe in an inline wrapper falls back to its ~300px intrinsic width**, ignoring `width:100%`. Fix

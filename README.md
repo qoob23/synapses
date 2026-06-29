@@ -49,7 +49,7 @@ Configure which property names map to parent / child / jump under **Settings →
 
 1. Logseq → **Settings → Advanced → Developer mode** = on.
 2. **Plugins → Load unpacked plugin** → select `packages/logseq-plugin` (build first; see below).
-3. Click the **🧠** toolbar button, or run the slash command **`/Synapses: open in sidebar`**.
+3. Click the **🧠** toolbar button, or run the slash command **`/Synapses: Open in sidebar`**.
 
 ## Develop
 
