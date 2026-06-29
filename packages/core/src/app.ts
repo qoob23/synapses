@@ -1,10 +1,10 @@
+import { graphKey, sameName as same, isUnlinked } from './app-logic'
+import { errText } from './errText'
 import { openColorsPopover } from './view/colors'
 import { openContextMenu } from './view/context-menu'
 import { openCreateDialog } from './view/dialog'
 import { applyTheme, connectorColors } from './view/theme'
 import { createView } from './view/view'
-import { errText } from './errText'
-import { graphKey, sameName as same, isUnlinked } from './app-logic'
 import type { SynapsesBackend, Graph, HistoryState, Role, Palette } from './types'
 
 interface GotoOpts {
