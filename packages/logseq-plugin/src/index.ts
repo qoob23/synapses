@@ -1,5 +1,5 @@
 import '@logseq/libs'
-import { createCoreBackend, serveBackend } from '@logseq-synapses/core'
+import { createCoreBackend, serveBackend, log } from '@logseq-synapses/core'
 import { createLogseqDataSource } from './datasource'
 import { createLogseqServices } from './services'
 import { renderSynapsesSlot, openSynapsesSidebar, synapsesFrameStyle, scrollSidebarForFrame } from './sidebar'
@@ -29,7 +29,6 @@ async function main() {
   logseq.Editor.registerSlashCommand('Synapses: open in sidebar', async () => { await openSynapsesSidebar() })
   logseq.provideModel({ openSynapses() { void openSynapsesSidebar() } })
   logseq.App.registerUIItem('toolbar', { key: 'synapses-open', template: '<a class="button" data-on-click="openSynapses" title="Open Synapses"><span style="font-size:18px">🧠</span></a>' })
-  console.log('[synapses] plugin ready')
 }
 
 // bridge-host.connectIframe, folded in: hand the freshly-injected iframe's window
@@ -40,4 +39,4 @@ function connectIframe(server: { init: (w: Window) => void }, iframeEl: HTMLIFra
   iframeEl.addEventListener('load', send); send()
 }
 
-logseq.ready(main).catch(console.error)
+logseq.ready(main).catch((e) => log.error('init failed', e))

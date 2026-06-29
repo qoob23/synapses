@@ -102,7 +102,6 @@ export function renderSynapsesSlot(slot: string, connect: (el: HTMLIFrameElement
       if (!el.src) el.src = synapsesUrl
       connect(el)
       installDragPassthrough()
-      console.log('[synapses] iframe injected; src =', el.src)
       return
     }
     if (tries++ < 60) setTimeout(tick, 50)

@@ -1,5 +1,6 @@
 import { createLinkIndex } from './graph/link-index'
 import { createHistory, serialize, deserialize } from './history'
+import { log } from './log'
 import { createMutations } from './mutations'
 import type { HistoryStack } from './history'
 import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, BackendEventPayloads, Palette, ConnectorColors } from './types'
@@ -21,7 +22,7 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
   const history = createHistory((state: HistoryStack) => {
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
-      services.persistence.save(HISTORY_KEY, serialize(state)).catch((e) => console.warn('[synapses] history save failed', e))
+      services.persistence.save(HISTORY_KEY, serialize(state)).catch((e) => log.warn('history save failed', e))
     }, HISTORY_SAVE_DEBOUNCE_MS)
   })
   const ready = (async () => {
@@ -29,7 +30,7 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
       const raw = await services.persistence.load(HISTORY_KEY)
       const loaded = raw ? deserialize(raw) : null
       if (loaded) history.load(loaded)
-    } catch (e) { console.warn('[synapses] history load failed', e) }
+    } catch (e) { log.warn('history load failed', e) }
   })()
 
   // events — typed per-event payloads via BackendEventPayloads
@@ -45,7 +46,7 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
 
   // Shared by the debounced graph-change and the ontology-change listeners.
   async function rebuildAndRefresh() {
-    try { await index.rebuild() } catch (e) { console.warn('[synapses] rebuild failed', e) }
+    try { await index.rebuild() } catch (e) { log.warn('rebuild failed', e) }
     emit('refresh', undefined)
   }
 
@@ -96,18 +97,18 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
         if (raw == null || raw === '') return null
         const n = Number(raw)
         return Number.isInteger(n) && n >= 0 ? n : null // '' / NaN / non-int == reset (default size)
-      } catch (e) { console.warn('[synapses] size load failed', e); return null }
+      } catch (e) { log.warn('size load failed', e); return null }
     },
     // level === null resets to the default size; an integer level is debounced like
     // history. Clearing is immediate so a reset can't be clobbered by a stale save.
     setSize: async (level) => {
       if (sizeTimer) clearTimeout(sizeTimer)
       if (level == null) {
-        services.persistence.save(SIZE_KEY, '').catch((e) => console.warn('[synapses] size clear failed', e))
+        services.persistence.save(SIZE_KEY, '').catch((e) => log.warn('size clear failed', e))
         return
       }
       sizeTimer = setTimeout(() => {
-        services.persistence.save(SIZE_KEY, String(level)).catch((e) => console.warn('[synapses] size save failed', e))
+        services.persistence.save(SIZE_KEY, String(level)).catch((e) => log.warn('size save failed', e))
       }, SIZE_SAVE_DEBOUNCE_MS)
     },
     getConnectorColors: async () => {
@@ -116,13 +117,13 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
         if (!raw) return {}
         const obj: unknown = JSON.parse(raw)
         return obj && typeof obj === 'object' ? (obj as ConnectorColors) : {}
-      } catch (e) { console.warn('[synapses] connector colors load failed', e); return {} }
+      } catch (e) { log.warn('connector colors load failed', e); return {} }
     },
     // Persisted immediately (not debounced) — color edits are deliberate, infrequent
     // clicks, and a reset must not be clobbered by a stale debounced save.
     setConnectorColors: async (colors) => {
       try { await services.persistence.save(COLORS_KEY, JSON.stringify(colors || {})) }
-      catch (e) { console.warn('[synapses] connector colors save failed', e) }
+      catch (e) { log.warn('connector colors save failed', e) }
     },
     on: <K extends BackendEvent>(event: K, handler: (p: BackendEventPayloads[K]) => void) => {
       listeners[event].add(handler)

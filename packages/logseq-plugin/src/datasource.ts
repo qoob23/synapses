@@ -1,5 +1,5 @@
 import '@logseq/libs'
-import { toNames, isInLogseqFolder } from '@logseq-synapses/core'
+import { toNames, isInLogseqFolder, log } from '@logseq-synapses/core'
 import type { PageEntity } from './logseq-types'
 import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
 
@@ -40,7 +40,7 @@ export function createLogseqDataSource(): DataSource {
   return {
     async listPages(): Promise<PageEntry[]> {
       let list: PageEntity[] = []
-      try { list = (await logseq.Editor.getAllPages()) || [] } catch (e) { console.warn('[synapses] getAllPages failed', e) }
+      try { list = (await logseq.Editor.getAllPages()) || [] } catch (e) { log.warn('getAllPages failed', e) }
       const entries = await Promise.all(list.map(async (p) => {
         const name = p?.originalName || p?.name
         if (!name) return null
