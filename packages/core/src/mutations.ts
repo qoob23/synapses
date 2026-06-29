@@ -8,12 +8,15 @@ export function removeFromLinkList(names: string[], target: string): string[] {
   return names.filter((n) => n.toLowerCase() !== t)
 }
 
+// Property-function (not method) signatures on purpose: the backend holds these as
+// values (e.g. `removeLink: mut.removeLink`), and none use `this` — the method form
+// would trip @typescript-eslint/unbound-method at every such reference.
 export interface Mutations {
-  createChild(focus: string, name: string): Promise<boolean>
-  createParent(focus: string, name: string): Promise<boolean>
-  createJump(focus: string, name: string): Promise<boolean>
-  linkExisting(focus: string, name: string, role: Role): Promise<boolean>
-  removeLink(focus: string, name: string, role: Role): Promise<boolean>
+  createChild: (focus: string, name: string) => Promise<boolean>
+  createParent: (focus: string, name: string) => Promise<boolean>
+  createJump: (focus: string, name: string) => Promise<boolean>
+  linkExisting: (focus: string, name: string, role: Role) => Promise<boolean>
+  removeLink: (focus: string, name: string, role: Role) => Promise<boolean>
 }
 
 const reciprocal = (role: Role): Role => (role === 'parent' ? 'child' : role === 'child' ? 'parent' : 'jump')

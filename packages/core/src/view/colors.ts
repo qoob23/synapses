@@ -8,8 +8,9 @@ export interface ColorRow {
   label: string
   value: string | undefined // stored override (any CSS color), or undefined = auto-derive
   fallback: string // the auto-derived color, shown in the swatch when there's no override
-  // value === null => reset this row to auto.
-  onChange: (value: string | null) => void
+  // value === null => reset this row to auto. May be async (persisting + reloading the
+  // theme); the popover fires it and forgets — it never awaits the result.
+  onChange: (value: string | null) => void | Promise<void>
 }
 
 let openOverlay: HTMLElement | null = null
@@ -73,13 +74,13 @@ export function openColorsPopover(opts: {
     input.addEventListener('change', () => {
       row.value = input.value
       reset.disabled = false
-      row.onChange(input.value)
+      void row.onChange(input.value)
     })
     reset.addEventListener('click', () => {
       row.value = undefined
       setSwatch(undefined)
       reset.disabled = true
-      row.onChange(null)
+      void row.onChange(null)
     })
 
     r.append(label, input, reset)

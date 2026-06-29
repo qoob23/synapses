@@ -4,6 +4,7 @@ import { openCreateDialog } from './view/dialog'
 import { applyTheme, connectorColors } from './view/theme'
 import { createView } from './view/view'
 import { errText } from './errText'
+import { graphKey, sameName as same, isUnlinked } from './app-logic'
 import type { SynapsesBackend, Graph, HistoryState, Role, Palette } from './types'
 
 interface GotoOpts {
@@ -44,19 +45,10 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   // only to render the toolbar/breadcrumb.
   let lastHist: HistoryState = { list: [], index: -1 }
 
-  const same = (a?: string | null, b?: string | null) =>
-    !!a && !!b && a.toLowerCase() === b.toLowerCase()
   let focus: string | null = null
   let mobile = false
   let navToken = 0
   let lastRenderKey: string | null = null
-
-  // Identity of a rendered graph — used to skip redundant re-renders (the reconcile
-  // after a write usually produces the same graph, which would otherwise flicker).
-  function graphKey(g: Graph): string {
-    const s = (a: string[]) => (a || []).map((x) => x.toLowerCase()).sort().join(',')
-    return [g.focus.toLowerCase(), s(g.parents), s(g.children), s(g.jumps), s(g.siblings)].join('|')
-  }
 
   // The view is built in boot() below, AFTER the remembered size level is loaded, so
   // cards render at the user's chosen size from the first frame. `view!` is assigned
@@ -76,17 +68,17 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
         }
         if (st.list.length) {
           lastHist = st
-          goto(st.list[st.index], { noHistory: true, fromLogseq: true })
+          void goto(st.list[st.index], { noHistory: true, fromLogseq: true })
           return
         }
       }
-    } catch (e) {
+    } catch {
       /* ignore */
     }
     try {
       const active = await backend.getActivePage()
-      if (active) goto(active, { fromLogseq: true })
-      else flash('Open a page in Logseq to see its synapses.')
+      if (active) void goto(active, { fromLogseq: true })
+      else flash('Open a page in Logseq to see its links.')
     } catch (e) {
       flashError(e)
     }
@@ -114,31 +106,9 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     }
     if (mine !== navToken) return // superseded by a newer navigation
 
-    // An activated note that renders unlinked may be a file that was deleted on disk.
-    // Only emptiness + a failed existence check prunes — a genuinely-unlinked existing note stays.
-    const unlinked = !(
-      graph.parents.length || graph.children.length || graph.jumps.length || graph.siblings.length
-    )
-    if (unlinked) {
-      try {
-        const { removed } = await backend.histRemoveMissing([name])
-        if (mine !== navToken) return
-        if (removed.length) {
-          lastHist = await backend.histState()
-          renderToolbar()
-          renderBreadcrumb()
-          const active = await backend.getActivePage()
-          if (active && !same(active, name)) {
-            goto(active, { fromLogseq: true })
-            return
-          }
-          flash('This note no longer exists.')
-          return
-        }
-      } catch (e) {
-        /* fall through and render the empty graph */
-      }
-    }
+    // An activated note that renders unlinked may be a file deleted on disk; pruneIfMissing
+    // decides (and returns true when it has handled/redirected navigation, so we stop here).
+    if (isUnlinked(graph) && (await pruneIfMissing(name, mine))) return
 
     hideFlash()
     // Skip the re-render if nothing visually changed (avoids reconcile flicker).
@@ -159,11 +129,35 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     if (!opts.fromLogseq && !mobile) backend.navigate(name).catch(() => {})
   }
 
+  // An unlinked active note may be a file deleted on disk. Prune it via the editor's
+  // existence check; returns true when it has handled navigation (redirected to the
+  // current editor page or flashed "no longer exists") so goto() stops, false to render
+  // the (possibly genuinely-empty) graph. navToken re-checks preserve the supersession guard.
+  async function pruneIfMissing(name: string, mine: number): Promise<boolean> {
+    try {
+      const { removed } = await backend.histRemoveMissing([name])
+      if (mine !== navToken) return true // superseded by a newer navigation
+      if (!removed.length) return false // note exists → render it
+      lastHist = await backend.histState()
+      renderToolbar()
+      renderBreadcrumb()
+      const active = await backend.getActivePage()
+      if (active && !same(active, name)) {
+        void goto(active, { fromLogseq: true })
+        return true
+      }
+      flash('This note no longer exists.')
+      return true
+    } catch {
+      return false // existence check failed → fall through and render the empty graph
+    }
+  }
+
   async function removeFromHistory(name: string) {
     const wasActive = same(name, focus)
     try {
       lastHist = await backend.histRemove(name)
-    } catch (e) {
+    } catch {
       return
     }
     renderToolbar()
@@ -172,19 +166,19 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     // The removed crumb was the active note: land on the new current entry and
     // open it in the editor too (goto without `fromLogseq` runs the navigate mirror).
     if (lastHist.list.length) {
-      goto(lastHist.list[lastHist.index], { noHistory: true })
+      void goto(lastHist.list[lastHist.index], { noHistory: true })
       return
     }
     try {
       const active = await backend.getActivePage()
       if (active) {
-        goto(active, { fromLogseq: true })
+        void goto(active, { fromLogseq: true })
         return
       }
-    } catch (e) {
+    } catch {
       /* ignore */
     }
-    flash('Open a page to see its synapses.')
+    flash('Open a note to see its links.')
   }
 
   // Toolbar "rebuild" action — the escape hatch for wedged internal state. Throws
@@ -202,9 +196,9 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     lastRenderKey = null
     if (focus) {
       hideFlash()
-      goto(focus, { noHistory: true, fromLogseq: true })
+      void goto(focus, { noHistory: true, fromLogseq: true })
     } else {
-      restore() // no active note yet: re-run the initial restore (manages its own flash)
+      void restore() // no active note yet: re-run the initial restore (manages its own flash)
     }
   }
 
@@ -212,25 +206,25 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     const src = focus
     if (!src) return
     const changed = await openCreateDialog({ root: els.dialogRoot, role, sourcePage: src, backend })
-    if (changed) goto(focus, { noHistory: true })
+    if (changed) void goto(focus, { noHistory: true })
   }
 
   async function createAt(fromNode: string, role: Role, at: { x: number; y: number } | null) {
     const changed = await openCreateDialog({ root: els.dialogRoot, role, sourcePage: fromNode, backend, at })
-    if (changed) goto(focus, { noHistory: true })
+    if (changed) void goto(focus, { noHistory: true })
   }
 
   function renderToolbar() {
     els.toolbar.innerHTML = ''
-    const refresh = btn('↻', 'Rebuild from editor', () => hardRefresh())
+    const refresh = btn('↻', 'Rebuild from editor', () => { void hardRefresh() })
     refresh.classList.add('synapses-btn-refresh') // bumps the thin glyph up to the triangles' weight
 
     const add = document.createElement('div')
     add.className = 'synapses-add-group'
     add.append(
-      btn('＋child', 'Add child', () => create('child')),
-      btn('＋parent', 'Add parent', () => create('parent')),
-      btn('＋jump', 'Add jump', () => create('jump')),
+      btn('＋child', 'Add child', () => { void create('child') }),
+      btn('＋parent', 'Add parent', () => { void create('parent') }),
+      btn('＋jump', 'Add jump', () => { void create('jump') }),
     )
 
     // −/+ step the card + text size (zoom was removed; layout fills the panel either way).
@@ -240,7 +234,7 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     const plus = btn('+', 'Larger cards & text', () => { view.stepSize(1); renderToolbar() })
     plus.disabled = level >= count - 1
 
-    const colors = btn('◑', 'Highlight color', () => openColors(colors))
+    const colors = btn('◑', 'Highlight color', () => { void openColors(colors) })
 
     // (No explicit "open in main pane" button — clicking the centred active card already
     // opens it in the main pane.) The add group is mobile-only; on desktop the handles +
@@ -258,13 +252,13 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       // Clicking a crumb re-activates the note (move-to-rightmost via histPush),
       // not a pointer-move like back/forward — so the activated note lands at the
       // most-recent (right-most) breadcrumb slot instead of highlighting in place.
-      c.addEventListener('click', () => goto(name))
+      c.addEventListener('click', () => { void goto(name) })
       c.addEventListener('contextmenu', (e) => {
         e.preventDefault()
         openContextMenu({
           root: els.dialogRoot,
           at: { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY },
-          items: [{ label: 'Remove from history', onSelect: () => removeFromHistory(name) }],
+          items: [{ label: 'Remove from history', onSelect: () => { void removeFromHistory(name) } }],
         })
       })
       els.breadcrumb.appendChild(c)
@@ -376,19 +370,21 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       world: els.world,
       canvas: els.canvas,
       stage: els.stage,
-      onNavigate: goto,
-      onOpenMain: (name) => backend.navigate(name).catch(() => {}),
-      onRemoveLink: ({ from, to, role }) =>
-        backend
+      onNavigate: (name) => { void goto(name) },
+      onOpenMain: (name) => { void backend.navigate(name).catch(() => {}) },
+      onRemoveLink: ({ from, to, role }) => {
+        void backend
           .removeLink(from, to, role as Role)
           .then(() => goto(focus, { noHistory: true }))
-          .catch(() => {}),
-      onLinkExisting: (fromNode, toNode, role) =>
-        backend
+          .catch(flashError)
+      },
+      onLinkExisting: (fromNode, toNode, role) => {
+        void backend
           .linkExisting(fromNode, toNode, role as Role)
           .then(() => goto(focus, { noHistory: true }))
-          .catch(() => {}),
-      onCreateAt: (fromNode, dir, at) => createAt(fromNode, dir as Role, at),
+          .catch(flashError)
+      },
+      onCreateAt: (fromNode, dir, at) => { void createAt(fromNode, dir as Role, at) },
       initialSize,
       onSizeChange: (level) => { backend.setSize(level).catch(() => {}) },
     })
@@ -400,10 +396,10 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
 
     unsubs.push(
       backend.on('recenter', (payload) => {
-        if (payload && payload.page) {
+        if (payload.page) {
           // ignore the route-change echo of a navigation we initiated ourselves
           if (!focus || payload.page.toLowerCase() !== focus.toLowerCase()) {
-            goto(payload.page, { fromLogseq: true })
+            void goto(payload.page, { fromLogseq: true })
           }
         }
       }),
@@ -411,12 +407,14 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
         void applyThemeWithOverrides(payload)
       }),
       backend.on('refresh', () => {
-        if (focus) goto(focus, { noHistory: true, fromLogseq: true, ifChanged: true })
+        if (focus) void goto(focus, { noHistory: true, fromLogseq: true, ifChanged: true })
       }),
-      backend.on('uimode', async () => {
-        try { mobile = !!(await backend.getUiMode()).mobile } catch (e) { /* ignore */ }
-        view.setMobile(mobile)
-        renderToolbar()
+      backend.on('uimode', () => {
+        void (async () => {
+          try { mobile = !!(await backend.getUiMode()).mobile } catch { /* ignore */ }
+          view.setMobile(mobile)
+          renderToolbar()
+        })()
       }),
     )
 

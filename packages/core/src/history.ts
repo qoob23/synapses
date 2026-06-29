@@ -59,13 +59,16 @@ export function serialize({ stack, idx }: HistoryStack): string {
 
 export function deserialize(raw: string): HistoryStack | null {
   try {
-    const o = JSON.parse(raw)
-    if (!o || !Array.isArray(o.stack)) return null
-    const stack = o.stack.filter((s: unknown) => typeof s === 'string')
-    let idx = Number.isInteger(o.idx) ? o.idx : stack.length - 1
+    const o: unknown = JSON.parse(raw)
+    if (!o || typeof o !== 'object') return null
+    const rec = o as { stack?: unknown; idx?: unknown }
+    if (!Array.isArray(rec.stack)) return null
+    const items: unknown[] = rec.stack
+    const stack = items.filter((s): s is string => typeof s === 'string')
+    let idx = Number.isInteger(rec.idx) ? (rec.idx as number) : stack.length - 1
     if (idx < -1 || idx >= stack.length) idx = stack.length - 1
     return { stack, idx }
-  } catch (e) {
+  } catch {
     return null
   }
 }

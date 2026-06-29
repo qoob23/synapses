@@ -13,7 +13,7 @@ describe('transport wiring', () => {
     const call = vi.fn(async () => true)
     let handler: ((m: string, p: any) => void) | null = null
     const proxy = buildProxy(call, (h) => { handler = h }, ['navigate'] as any, ['refresh'] as any)
-    proxy.navigate('A')
+    void proxy.navigate('A')
     expect(call).toHaveBeenCalledWith('navigate', 'A')
     const seen = vi.fn()
     proxy.on('refresh', seen)
