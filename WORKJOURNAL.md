@@ -104,3 +104,23 @@
   (`LayoutResult`/`LayoutNode`/`ConnectorTheme`), and the Obsidian Dataview boundary.
 - Added `errText` and a tiny `[synapses]` `log` util; dropped dev-noise console logs.
 - **Deferred** (untested DOM, need live verification): createView decomposition + overlay-scaffold unification.
+
+## 2026-06-30
+- **Dropped the in-memory link index + optimistic updates — the editor is the index engine now.**
+    - On-demand reads: a focus note's neighborhood = its own props + each parent's children (for siblings);
+      no cache, no patch/reconcile, no debounce (`graphKey` absorbs the duplicate two-sided-write events).
+    - Symmetric link properties: each kind is written on **both** pages (parent↔child, jump↔jump); reverse
+      links are explicit, not inferred — no self-heal, no editor-backlink queries. Siblings stay computed.
+    - No optimism: mutate, then wait for the editor's change event; corner spinner + ~2s watchdog renders
+      best-effort + flashes a warning on silent failure. Toolbar ↻ is now a plain "Refresh from editor".
+- **Opt-in JSONL debug file logging** (per-editor setting, off by default) to debug communication problems.
+    - Five categories trace one interaction: user / call / edit / editor / ui; reads unlogged, array args
+      collapsed to a count to stay terse.
+    - `ctx` tags the origin context: Logseq's iframe (P) can't write files, so it forwards user/ui lines to M,
+      which owns the single file + gates on the setting — a P line with no matching M `call` = dropped bridge.
+    - Buffered sink: lazy-load to seed across reloads, ~1 MB rolling cap, debounced whole-file rewrite. Files:
+      Obsidian `<plugin>/synapses-log.jsonl`; Logseq `<graph>/assets/storages/<id>/…`; path printed to console.
+- **Removed history pruning + the missing-page guard entirely** (incl. `pageExists` / `histRemoveMissing`).
+    - History is pruned only manually (right-click → Remove history); dropped the "no longer exists" flash.
+    - Activating a referenced-but-not-yet-created card now renders empty + mirror-navigates, creating it in the
+      editor (like clicking a [[link]]) instead of bouncing back to the current page.
