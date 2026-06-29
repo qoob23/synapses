@@ -93,3 +93,14 @@
     - New symmetric client→server transport `post`/`onClientEvent` (mirrors `notify`); P forwards wheel deltas to M.
     - M scrolls the iframe's nearest scrollable ancestor; keeping `preventDefault` stops the browser double-scrolling.
 - **Theme rework** — Logseq sidebar iframe adapts to the Logseq theme; connector colors reworked + in-view picker.
+
+## 2026-06-29
+- **Strict type-aware linter. ** typescript-eslint → `recommendedTypeChecked` via
+  `projectService`; added eslint-plugin-import (`no-cycle`) + sonarjs (cognitive-complexity) + knip.
+- **Two bugs fixed:**
+    - Obsidian persistence lost-write race — all `data.json` writes serialize through one queue.
+    - Drag-connect / connector-× unlink now surface write failures (flash) instead of swallowing them.
+- **De-any to zero outside `transport.ts`:** typed backend event seam (`BackendEventPayloads`), core view
+  (`LayoutResult`/`LayoutNode`/`ConnectorTheme`), and the Obsidian Dataview boundary.
+- Added `errText` and a tiny `[synapses]` `log` util; dropped dev-noise console logs.
+- **Deferred** (untested DOM, need live verification): createView decomposition + overlay-scaffold unification.
