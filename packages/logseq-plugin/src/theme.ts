@@ -103,9 +103,9 @@ export function readPalette(modeHint?: 'light' | 'dark'): Palette {
 }
 
 export function watchTheme(cb: (p: Palette) => void): void {
-  try { (logseq as any).App.onThemeModeChanged((e: any) => cb(readPalette(e?.mode))) } catch { /* ignore */ }
+  try { logseq.App.onThemeModeChanged((e) => cb(readPalette(e.mode))) } catch { /* ignore */ }
   // Re-apply when the user edits the connector-color (or any) settings.
-  try { (logseq as any).onSettingsChanged(() => cb(readPalette())) } catch { /* ignore */ }
+  try { logseq.onSettingsChanged(() => cb(readPalette())) } catch { /* ignore */ }
 
   const doc = hostDoc()
   if (!doc || typeof MutationObserver === 'undefined') return

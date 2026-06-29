@@ -1,12 +1,14 @@
 import '@logseq/libs'
 import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
 import { toNames, isInLogseqFolder } from '@logseq-synapses/core'
+import type { PageEntity } from './logseq-types'
 
-// Best-effort path of a page's backing file. Logseq surfaces `page.file` as either an
+// Best-effort path of a page's backing file. The published type models `file` as an
 // entity ref (`{ id }`, no path — then we can't tell, and Logseq doesn't list those
-// files as pages anyway) or, on some versions, a `{ path }`/string we can inspect.
-function pageFilePath(page: any): string {
-  const f = page?.file
+// files as pages anyway), but some Logseq versions surface a `{ path }`/string we can
+// inspect — the one spot the runtime outruns the types, so we widen it locally.
+function pageFilePath(page: PageEntity | null | undefined): string {
+  const f = page?.file as string | { id?: number; path?: string } | undefined
   if (!f) return ''
   return typeof f === 'string' ? f : (f.path || '')
 }
@@ -15,14 +17,14 @@ function pageFilePath(page: any): string {
 // them on the page entity, others only on the block. Raw wiki-link values are
 // mapped to plain target names via core's `toNames`, yielding the ontology-
 // agnostic PropMap the core link index consumes.
-async function getPagePropsRaw(name: string, page?: any): Promise<PropMap> {
-  let props: any = {}
+async function getPagePropsRaw(name: string, page?: PageEntity | null): Promise<PropMap> {
+  let props: Record<string, unknown> = {}
   try {
-    if (page === undefined) page = await (logseq as any).Editor.getPage(name)
+    if (page === undefined) page = await logseq.Editor.getPage(name)
     if (page?.properties) props = page.properties
   } catch {}
   if (!Object.keys(props).length) {
-    try { const tree = await (logseq as any).Editor.getPageBlocksTree(name); if (tree?.[0]?.properties) props = tree[0].properties } catch {}
+    try { const tree = await logseq.Editor.getPageBlocksTree(name); if (tree?.[0]?.properties) props = tree[0].properties } catch {}
   }
   const out: PropMap = {}
   for (const k of Object.keys(props || {})) { const names = toNames(props[k]); if (names.length) out[k] = names }
@@ -30,15 +32,15 @@ async function getPagePropsRaw(name: string, page?: any): Promise<PropMap> {
 }
 
 async function firstBlockUuid(name: string): Promise<string | undefined> {
-  const tree = await (logseq as any).Editor.getPageBlocksTree(name)
+  const tree = await logseq.Editor.getPageBlocksTree(name)
   return tree?.[0]?.uuid
 }
 
 export function createLogseqDataSource(): DataSource {
   return {
     async listPages(): Promise<PageEntry[]> {
-      let list: any[] = []
-      try { list = (await (logseq as any).Editor.getAllPages()) || [] } catch (e) { console.warn('[synapses] getAllPages failed', e) }
+      let list: PageEntity[] = []
+      try { list = (await logseq.Editor.getAllPages()) || [] } catch (e) { console.warn('[synapses] getAllPages failed', e) }
       const entries = await Promise.all(list.map(async (p) => {
         const name = p?.originalName || p?.name
         if (!name) return null
@@ -48,8 +50,8 @@ export function createLogseqDataSource(): DataSource {
         // connections that no longer exist on disk (surviving plugin refresh AND restart
         // until a manual Logseq re-index). Gating on `page.file` keeps the on-disk markdown
         // the sole source of truth; the fetched entity is reused for props (no extra call).
-        let page: any
-        try { page = await (logseq as any).Editor.getPage(name) } catch { return null }
+        let page: PageEntity | null
+        try { page = await logseq.Editor.getPage(name) } catch { return null }
         if (!page || !page.file) return null
         // Never surface Logseq's own logseq/ folder (its bak/recycle markdown backups of
         // real pages) as notes — when a path is resolvable. No-op when file is a bare ref.
@@ -60,16 +62,16 @@ export function createLogseqDataSource(): DataSource {
     },
     getPageProps: (name) => getPagePropsRaw(name),
     async ensurePage(name) {
-      const p = await (logseq as any).Editor.getPage(name)
-      if (!p) await (logseq as any).Editor.createPage(name, {}, { redirect: false, createFirstBlock: true, journal: false })
+      const p = await logseq.Editor.getPage(name)
+      if (!p) await logseq.Editor.createPage(name, {}, { redirect: false, createFirstBlock: true, journal: false })
     },
     async setPropertyLinks(name, key, targets) {
       const uuid = await firstBlockUuid(name); if (!uuid) return
-      await (logseq as any).Editor.upsertBlockProperty(uuid, key, targets.map((t) => `[[${t}]]`).join(', '))
+      await logseq.Editor.upsertBlockProperty(uuid, key, targets.map((t) => `[[${t}]]`).join(', '))
     },
     async removePropertyKey(name, key) {
       const uuid = await firstBlockUuid(name); if (!uuid) return
-      await (logseq as any).Editor.removeBlockProperty(uuid, key)
+      await logseq.Editor.removeBlockProperty(uuid, key)
     },
     async pageExists(name) {
       // A deleted .md file can leave a lingering datascript page entity behind — Logseq
@@ -78,16 +80,16 @@ export function createLogseqDataSource(): DataSource {
       // dead entry re-materialises an empty file. Treat a page as existing only if it has
       // a backing file, or failing that any blocks on disk.
       try {
-        const page: any = await (logseq as any).Editor.getPage(name)
+        const page = await logseq.Editor.getPage(name)
         if (!page) return false
         if (page.file) return true
-        const tree = await (logseq as any).Editor.getPageBlocksTree(name)
+        const tree = await logseq.Editor.getPageBlocksTree(name)
         return Array.isArray(tree) && tree.length > 0
       } catch { return false }
     },
     async searchPages(q) {
       const query = String(q || '').toLowerCase().trim(); if (!query) return []
-      let pages: any[] = []; try { pages = (await (logseq as any).Editor.getAllPages()) || [] } catch {}
+      let pages: PageEntity[] = []; try { pages = (await logseq.Editor.getAllPages()) || [] } catch {}
       const out: string[] = []
       for (const p of pages) {
         const nm = p.originalName || p.name; if (!nm) continue

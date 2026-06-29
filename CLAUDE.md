@@ -92,6 +92,10 @@ The four **link kinds**, named by where their cards sit relative to the active n
 - `npm run typecheck` — tsc across all 3 packages. `npm test` — runs the vitest suite (the count isn't
   pinned here; run it to get the current number before relying on it). Single test:
   `npx vitest run <file>` or filter by name with `-t "<substring>"`.
+- `npm run lint` (`lint:fix` to autofix) — ESLint flat config (`eslint.config.js`, typescript-eslint,
+  non-type-checked). **`@typescript-eslint/no-explicit-any` is an `error` in `packages/logseq-plugin`,
+  a `warn` in core/obsidian** — so the Logseq adapter uses the real `@logseq/libs` types (no
+  `logseq as any`; model types come from `packages/logseq-plugin/src/logseq-types.ts`) and can't regress.
 - The view + the editor seams (datasource/services/iframe) need a live editor; the pure index, ontology,
   history, mutations, transport, and view geometry are unit-tested in `packages/core`.
 

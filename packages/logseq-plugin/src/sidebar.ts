@@ -7,37 +7,37 @@
 // the M entry — doesn't execute @logseq/libs' browser-only bootstrap. That keeps
 // the pure `synapsesFrameStyle` unit test importable under the node test env.
 import type {} from '@logseq/libs'
+import type { BlockEntity } from './logseq-types'
 
 const HOST_PAGE = 'synapses'
 const MACRO = '{{renderer :synapses}}'
 
-async function ensureHostBlock(): Promise<any> {
-  let page = await (logseq as any).Editor.getPage(HOST_PAGE)
+async function ensureHostBlock(): Promise<BlockEntity | undefined> {
+  const page = await logseq.Editor.getPage(HOST_PAGE)
   if (!page) {
-    page = await (logseq as any).Editor.createPage(
+    await logseq.Editor.createPage(
       HOST_PAGE,
       {},
       { redirect: false, createFirstBlock: true, journal: false },
     )
   }
-  let tree = await (logseq as any).Editor.getPageBlocksTree(HOST_PAGE)
-  let block = tree && tree[0]
+  const tree = await logseq.Editor.getPageBlocksTree(HOST_PAGE)
+  let block: BlockEntity | null | undefined = tree[0]
   if (!block) {
-    block = await (logseq as any).Editor.appendBlockInPage(HOST_PAGE, MACRO)
+    block = await logseq.Editor.appendBlockInPage(HOST_PAGE, MACRO)
   } else if (!String(block.content || '').includes(':synapses')) {
-    await (logseq as any).Editor.updateBlock(block.uuid, MACRO)
+    await logseq.Editor.updateBlock(block.uuid, MACRO)
   }
-  tree = await (logseq as any).Editor.getPageBlocksTree(HOST_PAGE)
-  return tree && tree[0]
+  return (await logseq.Editor.getPageBlocksTree(HOST_PAGE))[0]
 }
 
 export async function openSynapsesSidebar(): Promise<void> {
   const block = await ensureHostBlock()
   if (!block) return
-  await (logseq as any).Editor.openInRightSidebar(block.uuid)
+  await logseq.Editor.openInRightSidebar(block.uuid)
   try {
-    await (logseq as any).App.setRightSidebarVisible(true)
-  } catch (e) {
+    await logseq.App.setRightSidebarVisible(true)
+  } catch {
     /* older API shapes; best-effort */
   }
 }
@@ -87,7 +87,7 @@ export function renderSynapsesSlot(slot: string, connect: (el: HTMLIFrameElement
   // Inject WITHOUT a src so DOMPurify has no URL to sanitize away (a plugin may
   // be served over a non-http scheme); set .src via the DOM API, which isn't
   // sanitized, once we locate the element.
-  ;(logseq as any).provideUI({
+  logseq.provideUI({
     key: 'synapses-ui-' + slot,
     slot,
     reset: true,
@@ -158,7 +158,7 @@ function installDragPassthrough(): void {
   pdoc.addEventListener('mouseup', restore, true)
   try {
     parent.addEventListener('blur', restore)
-  } catch (e) {
+  } catch {
     /* ignore */
   }
 }
