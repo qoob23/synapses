@@ -131,6 +131,7 @@
     - Cause: a referenced-but-uncreated page keeps a lingering datascript entity, so `getPage` is truthy and
       `ensurePage` skips `createPage`; with no first block `setPropertyLinks` bailed on the undefined uuid.
     - `setPropertyLinks` now resolves the write target via `propertyBlockUuid`: reuse the first block only when
-      it already holds properties or is blank; if it holds user content, `prependBlockInPage` a fresh pre-block
-      so the content stays untouched. No first block at all → `prependBlockInPage` materializes page + returns
-      the new uuid directly (no post-write stale-read).
+      it already holds properties or is blank; if it holds user content, insert a fresh pre-block BEFORE it
+      (`insertBlock` `before`+`sibling` — `prependBlockInPage` with empty content lands the block last) so the
+      content stays untouched. No first block at all → `appendBlockInPage` materializes page + returns the new
+      uuid directly (no post-write stale-read).

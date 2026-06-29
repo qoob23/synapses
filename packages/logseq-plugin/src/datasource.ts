@@ -30,18 +30,21 @@ async function firstBlockUuid(name: string): Promise<string | undefined> {
 // Page properties live on the page's first (pre-)block, but that block may already
 // hold the user's own content — we must not pollute it. Reuse the first block only
 // when it is already a properties block (has parsed properties) or is blank;
-// otherwise PREPEND a fresh pre-block so the existing content stays untouched.
+// otherwise insert a fresh pre-block BEFORE it so the existing content stays
+// untouched. (`prependBlockInPage` with empty content lands the block LAST in
+// Logseq, so we use `insertBlock` with `before`+`sibling` against the first block.)
 // When there is no first block at all (a referenced-but-not-yet-created page keeps
 // a lingering datascript entity, so `getPage` is truthy and `ensurePage` skips
-// `createPage`, yet no block exists), `prependBlockInPage` both materializes the
+// `createPage`, yet no block exists), `appendBlockInPage` both materializes the
 // page and returns the new block's uuid directly — avoiding the post-write
 // stale-read race and the silent-drop that broke the symmetric two-sided link.
 async function propertyBlockUuid(name: string): Promise<string | undefined> {
   const first = (await logseq.Editor.getPageBlocksTree(name))?.[0]
-  if (!first) return (await logseq.Editor.prependBlockInPage(name, ''))?.uuid
+  if (!first) return (await logseq.Editor.appendBlockInPage(name, ''))?.uuid
   const hasProps = Object.keys(first.properties ?? {}).length > 0
   if (hasProps || first.content.trim() === '') return first.uuid
-  return (await logseq.Editor.prependBlockInPage(name, ''))?.uuid
+  const created = await logseq.Editor.insertBlock(first.uuid, '', { before: true, sibling: true })
+  return created?.uuid
 }
 
 export function createLogseqDataSource(): DataSource {
