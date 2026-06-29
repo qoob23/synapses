@@ -5,7 +5,7 @@
 //   - 'default'     — add a new inline field (after the frontmatter fence)
 // Frontmatter wins when the key exists in both places.
 
-export type WriteTarget = 'frontmatter' | 'inline' | 'default'
+type WriteTarget = 'frontmatter' | 'inline' | 'default'
 
 export function chooseWriteTarget(opts: {
   hasFrontmatterKey: boolean
