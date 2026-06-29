@@ -23,6 +23,7 @@ export default tseslint.config(
     ignores: [
       '**/dist/**',
       '**/node_modules/**',
+      '.claude/**', // session scratch + transient agent git worktrees (gitignored)
       'packages/obsidian-plugin/main.js',
       'packages/obsidian-plugin/styles.css',
     ],

@@ -11,8 +11,8 @@ export function normalizeKey(k: string): string {
 }
 
 function parseList(v: unknown): string[] | null {
-  if (!v) return null
-  const arr = String(v).split(',').map((x) => x.trim()).filter(Boolean)
+  if (typeof v !== 'string') return null
+  const arr = v.split(',').map((x) => x.trim()).filter(Boolean)
   return arr.length ? arr : null
 }
 

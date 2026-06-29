@@ -14,7 +14,15 @@ const FALLBACK_BASE = 'rgb(127, 127, 127)'
 const JUMP_FACTOR = 0.5 // jump/sibling connectors = the gray at half opacity
 const DEFAULT_ALPHA = 0.75 // resting connectors render softened to this, not solid
 
-export function connectorColors(palette: Palette): { edge: string; jumpEdge: string; highlight: string } {
+// The three canvas connector colors derived from a palette: the resting gray (`edge`),
+// the dimmer jump/sibling gray (`jumpEdge`), and the hovered-connector accent (`highlight`).
+export interface ConnectorTheme {
+  edge: string
+  jumpEdge: string
+  highlight: string
+}
+
+export function connectorColors(palette: Palette): ConnectorTheme {
   const grayBase = (palette && (
     mixColors(palette.bg, palette.text, 0.55)
     || clampColorAlpha(palette.border)

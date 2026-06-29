@@ -7,6 +7,7 @@
 // annotations differ from the original; the handshake / queue / pending-map
 // logic is unchanged.
 
+import { errText } from './errText'
 import type { SynapsesBackend, BackendEvent } from './types'
 
 const TAG = '__synapses_rpc__'
@@ -22,7 +23,21 @@ export function startServer(
   let peer: Window | null = null
   let queued: any[] = [] // events fired before the iframe finished its handshake
 
-  window.addEventListener('message', async (e) => {
+  // Serve one inbound request: run the handler and post its result (or a serialized
+  // error) back to the requester. Split out so the message listener stays synchronous
+  // (a Promise-returning event handler is a no-misused-promises hazard).
+  async function serve(d: any, source: Window) {
+    const fn = handlers[d.method]
+    try {
+      if (typeof fn !== 'function') throw new Error('unknown method: ' + d.method)
+      const result = await fn(...(d.args || []))
+      source.postMessage({ [TAG]: true, kind: 'res', id: d.id, result }, '*')
+    } catch (err) {
+      source.postMessage({ [TAG]: true, kind: 'res', id: d.id, error: errText(err) }, '*')
+    }
+  }
+
+  window.addEventListener('message', (e) => {
     const d = e.data
     if (!d || d[TAG] !== true) return
 
@@ -38,19 +53,7 @@ export function startServer(
       return
     }
 
-    if (d.kind === 'req') {
-      const fn = handlers[d.method]
-      try {
-        if (typeof fn !== 'function') throw new Error('unknown method: ' + d.method)
-        const result = await fn(...(d.args || []))
-        ;(e.source as Window).postMessage({ [TAG]: true, kind: 'res', id: d.id, result }, '*')
-      } catch (err: any) {
-        ;(e.source as Window).postMessage(
-          { [TAG]: true, kind: 'res', id: d.id, error: String((err && err.message) || err) },
-          '*',
-        )
-      }
-    }
+    if (d.kind === 'req') void serve(d, e.source as Window)
   })
 
   // Tell a freshly-injected iframe who to talk to.

@@ -24,7 +24,15 @@ export interface Palette {
   primaryEdge?: string
 }
 
-export type BackendEvent = 'recenter' | 'theme' | 'refresh' | 'uimode'
+// Payload shape per backend event — drives the generic `on`/`emit` so subscribers
+// get a typed payload instead of `any`. `void` events carry no payload.
+export interface BackendEventPayloads {
+  recenter: { page: string }
+  theme: Palette
+  refresh: void
+  uimode: void
+}
+export type BackendEvent = keyof BackendEventPayloads
 
 export interface UiMode { mobile: boolean }
 
@@ -57,7 +65,7 @@ export interface SynapsesBackend {
   setSize(level: number | null): Promise<void> // discrete card/text size level; null resets to default
   getConnectorColors(): Promise<ConnectorColors>
   setConnectorColors(colors: ConnectorColors): Promise<void> // persisted verbatim; omit a key to reset it to auto
-  on(event: BackendEvent, handler: (payload?: any) => void): () => void
+  on<K extends BackendEvent>(event: K, handler: (payload: BackendEventPayloads[K]) => void): () => void
 }
 
 // ----- Seam B (editor-implemented) -----

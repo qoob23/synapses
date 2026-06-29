@@ -2,7 +2,7 @@ import { createLinkIndex } from './graph/link-index'
 import { createHistory, serialize, deserialize } from './history'
 import { createMutations } from './mutations'
 import type { HistoryStack } from './history'
-import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, Palette, ConnectorColors } from './types'
+import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, BackendEventPayloads, Palette, ConnectorColors } from './types'
 
 export const GRAPH_DEBOUNCE_MS = 400
 export const HISTORY_SAVE_DEBOUNCE_MS = 300
@@ -32,30 +32,32 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
     } catch (e) { console.warn('[synapses] history load failed', e) }
   })()
 
-  // events
-  const listeners = new Map<BackendEvent, Set<(p?: any) => void>>([
-    ['recenter', new Set()], ['theme', new Set()], ['refresh', new Set()], ['uimode', new Set()],
-  ])
-  const emit = (evt: BackendEvent, payload?: any) => listeners.get(evt)!.forEach((fn) => fn(payload))
+  // events — typed per-event payloads via BackendEventPayloads
+  const listeners: { [K in BackendEvent]: Set<(p: BackendEventPayloads[K]) => void> } = {
+    recenter: new Set(), theme: new Set(), refresh: new Set(), uimode: new Set(),
+  }
+  function emit<K extends BackendEvent>(evt: K, payload: BackendEventPayloads[K]) {
+    for (const fn of listeners[evt]) fn(payload)
+  }
 
   // remembered card/text size level, persisted with the same debounce shape as history
   let sizeTimer: ReturnType<typeof setTimeout> | undefined
 
+  // Shared by the debounced graph-change and the ontology-change listeners.
+  async function rebuildAndRefresh() {
+    try { await index.rebuild() } catch (e) { console.warn('[synapses] rebuild failed', e) }
+    emit('refresh', undefined)
+  }
+
   let graphTimer: ReturnType<typeof setTimeout> | undefined
   services.onGraphChange(() => {
     if (graphTimer) clearTimeout(graphTimer)
-    graphTimer = setTimeout(async () => {
-      try { await index.rebuild() } catch (e) { console.warn('[synapses] rebuild failed', e) }
-      emit('refresh')
-    }, GRAPH_DEBOUNCE_MS)
+    graphTimer = setTimeout(() => void rebuildAndRefresh(), GRAPH_DEBOUNCE_MS)
   })
   services.onActivePageChange((name) => { if (name) emit('recenter', { page: name }) })
   services.onThemeChange((p: Palette) => emit('theme', p))
-  services.onUiModeChange(() => emit('uimode'))
-  services.onOntologyChange(async () => {
-    try { await index.rebuild() } catch (e) { console.warn('[synapses] rebuild failed', e) }
-    emit('refresh')
-  })
+  services.onUiModeChange(() => emit('uimode', undefined))
+  services.onOntologyChange(() => void rebuildAndRefresh())
 
   return {
     getActivePage: async () => services.getActivePageName(),
@@ -112,7 +114,7 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
       try {
         const raw = await services.persistence.load(COLORS_KEY)
         if (!raw) return {}
-        const obj = JSON.parse(raw)
+        const obj: unknown = JSON.parse(raw)
         return obj && typeof obj === 'object' ? (obj as ConnectorColors) : {}
       } catch (e) { console.warn('[synapses] connector colors load failed', e); return {} }
     },
@@ -122,6 +124,9 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
       try { await services.persistence.save(COLORS_KEY, JSON.stringify(colors || {})) }
       catch (e) { console.warn('[synapses] connector colors save failed', e) }
     },
-    on: (event, handler) => { listeners.get(event)!.add(handler); return () => listeners.get(event)!.delete(handler) },
+    on: <K extends BackendEvent>(event: K, handler: (p: BackendEventPayloads[K]) => void) => {
+      listeners[event].add(handler)
+      return () => listeners[event].delete(handler)
+    },
   }
 }

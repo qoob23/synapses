@@ -1,3 +1,4 @@
+import { errText } from '../errText'
 import type { Role, SynapsesBackend } from '../types'
 
 function div(cls: string) {
@@ -112,7 +113,7 @@ export function openCreateDialog({
       if (q) {
         const createRow = div('synapses-dialog-result')
         createRow.textContent = `✛ Create "${q}"`
-        const act = () => finish(q, false)
+        const act = () => { void finish(q, false) }
         createRow.addEventListener('click', act)
         createRow.addEventListener('mousemove', () => setHighlight(0))
         results.appendChild(createRow)
@@ -123,7 +124,7 @@ export function openCreateDialog({
         const idx = rows.length
         const r = div('synapses-dialog-result')
         r.textContent = m
-        const act = () => finish(m, true)
+        const act = () => { void finish(m, true) }
         r.addEventListener('click', act)
         r.addEventListener('mousemove', () => setHighlight(idx))
         results.appendChild(r)
@@ -141,7 +142,7 @@ export function openCreateDialog({
       let matches: string[] = []
       try {
         matches = await backend.searchPages(q)
-      } catch (e) {
+      } catch {
         /* ignore */
       }
       if (mine !== token) return
@@ -161,8 +162,8 @@ export function openCreateDialog({
           await backend.createChild(sourcePage, name)
         }
         close(true)
-      } catch (e: any) {
-        hint.textContent = 'Failed: ' + ((e && e.message) || e)
+      } catch (e) {
+        hint.textContent = 'Failed: ' + errText(e)
         hint.classList.add('err')
       }
     }
@@ -187,7 +188,7 @@ export function openCreateDialog({
       }
     }
 
-    input.addEventListener('input', search)
+    input.addEventListener('input', () => void search())
     document.addEventListener('keydown', onKey, true)
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) close(false)

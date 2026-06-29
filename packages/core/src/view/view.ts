@@ -4,6 +4,8 @@ import { nodeHandleStates } from './handles'
 import { computeLayout, NODE } from './layout'
 import { attachPanzoom, worldToScreen, screenToWorld } from './panzoom'
 import type { Edge, EdgeRemove } from './edges'
+import type { LayoutResult, LayoutNode } from './layout'
+import type { ConnectorTheme } from './theme'
 import type { Adjacency } from '../types'
 import type { Graph } from '../types'
 
@@ -94,8 +96,8 @@ export function createView({
 
   const elements = new Map<string, CardEl>() // nameLower -> element
   let lastGraph: Graph | null = null // retained so relayout() can recompute on resize / size step
-  let layout: any = null
-  let theme: { edge: string; jumpEdge: string; highlight: string } = defaultTheme()
+  let layout: LayoutResult | null = null
+  let theme: ConnectorTheme = defaultTheme()
   let dpr = window.devicePixelRatio || 1
   let raf = 0
   let animUntil = 0
@@ -133,8 +135,8 @@ export function createView({
   const ro = new ResizeObserver(resizeCanvas)
   ro.observe(stage)
 
-  function setTheme(t: any) {
-    theme = { ...defaultTheme(), ...(t || {}) }
+  function setTheme(t: ConnectorTheme) {
+    theme = { ...defaultTheme(), ...t }
     scheduleDraw()
   }
 
@@ -189,7 +191,7 @@ export function createView({
     // Falls back to the center if the old active note is gone too.
     let exitInto: Pt = { x: 0, y: 0 }
     if (prevFocus) {
-      const moved = layout.nodes.find((n: any) => n.name.toLowerCase() === prevFocus.toLowerCase())
+      const moved = layout.nodes.find((n: LayoutNode) => n.name.toLowerCase() === prevFocus.toLowerCase())
       if (moved) exitInto = { x: moved.x, y: moved.y }
     }
 
@@ -277,7 +279,7 @@ export function createView({
 
   // Get the current world-center (+ width) of a card element from its live CSS
   // transform. Width comes from offsetWidth since cards are content-sized.
-  function liveCenterOf(el: any): Pt & { w: number } {
+  function liveCenterOf(el: CardEl): Pt & { w: number } {
     const w = el.offsetWidth || NODE.W
     const h = el.offsetHeight || cardHpx() // height scales with the size level
     const t = getComputedStyle(el).transform
@@ -449,7 +451,7 @@ export function createView({
     return el._zone === 'focus' ? `Open "${el._name}" in the main pane` : `Recenter on "${el._name}"`
   }
 
-  function updateNode(el: CardEl, node: any) {
+  function updateNode(el: CardEl, node: LayoutNode) {
     el._name = node.name
     el._zone = node.zone
     el._label.textContent = node.name
@@ -498,7 +500,7 @@ export function createView({
   // snapping to the final layout.
   function liveLayout() {
     if (!layout) return null
-    const nodes = layout.nodes.map((n: any) => {
+    const nodes = layout.nodes.map((n: LayoutNode) => {
       let x = n.x
       let y = n.y
       let w = n.w
@@ -602,8 +604,8 @@ export function createView({
     // Don't hit-test connectors while the cursor is over a card — a card sits on
     // top of its own connectors' endpoints, so hovering it would otherwise light
     // up (and arm removal of) a link the user isn't aiming at.
-    const tgt: any = e.target
-    if (tgt && tgt.closest && tgt.closest('.synapses-node')) {
+    const tgt = e.target as Element | null
+    if (tgt?.closest('.synapses-node')) {
       if (hoveredEdge) hideRemove()
       return
     }
@@ -632,8 +634,8 @@ export function createView({
   }
   const onStageTap = (e: MouseEvent) => {
     if (!mobile || tapMoved) return
-    const tgt: any = e.target
-    if (tgt && tgt.closest && tgt.closest('.synapses-node')) return // tap on a card → its own activate handler
+    const tgt = e.target as Element | null
+    if (tgt?.closest('.synapses-node')) return // tap on a card → its own activate handler
     if (!showRemoveAt(e.clientX, e.clientY)) hideRemove()
   }
   stage.addEventListener('pointerdown', onStageTapDown)

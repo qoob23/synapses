@@ -3,6 +3,7 @@ import { openContextMenu } from './view/context-menu'
 import { openCreateDialog } from './view/dialog'
 import { applyTheme, connectorColors } from './view/theme'
 import { createView } from './view/view'
+import { errText } from './errText'
 import type { SynapsesBackend, Graph, HistoryState, Role, Palette } from './types'
 
 interface GotoOpts {
@@ -86,8 +87,8 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
       const active = await backend.getActivePage()
       if (active) goto(active, { fromLogseq: true })
       else flash('Open a page in Logseq to see its synapses.')
-    } catch (e: any) {
-      flash('⚠ ' + ((e && e.message) || e))
+    } catch (e) {
+      flashError(e)
     }
   }
 
@@ -107,8 +108,8 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     let graph: Graph
     try {
       graph = await backend.buildGraph(name)
-    } catch (e: any) {
-      flash('⚠ ' + ((e && e.message) || e))
+    } catch (e) {
+      flashError(e)
       return
     }
     if (mine !== navToken) return // superseded by a newer navigation
@@ -194,8 +195,8 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
     flash('Rebuilding from editor…')
     try {
       await backend.rebuildIndex()
-    } catch (e: any) {
-      flash('⚠ ' + ((e && e.message) || e))
+    } catch (e) {
+      flashError(e)
       return
     }
     lastRenderKey = null
@@ -340,6 +341,9 @@ export function mountSynapses(container: HTMLElement, backend: SynapsesBackend):
   function flash(msg: string) {
     els.flash.textContent = msg
     els.flash.classList.add('is-shown')
+  }
+  function flashError(e: unknown) {
+    flash('⚠ ' + errText(e))
   }
   function hideFlash() {
     els.flash.classList.remove('is-shown')
