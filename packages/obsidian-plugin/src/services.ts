@@ -75,6 +75,7 @@ export function createObsidianServices(app: App, plugin: SettingsPlugin): Editor
       return buildOntology({ parent: s.parentFields, child: s.childFields, jump: s.jumpFields })
     },
     onOntologyChange(cb) { plugin.onSettingsChanged(cb) },
+    getSymmetricLinks: () => !!plugin.settings.symmetricLinks,
     persistence,
   }
 }

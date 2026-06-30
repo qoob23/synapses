@@ -9,6 +9,7 @@ interface SynapsesSettings {
   parentFields?: string
   childFields?: string
   jumpFields?: string
+  symmetricLinks?: boolean
   mobileMode?: boolean
 }
 function settings(): SynapsesSettings {
@@ -49,6 +50,7 @@ export function createLogseqServices(): EditorServices {
     getOntology(): OntologyConfig { const s = settings(); return buildOntology({ parent: s.parentFields, child: s.childFields, jump: s.jumpFields }) },
     // Raw forward — the debounce lives in createCoreBackend, not here.
     onOntologyChange(cb) { logseq.onSettingsChanged(() => cb()) },
+    getSymmetricLinks: () => !!settings().symmetricLinks,
     persistence,
   }
 }

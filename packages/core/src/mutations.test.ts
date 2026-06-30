@@ -44,7 +44,7 @@ function fakeDataSource(initial: Record<string, PropMap> = {}) {
 describe('createMutations — symmetric writes', () => {
   it('createChild writes child on focus AND parent on the target (both sides)', async () => {
     const { ds, props } = fakeDataSource({ A: {} })
-    const ok = await createMutations(ds, () => ONT).createChild('A', 'B')
+    const ok = await createMutations(ds, () => ONT, () => true).createChild('A', 'B')
     expect(ok).toBe(true)
     expect(props('A')).toEqual({ child: ['B'] })
     expect(props('B')).toEqual({ parent: ['A'] })
@@ -52,28 +52,28 @@ describe('createMutations — symmetric writes', () => {
 
   it('createParent writes parent on focus AND child on the target', async () => {
     const { ds, props } = fakeDataSource({ A: {} })
-    await createMutations(ds, () => ONT).createParent('A', 'P')
+    await createMutations(ds, () => ONT, () => true).createParent('A', 'P')
     expect(props('A')).toEqual({ parent: ['P'] })
     expect(props('P')).toEqual({ child: ['A'] })
   })
 
   it('createJump writes jump on both sides (symmetric)', async () => {
     const { ds, props } = fakeDataSource({ A: {} })
-    await createMutations(ds, () => ONT).createJump('A', 'B')
+    await createMutations(ds, () => ONT, () => true).createJump('A', 'B')
     expect(props('A')).toEqual({ jump: ['B'] })
     expect(props('B')).toEqual({ jump: ['A'] })
   })
 
   it('createChild merges onto an existing child list, keeping the originals', async () => {
     const { ds, props } = fakeDataSource({ A: { child: ['B'] }, B: { parent: ['A'] } })
-    await createMutations(ds, () => ONT).createChild('A', 'C')
+    await createMutations(ds, () => ONT, () => true).createChild('A', 'C')
     expect(props('A').child).toEqual(['B', 'C'])
     expect(props('C')).toEqual({ parent: ['A'] })
   })
 
   it('removeLink rewrites the remainder and clears the reciprocal on the other page', async () => {
     const { ds, props, removes } = fakeDataSource({ A: { child: ['B', 'C'] }, B: { parent: ['A'] } })
-    await createMutations(ds, () => ONT).removeLink('A', 'B', 'child')
+    await createMutations(ds, () => ONT, () => true).removeLink('A', 'B', 'child')
     expect(props('A').child).toEqual(['C']) // remainder kept
     expect(removes).not.toContainEqual(['A', 'child']) // not removed wholesale
     expect(removes).toContainEqual(['B', 'parent']) // reciprocal cleared on B (became empty)
@@ -81,14 +81,14 @@ describe('createMutations — symmetric writes', () => {
 
   it('removeLink strips the alias key on both sides', async () => {
     const { ds, removes } = fakeDataSource({ A: { up: ['P'] }, P: { child: ['A'] } })
-    await createMutations(ds, () => ONT).removeLink('A', 'P', 'parent')
+    await createMutations(ds, () => ONT, () => true).removeLink('A', 'P', 'parent')
     expect(removes).toContainEqual(['A', 'up']) // 'up' is a parent alias, became empty
     expect(removes).toContainEqual(['P', 'child'])
   })
 
   it('linkExisting on an unconnected pair only adds, on both sides', async () => {
     const { ds, props, removes } = fakeDataSource({ A: {}, B: {} })
-    await createMutations(ds, () => ONT).linkExisting('A', 'B', 'jump')
+    await createMutations(ds, () => ONT, () => true).linkExisting('A', 'B', 'jump')
     expect(props('A')).toEqual({ jump: ['B'] })
     expect(props('B')).toEqual({ jump: ['A'] })
     expect(removes).toEqual([])
@@ -96,7 +96,7 @@ describe('createMutations — symmetric writes', () => {
 
   it('retypes an existing parent into a jump, clearing the old role on both pages', async () => {
     const { ds, props, removes } = fakeDataSource({ A: { parent: ['B'] }, B: { child: ['A'] } })
-    await createMutations(ds, () => ONT).linkExisting('A', 'B', 'jump')
+    await createMutations(ds, () => ONT, () => true).linkExisting('A', 'B', 'jump')
     expect(removes).toContainEqual(['A', 'parent']) // old declaration cleared on A
     expect(removes).toContainEqual(['B', 'child']) // and its reciprocal on B
     expect(props('A')).toEqual({ jump: ['B'] })
@@ -105,14 +105,14 @@ describe('createMutations — symmetric writes', () => {
 
   it('flips a parent into a child (direction reversal), symmetric on both pages', async () => {
     const { ds, props } = fakeDataSource({ A: { parent: ['B'] }, B: { child: ['A'] } })
-    await createMutations(ds, () => ONT).linkExisting('A', 'B', 'child')
+    await createMutations(ds, () => ONT, () => true).linkExisting('A', 'B', 'child')
     expect(props('A')).toEqual({ child: ['B'] })
     expect(props('B')).toEqual({ parent: ['A'] })
   })
 
   it('re-affirming the same role removes nothing and dedupes', async () => {
     const { ds, props, removes } = fakeDataSource({ A: { jump: ['B'] }, B: { jump: ['A'] } })
-    await createMutations(ds, () => ONT).linkExisting('A', 'B', 'jump')
+    await createMutations(ds, () => ONT, () => true).linkExisting('A', 'B', 'jump')
     expect(removes).toEqual([])
     expect(props('A').jump).toEqual(['B']) // deduped, not doubled
     expect(props('B').jump).toEqual(['A'])
@@ -120,10 +120,50 @@ describe('createMutations — symmetric writes', () => {
 
   it('collapses a legacy multi-role pair to the single chosen role', async () => {
     const { ds, props, removes } = fakeDataSource({ A: { parent: ['B'], jump: ['B'] }, B: { child: ['A'] } })
-    await createMutations(ds, () => ONT).linkExisting('A', 'B', 'parent') // keep parent, drop the stray jump
+    await createMutations(ds, () => ONT, () => true).linkExisting('A', 'B', 'parent') // keep parent, drop the stray jump
     expect(removes).toContainEqual(['A', 'jump'])
     expect(removes).not.toContainEqual(['A', 'parent']) // parent kept
     expect(props('A').parent).toEqual(['B'])
     expect(props('B').child).toEqual(['A'])
+  })
+})
+
+describe('createMutations — single-sided writes (default)', () => {
+  it('defaults to single-sided when no symmetric accessor is passed', async () => {
+    const { ds, props } = fakeDataSource({ A: {} })
+    await createMutations(ds, () => ONT).createChild('A', 'B')
+    expect(props('A')).toEqual({ child: ['B'] })
+    expect(props('B')).toEqual({}) // no reciprocal written to the target
+  })
+
+  it('writes the new role only on the interacted note, no reciprocal', async () => {
+    const { ds, props } = fakeDataSource({ A: {} })
+    await createMutations(ds, () => ONT, () => false).createJump('A', 'B')
+    expect(props('A')).toEqual({ jump: ['B'] })
+    expect(props('B')).toEqual({})
+  })
+
+  // The canonical spec example: A has parent::B (B holds nothing); the user drags the
+  // jump handle from B to A → linkExisting(focus=B, target=A, jump). Result: B gets
+  // jump::A and A is emptied (its conflicting parent::B is removed).
+  it('drops the conflicting connection from the OTHER page and leaves it bare', async () => {
+    const { ds, props } = fakeDataSource({ A: { parent: ['B'] }, B: {} })
+    await createMutations(ds, () => ONT, () => false).linkExisting('B', 'A', 'jump')
+    expect(props('B')).toEqual({ jump: ['A'] })
+    expect(props('A')).toEqual({}) // parent::B removed, no jump::B added
+  })
+
+  it('drops a conflicting role declared on the interacted note itself', async () => {
+    const { ds, props } = fakeDataSource({ A: { parent: ['B'] }, B: {} })
+    await createMutations(ds, () => ONT, () => false).linkExisting('A', 'B', 'jump')
+    expect(props('A')).toEqual({ jump: ['B'] })
+    expect(props('B')).toEqual({})
+  })
+
+  it('removeLink still clears both sides so a link cannot resurrect on read', async () => {
+    const { ds, props } = fakeDataSource({ A: { parent: ['B'] }, B: { child: ['A'] } })
+    await createMutations(ds, () => ONT, () => false).removeLink('A', 'B', 'parent')
+    expect(props('A')).toEqual({})
+    expect(props('B')).toEqual({})
   })
 })

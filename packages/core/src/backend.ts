@@ -12,11 +12,10 @@ export const SIZE_SAVE_DEBOUNCE_MS = 300
 const HISTORY_KEY = 'history.json'
 const SIZE_KEY = 'size'
 const COLORS_KEY = 'connectorColors'
-const SYMMETRY_REPAIR_KEY = 'symmetryRepairDone'
 
 export function createCoreBackend(dataSource: DataSource, services: EditorServices, logger: Logger = noopLogger): SynapsesBackend {
   const getOntology = () => services.getOntology()
-  const mut = createMutations(dataSource, getOntology)
+  const mut = createMutations(dataSource, getOntology, () => services.getSymmetricLinks())
 
   // On-demand neighborhood reads (no in-memory index — the editor is the index engine).
   // A focus note's parents/children/jumps come from its own props; siblings need each
@@ -91,13 +90,12 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
     createJump: mut.createJump,
     linkExisting: mut.linkExisting,
     removeLink: mut.removeLink,
-    repairSymmetryOnce: async () => {
+    repairSymmetry: async () => {
       try {
-        if (await services.persistence.load(SYMMETRY_REPAIR_KEY)) return
         const n = await runSymmetryRepair(dataSource, getOntology())
-        await services.persistence.save(SYMMETRY_REPAIR_KEY, '1')
-        log.info(`symmetry repair complete: ${n} link(s) completed`)
-      } catch (e) { log.warn('symmetry repair failed', e) }
+        log.info(`symmetry repair complete: ${n} link(s) normalized`)
+        return n
+      } catch (e) { log.warn('symmetry repair failed', e); return 0 }
     },
     searchPages: (q) => dataSource.searchPages(q),
     getSize: async () => {

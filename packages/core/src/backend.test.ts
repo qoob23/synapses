@@ -24,6 +24,7 @@ function fakes(pages: PageEntry[] = []) {
     onGraphChange: (cb) => { graphCb = cb },
     getOntology: () => ({ parent: ['parent'], child: ['child'], jump: ['jump'] }),
     onOntologyChange: () => {},
+    getSymmetricLinks: () => true, // exercise symmetric reciprocal writes in backend tests
     persistence: {
       load: async (k: string) => store.get(k) ?? null,
       save: async (k: string, v: string) => { store.set(k, v) },

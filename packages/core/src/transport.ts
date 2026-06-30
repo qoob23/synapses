@@ -130,7 +130,7 @@ export const BACKEND_METHODS = [
   'getActivePage', 'getTheme', 'getUiMode', 'buildGraph', 'nodeAdjacency', 'histState', 'histPush', 'histJump',
   'histRemove',
   'navigate', 'createChild', 'createParent', 'createJump', 'linkExisting', 'removeLink',
-  'repairSymmetryOnce',
+  'repairSymmetry',
   'searchPages',
   'getSize', 'setSize', 'getConnectorColors', 'setConnectorColors',
 ] as const satisfies readonly Exclude<keyof SynapsesBackend, 'on'>[]

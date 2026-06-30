@@ -23,6 +23,7 @@ const reciprocal = (role: Role): Role => (role === 'parent' ? 'child' : role ===
 export function createMutations(
   dataSource: DataSource,
   getOntology: () => OntologyConfig,
+  getSymmetric: () => boolean = () => false,
 ): Mutations {
   // Append `target` to `pageName`'s `key` property (dedupe, case-insensitive).
   async function addPropLink(pageName: string, key: Role, target: string): Promise<void> {
@@ -48,8 +49,7 @@ export function createMutations(
     }
   }
 
-  // Which roles currently connect `focus` to `target`, read from `focus`'s OWN props.
-  // Under symmetric writes a note's props are authoritative for its side of every pair.
+  // roles currently connecting `focus` to `target`, read from `focus`'s OWN props.
   // Normally one role; a legacy multi-role pair returns several (the caller collapses them).
   async function rolesBetween(focus: string, target: string): Promise<Role[]> {
     const props = await dataSource.getPageProps(focus)
@@ -64,17 +64,17 @@ export function createMutations(
   }
 
   // Clear the `role` connection between `focus` and `target` on BOTH pages: `role`'s key
-  // on `focus` and its reciprocal key on `target` (e.g. child→parent). Symmetric by design.
+  // on `focus` and its reciprocal key on `target` (e.g. child→parent). Symmetric by design,
+  // so removing a link can't leave a half that resurrects on the next on-demand read.
   async function unlink(focus: string, target: string, role: Role): Promise<void> {
     await removeRoleLinks(focus, role, target)
     await removeRoleLinks(target, reciprocal(role), focus)
   }
 
-  // Make the connection between `focus` and `target` be exactly `role`, written symmetrically:
-  // `focus` gets `role:: target` and `target` gets `reciprocal:: focus`. A pair has at most one
-  // connection, so any pre-existing connection of a different kind (incl. a direction flip and
-  // any legacy multi-role leftovers) is removed on both pages first. Same-role dedupes to a no-op.
-  async function setLink(focus: string, target: string, role: Role): Promise<void> {
+  // Symmetric write: `focus` gets `role:: target` and `target` gets `reciprocal:: focus`.
+  // A pair holds at most one connection, so any pre-existing connection of a different kind
+  // (incl. a direction flip / legacy multi-role leftovers) is removed on both pages first.
+  async function setLinkSymmetric(focus: string, target: string, role: Role): Promise<void> {
     const existing = await rolesBetween(focus, target)
     for (const e of existing) {
       if (e === role) continue
@@ -82,6 +82,22 @@ export function createMutations(
     }
     await addPropLink(focus, role, target)
     await addPropLink(target, reciprocal(role), focus)
+  }
+
+  // Single-sided write (the default): declare the connection ONLY on the note the user
+  // interacted with (`focus`). On conflict — any pre-existing connection between the pair,
+  // declared on EITHER page — drop it from both pages first, then write the new role on
+  // `focus` alone. The reciprocal is intentionally NOT written to `target`, so notes the
+  // user didn't touch are only ever cleaned, never given new declarations.
+  async function setLinkSingleSided(focus: string, target: string, role: Role): Promise<void> {
+    for (const e of await rolesBetween(focus, target)) if (e !== role) await unlink(focus, target, e)
+    for (const e of await rolesBetween(target, focus)) await unlink(target, focus, e)
+    await addPropLink(focus, role, target)
+  }
+
+  async function setLink(focus: string, target: string, role: Role): Promise<void> {
+    if (getSymmetric()) await setLinkSymmetric(focus, target, role)
+    else await setLinkSingleSided(focus, target, role)
   }
 
   async function create(role: Role, focus: string, name: string): Promise<boolean> {

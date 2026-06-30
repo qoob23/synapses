@@ -58,7 +58,7 @@ export interface SynapsesBackend {
   createJump(focus: string, name: string): Promise<boolean>
   linkExisting(focus: string, name: string, role: Role): Promise<boolean>
   removeLink(focus: string, name: string, role: Role): Promise<boolean>
-  repairSymmetryOnce(): Promise<void>   // one-time link-symmetry normalization per graph/vault (persisted flag), then no-ops
+  repairSymmetry(): Promise<number>   // normalize asymmetric links across the whole graph/vault; returns ops applied. Invoked on opt-in to symmetric links.
   searchPages(q: string): Promise<string[]>
   getSize(): Promise<number | null>
   setSize(level: number | null): Promise<void> // discrete card/text size level; null resets to default
@@ -100,5 +100,8 @@ export interface EditorServices {
   onGraphChange(cb: () => void): void
   getOntology(): OntologyConfig
   onOntologyChange(cb: () => void): void
+  // Whether link writes are symmetric (both pages) vs single-sided (only the interacted note).
+  // Off by default; the editor gates enabling it behind a "your notes will be modified" prompt.
+  getSymmetricLinks(): boolean
   persistence: Persistence
 }

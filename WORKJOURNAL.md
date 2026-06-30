@@ -144,3 +144,15 @@
     - New `DataSource.listAllPages` (migration-only; Logseq gates on real files + skips host page, Obsidian honors
       ignore filters) + `backend.repairSymmetryOnce`; Obsidian fires on `onLayoutReady` gated on Dataview.
 - **Obsidian "recording is running" Notice** on debug-logging enable (load + toggle), mirroring Logseq's `showMsg`.
+- **Symmetric links are now opt-in (default off); single-sided writes are the default.**
+    - Default: a link is declared only on the note the user interacted with (`focus`); on conflict the existing
+      connection is dropped from BOTH pages and no reciprocal is written (drag jump B→A ⇒ B:`jump::A`, A left bare).
+    - New `EditorServices.getSymmetricLinks()` seam → `createMutations(ds, ont, getSymmetric)`; symmetric path unchanged.
+    - **Decision — gate symmetry behind a confirm, not a silent flag.** Enabling the setting shows a
+      "your notes will be modified" prompt; approve runs the repair, cancel reverts the toggle.
+        - Obsidian = native `Modal`; Logseq has no confirm API → `provideUI` overlay + `updateSettings` revert.
+    - `repairSymmetryOnce` → `repairSymmetry()` (returns count, no persisted flag); dropped the auto-run on load —
+      the repair now runs only on opt-in.
+    - Confirm CTA tinted with the resolved primary connector color (same `getTheme().mode` slot the view uses),
+      falling back to the editor accent — never a hardcoded color.
+- Settings copy: dropped "(testing)"/"off by default"/the log filename; logging now states the path prints to console.
