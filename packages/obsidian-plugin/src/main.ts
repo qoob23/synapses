@@ -35,7 +35,7 @@ export default class SynapsesPlugin extends Plugin {
       persist: (t) => this.app.vault.adapter.write(this.logPath, t),
     })
     const sink = this.logSink
-    this.logger = createLogger((line) => sink.write(line), { ctx: 'main', enabled: this.settings.fileLogging })
+    this.logger = createLogger((line) => sink.write(line), { ctx: 'main', enabled: this.settings.fileLogging, mirror: (s) => console.log('[synapses]', s) })
     if (this.settings.fileLogging) { this.logSink.clear(); this.announceLogPath(); new Notice('Synapses: debug recording is running') }
     this.addSettingTab(new SynapsesSettingTab(this.app, this))
     this.registerView(VIEW_TYPE_SYNAPSES, (leaf) => new SynapsesView(leaf, this))

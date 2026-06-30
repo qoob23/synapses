@@ -75,7 +75,7 @@ async function main() {
     load: () => logStore.getItem('synapses-log.jsonl').then((v) => v ?? null),
     persist: (t) => logStore.setItem('synapses-log.jsonl', t),
   })
-  const logger = createLogger((line) => logSink.write(line), { ctx: 'M', enabled: fileLoggingOn() })
+  const logger = createLogger((line) => logSink.write(line), { ctx: 'M', enabled: fileLoggingOn(), mirror: (s) => console.log('[synapses]', s) })
 
   // A logging session starts fresh: clear any prior on-disk log when recording is on.
   const startRecording = () => {
