@@ -1,7 +1,7 @@
 {
     "id": "synapses",
     "name": "Synapses",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "minAppVersion": "1.5.0",
     "description": "Map out and edit note relations in a focused graph. Inspired by TheBrain. Requires Dataview.",
     "author": "qoob23",
