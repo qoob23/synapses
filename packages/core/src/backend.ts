@@ -1,11 +1,11 @@
-import { adjacencyFromProps, collect, queryGraphFromProps, uniqNames } from './graph/index-pure'
+import { assembleGraph, type NoteAdjacency } from './graph/index-pure'
 import { createHistory, serialize, deserialize } from './history'
 import { log } from './log'
 import { noopLogger, type Logger } from './logger'
-import { runSymmetryRepair } from './migrate'
+import { runSymmetryRepair, reconcileNoteAdjacency } from './migrate'
 import { createMutations } from './mutations'
 import type { HistoryStack } from './history'
-import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, BackendEventPayloads, Palette, ConnectorColors, Adjacency, PropMap } from './types'
+import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, BackendEventPayloads, Palette, ConnectorColors, Adjacency } from './types'
 
 export const HISTORY_SAVE_DEBOUNCE_MS = 300
 export const SIZE_SAVE_DEBOUNCE_MS = 300
@@ -17,24 +17,27 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
   const getOntology = () => services.getOntology()
   const mut = createMutations(dataSource, getOntology, () => services.getSymmetricLinks())
 
-  // On-demand neighborhood reads (no in-memory index — the editor is the index engine).
-  // A focus note's parents/children/jumps come from its own props; siblings need each
-  // parent's children, so we read the parents' props too. Symmetric writes make a note's
-  // own props its complete adjacency.
-  async function buildGraph(name: string) {
+  // On-demand reconciled neighborhood reads (no in-memory index). A note's links =
+  // own props reconciled with its backlinks (notes pointing at it), so links
+  // declared only on OTHER note still show. Conflict resolution =
+  // symmetry-migration precedence (structural beats jump; opposing → alphabetical).
+  async function reconcile(name: string): Promise<NoteAdjacency> {
     const ont = getOntology()
-    const focusProps = await dataSource.getPageProps(name)
-    const parents = uniqNames(collect(focusProps, 'parent', ont), name.toLowerCase())
-    const parentsProps: Record<string, PropMap> = {}
-    await Promise.all(parents.map(async (p) => { parentsProps[p.toLowerCase()] = await dataSource.getPageProps(p) }))
-    return queryGraphFromProps(name, focusProps, parentsProps, ont)
+    const [own, back] = await Promise.all([
+      dataSource.getPageProps(name),
+      dataSource.getBacklinks ? dataSource.getBacklinks(name) : Promise.resolve([]),
+    ])
+    return reconcileNoteAdjacency(name, own, back, ont)
+  }
+  async function buildGraph(name: string) {
+    const adj = await reconcile(name)
+    const parentsAdj: Record<string, NoteAdjacency> = {}
+    await Promise.all(adj.parents.map(async (p) => { parentsAdj[p.toLowerCase()] = await reconcile(p) }))
+    return assembleGraph(name, adj, parentsAdj)
   }
   async function nodeAdjacency(names: string[]): Promise<Adjacency> {
-    const ont = getOntology()
     const out: Adjacency = {}
-    await Promise.all((names || []).map(async (n) => {
-      out[n.toLowerCase()] = adjacencyFromProps(n, await dataSource.getPageProps(n), ont)
-    }))
+    await Promise.all((names || []).map(async (n) => { out[n.toLowerCase()] = await reconcile(n) }))
     return out
   }
 

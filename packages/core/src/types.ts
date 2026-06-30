@@ -77,6 +77,10 @@ export interface DataSource {
   setPropertyLinks(name: string, key: string, targets: string[]): Promise<void>
   removePropertyKey(name: string, key: string): Promise<void>
   searchPages(q: string): Promise<string[]>
+  // Notes that reference `name` (via any link), each with its link-valued props.
+  // Read-path uses this to surface links declared only on the OTHER note. Optional:
+  // absent, backend reconciles against no backlinks (own-props-only behavior).
+  getBacklinks?(name: string): Promise<PageEntry[]>
   // One-time full enumeration for the symmetry-repair migration only (NOT used by the
   // on-demand read path). Returns every real page with its link-valued props.
   listAllPages?(): Promise<PageEntry[]>

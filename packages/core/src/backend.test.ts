@@ -12,6 +12,16 @@ function fakes(pages: PageEntry[] = []) {
     setPropertyLinks: async (n, k, t) => { const e = map.get(n.toLowerCase())!; e.props = { ...e.props, [k]: t } },
     removePropertyKey: async (n, k) => { const e = map.get(n.toLowerCase())!; const { [k]: _, ...rest } = e.props; e.props = rest },
     searchPages: async (q) => [...map.values()].map((p) => p.name).filter((n) => n.toLowerCase().includes(q.toLowerCase())),
+    getBacklinks: async (name: string) => {
+      const target = name.toLowerCase()
+      const out: PageEntry[] = []
+      for (const p of map.values()) {
+        if (p.name.toLowerCase() === target) continue
+        const refs = Object.values(p.props).flat().map((v) => v.toLowerCase())
+        if (refs.includes(target)) out.push(p)
+      }
+      return out
+    },
   }
   const services: EditorServices = {
     getActivePageName: () => 'A',
@@ -45,12 +55,15 @@ describe('createCoreBackend', () => {
     expect((await be.buildGraph('B')).parents).toEqual(['A']) // symmetric reciprocal
   })
 
-  it('buildGraph always reflects the editor (no cache): a manual removal shows immediately', async () => {
+  it('buildGraph always reflects the editor (no cache): a removal from both sides shows immediately', async () => {
     const { ds, services } = fakes([{ name: 'A', props: {} }, { name: 'B', props: {} }])
     const be = createCoreBackend(ds, services)
     await be.createChild('A', 'B')
     expect((await be.buildGraph('A')).children).toEqual(['B'])
-    await ds.removePropertyKey('A', 'child') // user deletes the link directly in the editor
+    // Remove from both sides — with reconciliation, removing only one side still surfaces the link
+    // via the other side's backlink. Both must be gone for the relationship to disappear.
+    await ds.removePropertyKey('A', 'child')
+    await ds.removePropertyKey('B', 'parent')
     expect((await be.buildGraph('A')).children).toEqual([])
   })
 
@@ -125,5 +138,35 @@ describe('createCoreBackend', () => {
     await services.persistence.save('connectorColors', 'not json{')
     const be = createCoreBackend(ds, services)
     expect(await be.getConnectorColors()).toEqual({})
+  })
+
+  it('buildGraph surfaces an asymmetric incoming link (declared only on other note)', async () => {
+    // B says child:: A; A declares nothing. A should still see B as parent.
+    const { ds, services } = fakes([
+      { name: 'A', props: {} },
+      { name: 'B', props: { child: ['A'] } },
+    ])
+    const be = createCoreBackend(ds, services)
+    expect((await be.buildGraph('A')).parents).toEqual(['B'])
+  })
+
+  it('buildGraph: fully-reconciled siblings (sibling declares parent only on its own side)', async () => {
+    // P has child A. B says parent:: P but P does NOT list B. B must still be A's sibling.
+    const { ds, services } = fakes([
+      { name: 'P', props: { child: ['A'] } },
+      { name: 'A', props: { parent: ['P'] } },
+      { name: 'B', props: { parent: ['P'] } },
+    ])
+    const be = createCoreBackend(ds, services)
+    expect((await be.buildGraph('A')).siblings).toEqual(['B'])
+  })
+
+  it('nodeAdjacency reconciles incoming links', async () => {
+    const { ds, services } = fakes([
+      { name: 'A', props: {} },
+      { name: 'B', props: { child: ['A'] } },
+    ])
+    const be = createCoreBackend(ds, services)
+    expect((await be.nodeAdjacency(['A'])).a?.parents).toEqual(['B'])
   })
 })
