@@ -174,3 +174,12 @@
       dropped `getBacklinks`, so the backend's optional-method guard always fell back to empty. Now forwarded.
     - Debug logging gains a `read` category (logs `getBacklinks`) + a console plain-text mirror (`formatPlain`)
       as a backing sink — the read seam was unlogged, which is why the dropped method stayed invisible.
+- **Removed the symmetric-links setting + its whole opt-in path; single-sided writes are now the only model.**
+    - **Decision — read-time backlink reconciliation already shows incoming links, so the symmetric write path
+      (and its one-time graph repair) earned nothing but a footgun; deleted rather than kept dark.**
+    - Dropped the setting (both editors) + confirm modal/overlay, `getSymmetricLinks`/`repairSymmetry`/`listAllPages`
+      seams, `setLinkSymmetric`, and the migration code (`computeSymmetryRepairs`/`runSymmetryRepair`/`buildRepairOps`).
+    - Ported the precedence-rule coverage onto `reconcileNoteAdjacency` so the read path keeps its tests.
+- **Moved read reconciliation into `graph/index-pure.ts` and deleted `migrate.ts`** (no migration left in it).
+    - It already imported `collect`/`NoteAdjacency` from index-pure; co-locating points the dependency one way.
+    - Swept the stale "symmetric writes → own props are complete adjacency" comments to the single-sided model.

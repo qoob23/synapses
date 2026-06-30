@@ -34,7 +34,6 @@ function fakes(pages: PageEntry[] = []) {
     onGraphChange: (cb) => { graphCb = cb },
     getOntology: () => ({ parent: ['parent'], child: ['child'], jump: ['jump'] }),
     onOntologyChange: () => {},
-    getSymmetricLinks: () => true, // exercise symmetric reciprocal writes in backend tests
     persistence: {
       load: async (k: string) => store.get(k) ?? null,
       save: async (k: string, v: string) => { store.set(k, v) },
@@ -47,12 +46,12 @@ describe('createCoreBackend', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('createChild writes both sides; buildGraph reads them back from the editor on demand', async () => {
+  it('createChild writes the focus side; buildGraph reconciles the reciprocal from backlinks', async () => {
     const { ds, services } = fakes([{ name: 'A', props: {} }])
     const be = createCoreBackend(ds, services)
     await be.createChild('A', 'B')
     expect((await be.buildGraph('A')).children).toEqual(['B'])
-    expect((await be.buildGraph('B')).parents).toEqual(['A']) // symmetric reciprocal
+    expect((await be.buildGraph('B')).parents).toEqual(['A']) // reconciled from A's child:: backlink
   })
 
   it('buildGraph always reflects the editor (no cache): a removal from both sides shows immediately', async () => {

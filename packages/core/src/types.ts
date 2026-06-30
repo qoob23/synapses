@@ -58,7 +58,6 @@ export interface SynapsesBackend {
   createJump(focus: string, name: string): Promise<boolean>
   linkExisting(focus: string, name: string, role: Role): Promise<boolean>
   removeLink(focus: string, name: string, role: Role): Promise<boolean>
-  repairSymmetry(): Promise<number>   // normalize asymmetric links across the whole graph/vault; returns ops applied. Invoked on opt-in to symmetric links.
   searchPages(q: string): Promise<string[]>
   getSize(): Promise<number | null>
   setSize(level: number | null): Promise<void> // discrete card/text size level; null resets to default
@@ -81,9 +80,6 @@ export interface DataSource {
   // Read-path uses this to surface links declared only on the OTHER note. Optional:
   // absent, backend reconciles against no backlinks (own-props-only behavior).
   getBacklinks?(name: string): Promise<PageEntry[]>
-  // One-time full enumeration for the symmetry-repair migration only (NOT used by the
-  // on-demand read path). Returns every real page with its link-valued props.
-  listAllPages?(): Promise<PageEntry[]>
 }
 
 export interface Persistence {
@@ -104,8 +100,5 @@ export interface EditorServices {
   onGraphChange(cb: () => void): void
   getOntology(): OntologyConfig
   onOntologyChange(cb: () => void): void
-  // Whether link writes are symmetric (both pages) vs single-sided (only the interacted note).
-  // Off by default; the editor gates enabling it behind a "your notes will be modified" prompt.
-  getSymmetricLinks(): boolean
   persistence: Persistence
 }

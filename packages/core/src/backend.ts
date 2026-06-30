@@ -1,8 +1,7 @@
-import { assembleGraph, type NoteAdjacency } from './graph/index-pure'
+import { assembleGraph, reconcileNoteAdjacency, type NoteAdjacency } from './graph/index-pure'
 import { createHistory, serialize, deserialize } from './history'
 import { log } from './log'
 import { noopLogger, type Logger } from './logger'
-import { runSymmetryRepair, reconcileNoteAdjacency } from './migrate'
 import { createMutations } from './mutations'
 import type { HistoryStack } from './history'
 import type { DataSource, EditorServices, SynapsesBackend, BackendEvent, BackendEventPayloads, Palette, ConnectorColors, Adjacency } from './types'
@@ -15,7 +14,7 @@ const COLORS_KEY = 'connectorColors'
 
 export function createCoreBackend(dataSource: DataSource, services: EditorServices, logger: Logger = noopLogger): SynapsesBackend {
   const getOntology = () => services.getOntology()
-  const mut = createMutations(dataSource, getOntology, () => services.getSymmetricLinks())
+  const mut = createMutations(dataSource, getOntology)
 
   // On-demand reconciled neighborhood reads (no in-memory index). A note's links =
   // own props reconciled with its backlinks (notes pointing at it), so links
@@ -93,13 +92,6 @@ export function createCoreBackend(dataSource: DataSource, services: EditorServic
     createJump: mut.createJump,
     linkExisting: mut.linkExisting,
     removeLink: mut.removeLink,
-    repairSymmetry: async () => {
-      try {
-        const n = await runSymmetryRepair(dataSource, getOntology())
-        log.info(`symmetry repair complete: ${n} link(s) normalized`)
-        return n
-      } catch (e) { log.warn('symmetry repair failed', e); return 0 }
-    },
     searchPages: (q) => dataSource.searchPages(q),
     getSize: async () => {
       try {

@@ -154,7 +154,6 @@ const BACKEND_LOGGED = [
   'getActivePage', 'getTheme', 'getUiMode', 'buildGraph', 'nodeAdjacency',
   'histState', 'histPush', 'histJump', 'histRemove',
   'navigate', 'createChild', 'createParent', 'createJump', 'linkExisting', 'removeLink',
-  'repairSymmetry',
   'searchPages', 'getSize', 'setSize', 'getConnectorColors', 'setConnectorColors',
 ] as const satisfies readonly Exclude<keyof SynapsesBackend, 'on'>[]
 
@@ -185,7 +184,6 @@ export function wrapBackendWithLogging(backend: SynapsesBackend, logger: Logger)
 // happens. getBacklinks is an incoming-link read powering "show all connections" —
 // it is logged (page → discovered backlinkers) so a missing/empty incoming link is
 // diagnosable. getPageProps stays unlogged (too frequent — would drown the signal).
-// listAllPages is optional and passed through without logging (migration read only).
 export function wrapDataSource(ds: DataSource, logger: Logger): DataSource {
   const wrapped: DataSource = {
     getPageProps: ds.getPageProps.bind(ds),
@@ -203,7 +201,6 @@ export function wrapDataSource(ds: DataSource, logger: Logger): DataSource {
       return ds.removePropertyKey(name, key)
     },
   }
-  if (ds.listAllPages) wrapped.listAllPages = ds.listAllPages.bind(ds)
   // getBacklinks is the incoming-link read powering "show all connections";
   // forward it AND log it (page → discovered backlinkers + their property keys)
   // so a missing/empty incoming link is diagnosable. getPageProps stays unlogged

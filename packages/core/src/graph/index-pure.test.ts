@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { assembleGraph, queryGraphFromProps, adjacencyFromProps, uniqNames, collect, SIBLING_CAP, toNames } from './index-pure'
+import { buildOntology } from '../ontology'
+import { assembleGraph, queryGraphFromProps, adjacencyFromProps, reconcileNoteAdjacency, uniqNames, collect, SIBLING_CAP, toNames } from './index-pure'
 import type { OntologyConfig, PropMap } from '../types'
 
 const ONT: OntologyConfig = { parent: ['parent', 'up'], child: ['child'], jump: ['jump'] }
@@ -144,4 +145,53 @@ it('assembleGraph computes siblings from reconciled parent adjacencies', () => {
   expect(g.parents).toEqual(['P'])
   expect(g.siblings).toEqual(['B'])
   expect(g.siblingParent).toEqual({ B: 'P' })
+})
+
+const ONT_SIMPLE = { parent: ['parent'], child: ['child'], jump: ['jump'] }
+
+describe('reconcileNoteAdjacency', () => {
+  it('surfaces an incoming-only parent', () => {
+    // B declares A as its child; A declares nothing. A should see B as parent.
+    const adj = reconcileNoteAdjacency('A', {}, [{ name: 'B', props: { child: ['A'] } }], ONT_SIMPLE)
+    expect(adj.parents).toEqual(['B'])
+    expect(adj.children).toEqual([])
+  })
+
+  it('structural beats opposing jump (migration precedence)', () => {
+    // A says jump:: B; B says child:: A (=> A is B's child => A sees B as parent). Structural wins.
+    const adj = reconcileNoteAdjacency('A', { jump: ['B'] }, [{ name: 'B', props: { child: ['A'] } }], ONT_SIMPLE)
+    expect(adj.parents).toEqual(['B'])
+    expect(adj.jumps).toEqual([])
+  })
+
+  it('surfaces an incoming-only jump', () => {
+    const adj = reconcileNoteAdjacency('A', {}, [{ name: 'B', props: { jump: ['A'] } }], ONT_SIMPLE)
+    expect(adj.jumps).toEqual(['B'])
+  })
+
+  it('no pairs => empty adjacency', () => {
+    expect(reconcileNoteAdjacency('A', {}, [], ONT_SIMPLE)).toEqual({ parents: [], children: [], jumps: [] })
+  })
+
+  it('opposing structural claims resolve via the alphabetically-first page', () => {
+    // A says parent:: B, B says parent:: A. A is alphabetically first, so its claim (B is A's parent) wins.
+    const adj = reconcileNoteAdjacency('A', { parent: ['B'] }, [{ name: 'B', props: { parent: ['A'] } }], ONT_SIMPLE)
+    expect(adj.parents).toEqual(['B'])
+    expect(adj.children).toEqual([])
+  })
+
+  it('reads alias keys (children → child)', () => {
+    // B declares A under the `children` alias (A is B's child) => A should see B as a parent.
+    const adj = reconcileNoteAdjacency('A', {}, [{ name: 'B', props: { children: ['A'] } }], buildOntology())
+    expect(adj.parents).toEqual(['B'])
+  })
+
+  it('treats names case-insensitively', () => {
+    const adj = reconcileNoteAdjacency('A', { parent: ['b'] }, [{ name: 'B', props: { child: ['a'] } }], ONT_SIMPLE)
+    expect(adj.parents).toEqual(['B'])
+  })
+
+  it('ignores self-links', () => {
+    expect(reconcileNoteAdjacency('A', { parent: ['A'] }, [], ONT_SIMPLE)).toEqual({ parents: [], children: [], jumps: [] })
+  })
 })

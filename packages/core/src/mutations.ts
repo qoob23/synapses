@@ -23,7 +23,6 @@ const reciprocal = (role: Role): Role => (role === 'parent' ? 'child' : role ===
 export function createMutations(
   dataSource: DataSource,
   getOntology: () => OntologyConfig,
-  getSymmetric: () => boolean = () => false,
 ): Mutations {
   // Append `target` to `pageName`'s `key` property (dedupe, case-insensitive).
   async function addPropLink(pageName: string, key: Role, target: string): Promise<void> {
@@ -71,33 +70,16 @@ export function createMutations(
     await removeRoleLinks(target, reciprocal(role), focus)
   }
 
-  // Symmetric write: `focus` gets `role:: target` and `target` gets `reciprocal:: focus`.
-  // A pair holds at most one connection, so any pre-existing connection of a different kind
-  // (incl. a direction flip / legacy multi-role leftovers) is removed on both pages first.
-  async function setLinkSymmetric(focus: string, target: string, role: Role): Promise<void> {
-    const existing = await rolesBetween(focus, target)
-    for (const e of existing) {
-      if (e === role) continue
-      await unlink(focus, target, e)
-    }
-    await addPropLink(focus, role, target)
-    await addPropLink(target, reciprocal(role), focus)
-  }
-
-  // Single-sided write (the default): declare the connection ONLY on the note the user
-  // interacted with (`focus`). On conflict — any pre-existing connection between the pair,
-  // declared on EITHER page — drop it from both pages first, then write the new role on
-  // `focus` alone. The reciprocal is intentionally NOT written to `target`, so notes the
-  // user didn't touch are only ever cleaned, never given new declarations.
-  async function setLinkSingleSided(focus: string, target: string, role: Role): Promise<void> {
+  // Single-sided write: declare the connection ONLY on the note the user interacted with
+  // (`focus`). On conflict — any pre-existing connection between the pair, declared on
+  // EITHER page — drop it from both pages first, then write the new role on `focus` alone.
+  // The reciprocal is intentionally NOT written to `target`, so notes the user didn't touch
+  // are only ever cleaned, never given new declarations. Incoming links surface at read time
+  // via backlink reconciliation, so a connection still shows even when declared on one side.
+  async function setLink(focus: string, target: string, role: Role): Promise<void> {
     for (const e of await rolesBetween(focus, target)) if (e !== role) await unlink(focus, target, e)
     for (const e of await rolesBetween(target, focus)) await unlink(target, focus, e)
     await addPropLink(focus, role, target)
-  }
-
-  async function setLink(focus: string, target: string, role: Role): Promise<void> {
-    if (getSymmetric()) await setLinkSymmetric(focus, target, role)
-    else await setLinkSingleSided(focus, target, role)
   }
 
   async function create(role: Role, focus: string, name: string): Promise<boolean> {

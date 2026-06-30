@@ -116,13 +116,5 @@ export function createObsidianDataSource(app: App): DataSource {
       }
       return out
     },
-    async listAllPages() {
-      const out: PageEntry[] = []
-      for (const f of app.vault.getMarkdownFiles()) {
-        if (isIgnoredPath(f.path)) continue
-        out.push({ name: f.basename, props: await readProps(f.basename) })
-      }
-      return out
-    },
   }
 }

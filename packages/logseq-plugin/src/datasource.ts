@@ -117,18 +117,6 @@ export function createLogseqDataSource(): DataSource {
       // block would otherwise be resurrected by the all-blocks read.
       await clearKeyFromBlocks(name, key)
     },
-    async listAllPages() {
-      let pages: PageEntity[] = []
-      try { pages = (await logseq.Editor.getAllPages()) ?? [] } catch {}
-      const out: PageEntry[] = []
-      for (const p of pages) {
-        if (!p.file) continue                          // real-file pages only (skip phantoms / uncreated entities)
-        const nm = p.originalName ?? p.name; if (!nm) continue
-        if (nm.toLowerCase() === 'synapses') continue   // the sidebar host page, not user content
-        out.push({ name: nm, props: await getPagePropsRaw(nm, p) })
-      }
-      return out
-    },
     async searchPages(q) {
       const query = String(q || '').toLowerCase().trim(); if (!query) return []
       let pages: PageEntity[] = []; try { pages = (await logseq.Editor.getAllPages()) || [] } catch {}
