@@ -61,6 +61,8 @@ export function uniqNames(names: string[], selfLower: string, exclude?: (lower: 
 
 export const SIBLING_CAP = 50
 
+export type NoteAdjacency = { parents: string[]; children: string[]; jumps: string[] }
+
 // A note's own adjacency (parents / children / jumps) read straight from its props.
 // Under symmetric writes this is the complete picture — reciprocals are explicit on
 // the page, not inferred.
@@ -68,7 +70,7 @@ export function adjacencyFromProps(
   name: string,
   props: PropMap,
   ont: OntologyConfig,
-): { parents: string[]; children: string[]; jumps: string[] } {
+): NoteAdjacency {
   const f = String(name).toLowerCase()
   return {
     parents: uniqNames(collect(props, 'parent', ont), f),
@@ -77,28 +79,25 @@ export function adjacencyFromProps(
   }
 }
 
-// Build the focus note's full Graph from its own props plus its parents' props.
-// `parentsProps` is keyed by LOWERCASED parent name. Siblings = children of my
-// parents minus self / my own parents+children, capped at SIBLING_CAP.
-export function queryGraphFromProps(
+// Assemble the focus note's Graph from its own reconciled adjacency plus its
+// reconciled parents' adjacencies. `parentsAdj` keyed by LOWERCASED parent name.
+// Siblings = children of my parents minus self / own parents+children, capped at SIBLING_CAP.
+export function assembleGraph(
   focusName: string,
-  focusProps: PropMap,
-  parentsProps: Record<string, PropMap>,
-  ont: OntologyConfig,
+  focusAdj: NoteAdjacency,
+  parentsAdj: Record<string, NoteAdjacency>,
 ): Graph {
   const f = String(focusName).toLowerCase()
-  const { parents, children, jumps } = adjacencyFromProps(focusName, focusProps, ont)
-
+  const { parents, children, jumps } = focusAdj
   const parentSet = new Set(parents.map((p) => p.toLowerCase()))
   const childSet = new Set(children.map((c) => c.toLowerCase()))
-
   const siblings: string[] = []
   const sibSeen = new Set<string>()
   const siblingParent: Record<string, string> = {}
   for (const p of parents) {
-    const pProps = parentsProps[p.toLowerCase()]
-    if (!pProps) continue
-    for (const c of collect(pProps, 'child', ont)) {
+    const pAdj = parentsAdj[p.toLowerCase()]
+    if (!pAdj) continue
+    for (const c of pAdj.children) {
       const l = c.toLowerCase()
       if (l === f || parentSet.has(l) || childSet.has(l) || sibSeen.has(l)) continue
       sibSeen.add(l)
@@ -106,7 +105,6 @@ export function queryGraphFromProps(
       siblingParent[c] = p
     }
   }
-
   return {
     focus: focusName,
     parents,
@@ -116,6 +114,22 @@ export function queryGraphFromProps(
     siblingsTruncated: siblings.length > SIBLING_CAP,
     siblingParent,
   }
+}
+
+// Build the focus note's full Graph from its own props plus its parents' props.
+// `parentsProps` is keyed by LOWERCASED parent name. Delegates to assembleGraph.
+export function queryGraphFromProps(
+  focusName: string,
+  focusProps: PropMap,
+  parentsProps: Record<string, PropMap>,
+  ont: OntologyConfig,
+): Graph {
+  const focusAdj = adjacencyFromProps(focusName, focusProps, ont)
+  const parentsAdj: Record<string, NoteAdjacency> = {}
+  for (const [k, props] of Object.entries(parentsProps)) {
+    parentsAdj[k.toLowerCase()] = adjacencyFromProps(k, props, ont)
+  }
+  return assembleGraph(focusName, focusAdj, parentsAdj)
 }
 
 // Per-note adjacency map for a set of names (pure). Keyed by LOWERCASED name;

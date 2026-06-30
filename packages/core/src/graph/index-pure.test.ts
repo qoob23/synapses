@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { queryGraphFromProps, adjacencyFromProps, uniqNames, collect, SIBLING_CAP, toNames } from './index-pure'
+import { assembleGraph, queryGraphFromProps, adjacencyFromProps, uniqNames, collect, SIBLING_CAP, toNames } from './index-pure'
 import type { OntologyConfig, PropMap } from '../types'
 
 const ONT: OntologyConfig = { parent: ['parent', 'up'], child: ['child'], jump: ['jump'] }
@@ -133,4 +133,15 @@ describe('queryGraphFromProps', () => {
     const g = queryGraphFromProps('Lonely', {}, {}, ONT)
     expect(g).toMatchObject({ parents: [], children: [], jumps: [], siblings: [], siblingsTruncated: false })
   })
+})
+
+it('assembleGraph computes siblings from reconciled parent adjacencies', () => {
+  const g = assembleGraph(
+    'A',
+    { parents: ['P'], children: [], jumps: [] },
+    { p: { parents: [], children: ['A', 'B'], jumps: [] } },
+  )
+  expect(g.parents).toEqual(['P'])
+  expect(g.siblings).toEqual(['B'])
+  expect(g.siblingParent).toEqual({ B: 'P' })
 })
