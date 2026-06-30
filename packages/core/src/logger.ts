@@ -1,10 +1,11 @@
 // Optional, opt-in file logging for debugging communication problems between the
 // view, the backend, and the editor. Records are JSONL: one compact JSON object per
-// line `{t, ctx, cat, act, ...}`. Five categories trace one interaction end to end:
+// line `{t, ctx, cat, act, ...}`. Six categories trace one interaction end to end:
 //
 //   user   — a user action in the view (activate / create / link / unlink / refresh)
 //   call   — a SynapsesBackend method: args + ok|err + duration (what was sent / what it did)
 //   edit   — a DataSource write: page / key / targets (what edit was actually made)
+//   read   — a DataSource read: getBacklinks (incoming links for the focus page)
 //   editor — an editor change event the backend emitted (refresh / recenter / theme / uimode)
 //   ui     — a view render: focus + per-zone counts (what changed on screen)
 //
@@ -12,6 +13,9 @@
 // filesystem, so it forwards its `user`/`ui` lines to the plugin main context (M),
 // which owns the single file. A `user` line in P with no matching `call` line in M
 // therefore pinpoints a dropped bridge message — the whole point of the feature.
+//
+// An optional `mirror` function on `createLogger` receives a human-readable plain-text
+// rendering of each record alongside the JSONL write (e.g. console.log as a backing source).
 
 import { errText } from './errText'
 import type { DataSource, SynapsesBackend } from './types'
@@ -27,19 +31,41 @@ export interface Logger {
 
 const nowIso = (): string => new Date().toISOString()
 
+// Render a record as a single readable line for the console backing sink, e.g.
+// "12:34:56.789 M user/activate name=A". Objects/arrays are JSON-compacted.
+export function formatPlain(rec: Record<string, unknown>): string {
+  const { t, ctx, cat, act, ...rest } = rec
+  const time = typeof t === 'string' ? t.slice(11, 23) : ''
+  const head = [time, ctx, `${String(cat ?? '')}/${String(act ?? '')}`].filter(Boolean).join(' ')
+  const kv = Object.entries(rest)
+    .map(([k, v]) => `${k}=${v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+    .join(' ')
+  return kv ? `${head} ${kv}` : head
+}
+
 export function createLogger(
   write: (line: string) => void,
-  opts: { ctx: string; enabled?: boolean },
+  opts: { ctx: string; enabled?: boolean; mirror?: (text: string) => void },
 ): Logger {
   let on = opts.enabled ?? false
-  const emit = (line: string) => { if (on) write(line) }
+  const mirror = opts.mirror
+  // Emit a finished JSONL line to the file sink, and (as a backing source) a
+  // human-readable plain-text rendering to the optional console mirror.
+  const emit = (line: string, rec?: Record<string, unknown>) => {
+    if (!on) return
+    write(line)
+    if (mirror) {
+      try { mirror(formatPlain(rec ?? (JSON.parse(line) as Record<string, unknown>))) }
+      catch { mirror(line) }
+    }
+  }
   return {
     enabled: () => on,
     setEnabled: (v) => { on = v },
     log(cat, act, data) {
       if (!on) return
       const rec: Record<string, unknown> = { t: nowIso(), ctx: opts.ctx, cat, act, ...(data ?? {}) }
-      try { emit(JSON.stringify(rec)) } catch { /* a record must never break the app */ }
+      try { emit(JSON.stringify(rec), rec) } catch { /* a record must never break the app */ }
     },
     ingest(line) { emit(line) },
   }
@@ -156,8 +182,9 @@ export function wrapBackendWithLogging(backend: SynapsesBackend, logger: Logger)
 }
 
 // Wrap the three write methods so the actual property mutation is logged where it
-// happens. Reads pass through (a `call` line for buildGraph/searchPages already
-// implies the reads, and logging every getPageProps would drown the signal).
+// happens. getBacklinks is an incoming-link read powering "show all connections" —
+// it is logged (page → discovered backlinkers) so a missing/empty incoming link is
+// diagnosable. getPageProps stays unlogged (too frequent — would drown the signal).
 // listAllPages is optional and passed through without logging (migration read only).
 export function wrapDataSource(ds: DataSource, logger: Logger): DataSource {
   const wrapped: DataSource = {
@@ -177,5 +204,20 @@ export function wrapDataSource(ds: DataSource, logger: Logger): DataSource {
     },
   }
   if (ds.listAllPages) wrapped.listAllPages = ds.listAllPages.bind(ds)
+  // getBacklinks is the incoming-link read powering "show all connections";
+  // forward it AND log it (page → discovered backlinkers + their property keys)
+  // so a missing/empty incoming link is diagnosable. getPageProps stays unlogged
+  // (too frequent — it would drown the signal).
+  if (ds.getBacklinks) {
+    const orig = ds.getBacklinks.bind(ds)
+    wrapped.getBacklinks = async (name) => {
+      const r = await orig(name)
+      logger.log('read', 'getBacklinks', {
+        page: name,
+        found: r.map((p) => ({ n: p.name, keys: Object.keys(p.props) })),
+      })
+      return r
+    }
+  }
   return wrapped
 }

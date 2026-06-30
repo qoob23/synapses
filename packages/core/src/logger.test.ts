@@ -25,6 +25,17 @@ describe('createLogger', () => {
     lg.ingest('{"dropped":true}')
     expect(lines).toHaveLength(1)
   })
+
+  it('mirrors a plain-text line to the console sink alongside the JSONL write', () => {
+    const lines: string[] = []
+    const mir: string[] = []
+    const lg = createLogger((l) => lines.push(l), { ctx: 'M', enabled: true, mirror: (s) => mir.push(s) })
+    lg.log('user', 'activate', { name: 'A' })
+    expect(lines).toHaveLength(1)
+    expect(mir).toHaveLength(1)
+    expect(mir[0]).toContain('M user/activate')
+    expect(mir[0]).toContain('name=A')
+  })
 })
 
 describe('createBufferedSink', () => {
@@ -157,5 +168,36 @@ describe('wrapDataSource', () => {
     expect(lines.some((l) => l.includes('getPageProps'))).toBe(false) // reads unlogged
     const set = JSON.parse(lines.find((l) => l.includes('setPropertyLinks'))!) as Record<string, unknown>
     expect(set).toMatchObject({ cat: 'edit', act: 'setPropertyLinks', page: 'A', key: 'child', targets: ['B'] })
+  })
+
+  it('preserves and logs getBacklinks (forwarded result + a read line)', async () => {
+    const lines: string[] = []
+    const lg = createLogger((l) => lines.push(l), { ctx: 'M', enabled: true })
+    const inner: DataSource = {
+      getPageProps: vi.fn(async () => ({})),
+      ensurePage: vi.fn(async () => {}),
+      setPropertyLinks: vi.fn(async () => {}),
+      removePropertyKey: vi.fn(async () => {}),
+      searchPages: vi.fn(async () => []),
+      getBacklinks: vi.fn(async () => [{ name: 'B', props: { parent: ['A'] } }]),
+    }
+    const ds = wrapDataSource(inner, lg)
+    expect(typeof ds.getBacklinks).toBe('function')
+    const r = await ds.getBacklinks!('A')
+    expect(r).toEqual([{ name: 'B', props: { parent: ['A'] } }])
+    expect(inner.getBacklinks).toHaveBeenCalledWith('A')
+    const line = lines.find((l) => l.includes('getBacklinks'))
+    expect(line).toBeDefined()
+    expect(JSON.parse(line!)).toMatchObject({ cat: 'read', act: 'getBacklinks', page: 'A' })
+  })
+
+  it('omits getBacklinks when the inner source lacks it', () => {
+    const lg = createLogger(() => {}, { ctx: 'M', enabled: true })
+    const inner: DataSource = {
+      getPageProps: vi.fn(async () => ({})), ensurePage: vi.fn(async () => {}),
+      setPropertyLinks: vi.fn(async () => {}), removePropertyKey: vi.fn(async () => {}),
+      searchPages: vi.fn(async () => []),
+    }
+    expect(wrapDataSource(inner, lg).getBacklinks).toBeUndefined()
   })
 })
