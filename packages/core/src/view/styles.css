@@ -172,7 +172,7 @@
      title shows on hover. min-width keeps room for the edge handles + tiny titles. */
   width: fit-content;
   min-width: 64px;
-  max-width: var(--synapses-node-maxw, 480px);
+  max-width: var(--synapses-node-maxw, 240px);
   min-height: var(--synapses-node-h, 28px);
   font-size: var(--synapses-node-font, 15px);
   line-height: 1.1;

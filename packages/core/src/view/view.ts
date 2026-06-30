@@ -76,7 +76,7 @@ export function createView({
   const MOBILE_MIN_H = 35 // touch density floor: on mobile a card is never shorter than this
   let mobile = false // touch/mobile mode (toggled via setMobile): taller cards + tap (not hover) for the × control
   const BASE_FONT_PX = 15 // matches styles.css --synapses-node-font fallback (Logseq's default content size)
-  const BASE_MAXW = 480 // matches styles.css --synapses-node-maxw fallback
+  const BASE_MAXW = 240 // matches styles.css --synapses-node-maxw fallback
   const clampLevel = (l: number) => Math.max(0, Math.min(SIZE_FACTORS.length - 1, Math.round(l)))
   let sizeLevel = initialSize == null ? SIZE_FACTORS.indexOf(1.0) : clampLevel(initialSize)
   const sizeFactor = () => SIZE_FACTORS[sizeLevel]
