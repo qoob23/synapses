@@ -11,15 +11,27 @@ import type { Role, Graph, Adjacency, OntologyConfig, PropMap } from '../types'
 // demand. Everything here is pure and unit-tested without an editor.
 // ---------------------------------------------------------------------------
 
-// Property values that are wiki-links come back as page-name strings (or arrays);
-// strip any stray [[ ]] just in case. Kept here for the Logseq DataSource, which
-// pre-parses raw property values into the plain name arrays the queries consume.
+// Link property values arrive in two shapes depending on the Logseq read path:
+//   - getPage().properties pre-splits a link list into an array (["A","B"]);
+//   - a block's own .properties gives the RAW string ("[[A]], [[B]]").
+// Normalize both to plain target names. For a raw string we extract every
+// [[wiki-link]] (non-greedy, so a page name containing a comma survives),
+// falling back to a comma split for plain values. Array elements are already
+// split, so we only strip their brackets — never re-split them (a name may
+// itself contain a comma).
 export function toNames(val: unknown): string[] {
   if (val == null) return []
-  const arr = Array.isArray(val) ? val : [val]
-  return arr
-    .map((v) => String(v).replace(/^\[\[/, '').replace(/\]\]$/, '').trim())
-    .filter(Boolean)
+  if (Array.isArray(val)) return val.map((v) => stripBrackets(String(v))).filter(Boolean)
+  if (typeof val !== 'string') return [] // link values are arrays (above) or strings
+  const s = val.trim()
+  if (!s) return []
+  const refs = [...s.matchAll(/\[\[(.+?)\]\]/g)].map((m) => m[1].trim())
+  if (refs.length) return refs.filter(Boolean)
+  return s.split(',').map((v) => stripBrackets(v)).filter(Boolean)
+}
+
+function stripBrackets(v: string): string {
+  return v.replace(/^\[\[/, '').replace(/\]\]$/, '').trim()
 }
 
 // Property values arrive pre-parsed as plain name arrays (the DataSource applies

@@ -51,6 +51,8 @@ Configure which property names map to parent / child / jump under **Settings →
 2. **Plugins → Load unpacked plugin** → select `packages/logseq-plugin` (build first; see below).
 3. Click the **🧠** toolbar button, or run the slash command **`/Synapses: Open in sidebar`**.
 
+> Synapses reads `parent:: / child:: / jump::` from a page's **top-level blocks**.
+
 ## Develop
 
 This is a TypeScript monorepo: `packages/core` (editor-agnostic engine + view), `packages/obsidian-plugin`,

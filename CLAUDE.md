@@ -169,6 +169,16 @@ are `packages/obsidian-plugin/src/{datasource,services}.ts`.)
   editor reports the change via the `refresh` event (triggering a fresh on-demand read). A corner spinner
   (`#synapses-spinner`) shows while waiting; a ~2s watchdog (`onWatchdog`) flashes a warning + best-effort
   render if the editor never fires. There is no optimistic patch layer.
+- **Read Logseq link properties from the live block tree, NEVER `getPage().properties`.**
+  `getPagePropsRaw` (`packages/logseq-plugin/src/datasource.ts`) scans `getPageBlocksTree(name)` — all
+  **top-level** blocks (the page-properties pre-block + any sibling block), parsing each via core's
+  `toNames`. `getPage().properties` is a page-entity **cache that lags the file and persists stale across
+  restarts** (a removed link kept reappearing; an added one vanished). It's only a last-resort fallback
+  when the page has no blocks at all (a referenced-but-uncreated entity). A block surfaces a link list as
+  the raw `"[[A]], [[B]]"` **string** (not the pre-split array `getPage()` gives), so `toNames` handles
+  both. Removal/writes go through `clearKeyFromBlocks` to strip the key from **every** block (keeping one
+  declaration on the pre-block) so no straggler resurrects through the all-blocks read. Nested blocks are
+  not scanned — keep link properties at the page top level.
 - **A deleted `.md` leaves a lingering datascript entity** (Logseq): `getPage()` may still report a
   referenced page whose file is gone. Caught at the focus boundary — `DataSource.pageExists` requires a
   backing file (`pruneIfMissing` in `backend.ts`), and history prunes missing entries. `listPages` was

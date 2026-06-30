@@ -1,8 +1,33 @@
 import { describe, it, expect } from 'vitest'
-import { queryGraphFromProps, adjacencyFromProps, uniqNames, collect, SIBLING_CAP } from './index-pure'
+import { queryGraphFromProps, adjacencyFromProps, uniqNames, collect, SIBLING_CAP, toNames } from './index-pure'
 import type { OntologyConfig, PropMap } from '../types'
 
 const ONT: OntologyConfig = { parent: ['parent', 'up'], child: ['child'], jump: ['jump'] }
+
+describe('toNames', () => {
+  it('splits a raw comma-joined wiki-link string (a block .properties value)', () => {
+    expect(toNames('[[Костя Довнар]], [[Dio FusedTransformer]], [[Ежедневные статусы]]'))
+      .toEqual(['Костя Довнар', 'Dio FusedTransformer', 'Ежедневные статусы'])
+  })
+  it('handles a single wiki-link', () => {
+    expect(toNames('[[Ethics]]')).toEqual(['Ethics'])
+  })
+  it('preserves a comma inside a page name (non-greedy match)', () => {
+    expect(toNames('[[Foo, Bar]], [[Baz]]')).toEqual(['Foo, Bar', 'Baz'])
+  })
+  it('strips brackets from pre-split array values without re-splitting', () => {
+    expect(toNames(['[[A]]', 'B'])).toEqual(['A', 'B'])
+    expect(toNames(['Foo, Bar'])).toEqual(['Foo, Bar'])
+  })
+  it('falls back to a comma split for plain (non-wiki) strings', () => {
+    expect(toNames('A, B')).toEqual(['A', 'B'])
+  })
+  it('returns [] for empty / nullish', () => {
+    expect(toNames(null)).toEqual([])
+    expect(toNames(undefined)).toEqual([])
+    expect(toNames('')).toEqual([])
+  })
+})
 
 describe('collect', () => {
   it('gathers values across every key mapping to the role (alias-aware)', () => {

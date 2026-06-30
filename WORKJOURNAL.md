@@ -156,3 +156,11 @@
     - Confirm CTA tinted with the resolved primary connector color (same `getTheme().mode` slot the view uses),
       falling back to the editor accent — never a hardcoded color.
 - Settings copy: dropped "(testing)"/"off by default"/the log filename; logging now states the path prints to console.
+- **Fix: removed Logseq links stayed on-screen (and re-added ones vanished), surviving refresh + restart.**
+    - Root cause: `getPagePropsRaw` read `getPage().properties` — a page-entity cache that lags the file and
+      persists stale across restarts (proven via console: cache held the unlinked page, the block did not).
+    - Now reads the LIVE block tree (`getPageBlocksTree`), scanning all top-level blocks; `getPage()` only a
+      no-blocks fallback. Removal/writes route through `clearKeyFromBlocks` (strip key from every block, keep
+      one declaration on the pre-block) so no straggler resurrects through the all-blocks read.
+    - `toNames` now parses a block's raw `"[[A]], [[B]]"` string (non-greedy, keeps commas in names), not just
+      the pre-split array `getPage()` returned — the old fallback was itself broken. Nested blocks not scanned.

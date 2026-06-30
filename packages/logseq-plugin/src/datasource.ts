@@ -1,29 +1,52 @@
 import '@logseq/libs'
 import { toNames } from '@logseq-synapses/core'
-import type { PageEntity } from './logseq-types'
+import type { BlockEntity, BlockUUIDTuple, PageEntity } from './logseq-types'
 import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
 
-// Page properties live on the first (pre-)block; some Logseq versions surface
-// them on the page entity, others only on the block. Raw wiki-link values are
-// mapped to plain target names via core's `toNames`, yielding the ontology-
-// agnostic PropMap the core link index consumes.
-async function getPagePropsRaw(name: string, page?: PageEntity | null): Promise<PropMap> {
-  let props: Record<string, unknown> = {}
-  try {
-    if (page === undefined) page = await logseq.Editor.getPage(name)
-    if (page?.properties) props = page.properties
-  } catch {}
-  if (!Object.keys(props).length) {
-    try { const tree = await logseq.Editor.getPageBlocksTree(name); if (tree?.[0]?.properties) props = tree[0].properties } catch {}
+// Flatten a page's block tree (depth-first) into a flat list of real blocks,
+// skipping the ['uuid', …] tuple form Logseq can nest in `children`.
+function flattenBlocks(blocks: Array<BlockEntity | BlockUUIDTuple> | null | undefined): BlockEntity[] {
+  const out: BlockEntity[] = []
+  for (const b of blocks ?? []) {
+    if (!b || Array.isArray(b)) continue
+    out.push(b)
+    if (b.children?.length) out.push(...flattenBlocks(b.children))
   }
-  const out: PropMap = {}
-  for (const k of Object.keys(props || {})) { const names = toNames(props[k]); if (names.length) out[k] = names }
   return out
 }
 
-async function firstBlockUuid(name: string): Promise<string | undefined> {
-  const tree = await logseq.Editor.getPageBlocksTree(name)
-  return tree?.[0]?.uuid
+// Read a page's link properties from its LIVE block tree — the authoritative,
+// per-page source straight from Logseq's datascript (no whole-graph reindex).
+// We deliberately do NOT trust `getPage().properties`: that page-entity field is
+// a CACHE that lags the file, so a removed link kept reappearing (and an added
+// one vanished) even across restarts. We scan EVERY block (not just the first),
+// so a property declared on any block is honored. A block surfaces a link list
+// as the raw unparsed "[[A]], [[B]]" string; core's `toNames` normalizes both
+// that and the pre-split array form to plain target names. Only when the page
+// has no blocks at all (a referenced-but-uncreated entity) do we fall back to
+// the page-entity cache.
+async function getPagePropsRaw(name: string, page?: PageEntity | null): Promise<PropMap> {
+  let blocks: BlockEntity[] = []
+  try { blocks = (await logseq.Editor.getPageBlocksTree(name)) ?? [] } catch {}
+
+  const out: PropMap = {}
+  const add = (k: string, names: string[]) => { if (names.length) out[k] = (out[k] ?? []).concat(names) }
+
+  if (blocks.length) {
+    for (const b of flattenBlocks(blocks)) {
+      const props: Record<string, unknown> | undefined = b.properties
+      if (!props) continue
+      for (const k of Object.keys(props)) add(k, toNames(props[k]))
+    }
+    return out
+  }
+
+  try {
+    if (page === undefined) page = await logseq.Editor.getPage(name)
+    const props: Record<string, unknown> | undefined = page?.properties
+    if (props) for (const k of Object.keys(props)) add(k, toNames(props[k]))
+  } catch {}
+  return out
 }
 
 // Resolve the block to write page properties onto, creating one when needed.
@@ -47,6 +70,19 @@ async function propertyBlockUuid(name: string): Promise<string | undefined> {
   return created?.uuid
 }
 
+// Remove `key` from every block on the page (optionally except `keepUuid`), so
+// no straggler declaration survives the all-blocks read in `getPagePropsRaw`.
+async function clearKeyFromBlocks(name: string, key: string, keepUuid?: string): Promise<void> {
+  let blocks: BlockEntity[] = []
+  try { blocks = (await logseq.Editor.getPageBlocksTree(name)) ?? [] } catch {}
+  for (const b of flattenBlocks(blocks)) {
+    if (b.uuid === keepUuid) continue
+    if (b.properties && Object.prototype.hasOwnProperty.call(b.properties, key)) {
+      await logseq.Editor.removeBlockProperty(b.uuid, key)
+    }
+  }
+}
+
 export function createLogseqDataSource(): DataSource {
   return {
     getPageProps: (name) => getPagePropsRaw(name),
@@ -57,10 +93,14 @@ export function createLogseqDataSource(): DataSource {
     async setPropertyLinks(name, key, targets) {
       const uuid = await propertyBlockUuid(name); if (!uuid) return
       await logseq.Editor.upsertBlockProperty(uuid, key, targets.map((t) => `[[${t}]]`).join(', '))
+      // Keep exactly one declaration: drop the same key from any OTHER block so
+      // the all-blocks read can't merge in a stale straggler.
+      await clearKeyFromBlocks(name, key, uuid)
     },
     async removePropertyKey(name, key) {
-      const uuid = await firstBlockUuid(name); if (!uuid) return
-      await logseq.Editor.removeBlockProperty(uuid, key)
+      // Clear the key from EVERY block that carries it — a straggler on another
+      // block would otherwise be resurrected by the all-blocks read.
+      await clearKeyFromBlocks(name, key)
     },
     async listAllPages() {
       let pages: PageEntity[] = []
