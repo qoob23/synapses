@@ -1,5 +1,5 @@
 import '@logseq/libs'
-import { createCoreBackend, serveBackend, log, createLogger, createBufferedSink, wrapBackendWithLogging, wrapDataSource } from '@logseq-synapses/core'
+import { createCoreBackend, serveBackend, log, createLogger, createBufferedSink, wrapBackendWithLogging, wrapDataSource } from '@synapses/core'
 import { createLogseqDataSource } from './datasource'
 import { createLogseqServices } from './services'
 import { renderSynapsesSlot, openSynapsesSidebar, synapsesFrameStyle, scrollSidebarForFrame } from './sidebar'

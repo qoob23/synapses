@@ -1,5 +1,5 @@
-import { createBackendProxy, mountSynapses, createLogger } from '@logseq-synapses/core'
-import '@logseq-synapses/core/styles.css'
+import { createBackendProxy, mountSynapses, createLogger } from '@synapses/core'
+import '@synapses/core/styles.css'
 
 // The backend proxy reaches the plugin host over postMessage; its calls only work
 // once the iframe `init` handshake has completed. Mount AFTER the bridge connects,

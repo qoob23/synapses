@@ -1,5 +1,5 @@
 {
-  "name": "@logseq-synapses/core",
+  "name": "@synapses/core",
   "version": "0.0.1",
   "type": "module",
   "license": "MIT",

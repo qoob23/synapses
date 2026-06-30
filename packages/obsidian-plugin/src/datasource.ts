@@ -1,11 +1,11 @@
-import { isInLogseqFolder, matchesIgnoreFilters } from '@logseq-synapses/core'
+import { isInLogseqFolder, matchesIgnoreFilters } from '@synapses/core'
 import { TFile } from 'obsidian'
 import { getDataviewApi } from './dataview'
 import { pageToPropMap, linkPathToBasename } from './dataview-map'
 import { upsertInlineField, removeInlineField, hasInlineField } from './inline-fields'
 import { newNotePath } from './paths'
 import { chooseWriteTarget } from './write-target'
-import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
+import type { DataSource, PageEntry, PropMap } from '@synapses/core'
 import type { App } from 'obsidian'
 
 // Obsidian's Vault exposes an untyped `getConfig` for app settings (e.g. the

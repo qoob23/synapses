@@ -1,5 +1,5 @@
 import '@logseq/libs'
-import { type Palette, isDarkColor, isOpaqueColor, mixColors } from '@logseq-synapses/core'
+import { type Palette, isDarkColor, isOpaqueColor, mixColors } from '@synapses/core'
 
 // Logseq theme CSS variables, read from the HOST document so the synapses iframe
 // (which doesn't inherit Logseq CSS) matches the active theme — including

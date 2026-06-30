@@ -1,4 +1,4 @@
-import type { PropMap } from '@logseq-synapses/core'
+import type { PropMap } from '@synapses/core'
 
 // Dataview page object: link/scalar fields as own keys plus a `file` descriptor.
 export interface DvPage {

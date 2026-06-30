@@ -1,6 +1,6 @@
-import { createCoreBackend, createLogger, createBufferedSink, wrapBackendWithLogging, wrapDataSource, log, type SynapsesBackend, type Logger, type BufferedSink } from '@logseq-synapses/core'
+import { createCoreBackend, createLogger, createBufferedSink, wrapBackendWithLogging, wrapDataSource, log, type SynapsesBackend, type Logger, type BufferedSink } from '@synapses/core'
 import { Plugin, Notice, FileSystemAdapter } from 'obsidian'
-import '@logseq-synapses/core/styles.css'
+import '@synapses/core/styles.css'
 import { createObsidianDataSource } from './datasource'
 import { isDataviewEnabled } from './dataview'
 import { createObsidianServices } from './services'

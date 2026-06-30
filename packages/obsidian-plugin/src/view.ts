@@ -1,4 +1,4 @@
-import { mountSynapses } from '@logseq-synapses/core'
+import { mountSynapses } from '@synapses/core'
 import { ItemView } from 'obsidian'
 import type SynapsesPlugin from './main'
 import type { WorkspaceLeaf } from 'obsidian'

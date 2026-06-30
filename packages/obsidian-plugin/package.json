@@ -8,6 +8,6 @@
     "dev": "node esbuild.config.mjs",
     "typecheck": "tsc -p . --noEmit"
   },
-  "dependencies": { "@logseq-synapses/core": "*" },
+  "dependencies": { "@synapses/core": "*" },
   "devDependencies": { "obsidian": "^1.5.0", "esbuild": "^0.21.0" }
 }

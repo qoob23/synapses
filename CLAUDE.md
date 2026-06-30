@@ -15,7 +15,7 @@ properties and the datascript schema). Plain **TypeScript** (no React, no SVG, n
 > Some prose/code below uses older names; **the pre-monorepo `src/main/*` / `src/synapses/*` /
 > `src/shared/rpc.js` paths are gone** — code now lives in npm workspaces under `packages/`.
 
-- `packages/core` (`@logseq-synapses/core`) — editor-agnostic engine + view: pure on-demand graph
+- `packages/core` (`@synapses/core`) — editor-agnostic engine + view: pure on-demand graph
   query helpers (`graph/index-pure.ts` — `collect`, `uniqNames`, `adjacencyFromProps`,
   `queryGraphFromProps`, `adjacencyFor`, `toNames`, `SIBLING_CAP`; no in-memory index),
   `mutations.ts` (symmetric two-sided writes), `history.ts`, `ontology.ts`,

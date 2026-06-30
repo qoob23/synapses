@@ -1,7 +1,7 @@
 import '@logseq/libs'
-import { toNames } from '@logseq-synapses/core'
+import { toNames } from '@synapses/core'
 import type { BlockEntity, BlockUUIDTuple, PageEntity } from './logseq-types'
-import type { DataSource, PageEntry, PropMap } from '@logseq-synapses/core'
+import type { DataSource, PageEntry, PropMap } from '@synapses/core'
 
 // Flatten a page's block tree (depth-first) into a flat list of real blocks,
 // skipping the ['uuid', …] tuple form Logseq can nest in `children`.

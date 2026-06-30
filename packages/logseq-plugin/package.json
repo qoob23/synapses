@@ -7,7 +7,7 @@
   "main": "dist/index.html",
   "logseq": { "id": "logseq-synapses", "title": "Synapses", "main": "dist/index.html" },
   "scripts": { "build": "vite build", "dev": "vite build --watch" },
-  "dependencies": { "@logseq-synapses/core": "*" },
+  "dependencies": { "@synapses/core": "*" },
   "peerDependencies": { "@logseq/libs": "^0.0.17" },
   "devDependencies": { "@logseq/libs": "^0.0.17", "vite": "^8.1.0" }
 }

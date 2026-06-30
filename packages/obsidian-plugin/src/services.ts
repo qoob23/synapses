@@ -1,8 +1,8 @@
-import { buildOntology } from '@logseq-synapses/core'
+import { buildOntology } from '@synapses/core'
 import { Platform } from 'obsidian'
 import type { PersistedData } from './main'
 import type { SynapsesSettings } from './settings'
-import type { EditorServices, Palette, OntologyConfig, Persistence, UiMode } from '@logseq-synapses/core'
+import type { EditorServices, Palette, OntologyConfig, Persistence, UiMode } from '@synapses/core'
 import type { App, EventRef, Plugin } from 'obsidian'
 
 type SettingsPlugin = Plugin & {

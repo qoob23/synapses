@@ -14,7 +14,7 @@
     "lint:fix": "eslint . --fix",
     "knip": "knip",
     "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/logseq-plugin --noEmit && tsc -p packages/obsidian-plugin --noEmit",
-    "build": "npm run build -w @logseq-synapses/core && npm run build -w logseq-plugin && npm run build -w obsidian-plugin"
+    "build": "npm run build -w @synapses/core && npm run build -w logseq-plugin && npm run build -w obsidian-plugin"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

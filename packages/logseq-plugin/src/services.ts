@@ -1,5 +1,5 @@
 import '@logseq/libs'
-import { type EditorServices, type OntologyConfig, type Persistence, type UiMode, buildOntology } from '@logseq-synapses/core'
+import { type EditorServices, type OntologyConfig, type Persistence, type UiMode, buildOntology } from '@synapses/core'
 import { readPalette, watchTheme } from './theme'
 import type { PageEntity, BlockEntity } from './logseq-types'
 

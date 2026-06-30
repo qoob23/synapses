@@ -24,7 +24,7 @@ jobs:
 
       - name: Build core + obsidian plugin
         run: |
-          npm run build -w @logseq-synapses/core
+          npm run build -w @synapses/core
           npm run build -w obsidian-plugin
 
       - name: Verify release assets exist
