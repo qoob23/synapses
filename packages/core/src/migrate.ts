@@ -1,4 +1,4 @@
-import { collect } from './graph/index-pure'
+import { collect, type NoteAdjacency } from './graph/index-pure'
 import { log } from './log'
 import { normalizeKey, roleForKey } from './ontology'
 import type { DataSource, OntologyConfig, PageEntry, PropMap, Role } from './types'
@@ -143,6 +143,40 @@ export function computeSymmetryRepairs(pages: PageEntry[], ont: OntologyConfig):
   const pairs = buildPairMap(pages, display, ont)
   const desired = buildDesiredRoles(pairs, display)
   return buildRepairOps(desired, propsByName, display, ont)
+}
+
+// Read-time reconciliation for a set of pages (no disk writes). Same pair
+// resolution as computeSymmetryRepairs but returns a map of NoteAdjacency
+// (one per lowercased page name that appears in any pair) rather than repair ops.
+export function reconcileGraph(pages: PageEntry[], ont: OntologyConfig): Map<string, NoteAdjacency> {
+  const display = new Map<string, string>()
+  for (const p of pages) {
+    const l = p.name.toLowerCase()
+    if (!display.has(l)) display.set(l, p.name)
+  }
+  const pairs = buildPairMap(pages, display, ont)
+  const desired = buildDesiredRoles(pairs, display)
+  const out = new Map<string, NoteAdjacency>()
+  for (const [lower, roles] of desired) {
+    out.set(lower, {
+      parents: [...roles.parent.values()],
+      children: [...roles.child.values()],
+      jumps: [...roles.jump.values()],
+    })
+  }
+  return out
+}
+
+// Reconcile single focus note against backlinkers. Returns focus's
+// adjacency seen from both directions merged (empty if it has no pairs).
+export function reconcileNoteAdjacency(
+  name: string,
+  ownProps: PropMap,
+  backlinkers: PageEntry[],
+  ont: OntologyConfig,
+): NoteAdjacency {
+  const map = reconcileGraph([{ name, props: ownProps }, ...backlinkers], ont)
+  return map.get(name.toLowerCase()) ?? { parents: [], children: [], jumps: [] }
 }
 
 // Impure runner: enumerate, compute, apply. Returns the number of ops applied.

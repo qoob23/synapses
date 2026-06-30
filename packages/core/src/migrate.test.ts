@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeSymmetryRepairs, runSymmetryRepair, type RepairOp } from './migrate'
+import { computeSymmetryRepairs, runSymmetryRepair, reconcileNoteAdjacency, type RepairOp } from './migrate'
 import { buildOntology } from './ontology'
 import type { DataSource, PageEntry, PropMap } from './types'
 
@@ -9,6 +9,31 @@ const setOp = (ops: RepairOp[], page: string, key: string) =>
   ops.find((o): o is Extract<RepairOp, { kind: 'set' }> => o.kind === 'set' && o.page === page && o.key === key)
 const removeKeys = (ops: RepairOp[], page: string) =>
   ops.filter((o) => o.kind === 'remove' && o.page === page).map((o) => o.key)
+
+const ONT_SIMPLE = { parent: ['parent'], child: ['child'], jump: ['jump'] }
+
+it('reconcileNoteAdjacency surfaces an incoming-only parent', () => {
+  // B declares A as its child; A declares nothing. A should see B as parent.
+  const adj = reconcileNoteAdjacency('A', {}, [{ name: 'B', props: { child: ['A'] } }], ONT_SIMPLE)
+  expect(adj.parents).toEqual(['B'])
+  expect(adj.children).toEqual([])
+})
+
+it('reconcileNoteAdjacency: structural beats opposing jump (migration precedence)', () => {
+  // A says jump:: B; B says child:: A (=> A is B's child => A sees B as parent). Structural wins.
+  const adj = reconcileNoteAdjacency('A', { jump: ['B'] }, [{ name: 'B', props: { child: ['A'] } }], ONT_SIMPLE)
+  expect(adj.parents).toEqual(['B'])
+  expect(adj.jumps).toEqual([])
+})
+
+it('reconcileNoteAdjacency: incoming-only jump appears', () => {
+  const adj = reconcileNoteAdjacency('A', {}, [{ name: 'B', props: { jump: ['A'] } }], ONT_SIMPLE)
+  expect(adj.jumps).toEqual(['B'])
+})
+
+it('reconcileNoteAdjacency: no pairs => empty adjacency', () => {
+  expect(reconcileNoteAdjacency('A', {}, [], ONT_SIMPLE)).toEqual({ parents: [], children: [], jumps: [] })
+})
 
 describe('computeSymmetryRepairs', () => {
   it('adds the missing reciprocal for a one-sided parent', () => {
