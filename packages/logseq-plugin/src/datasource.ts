@@ -86,6 +86,21 @@ async function clearKeyFromBlocks(name: string, key: string, keepUuid?: string):
 export function createLogseqDataSource(): DataSource {
   return {
     getPageProps: (name) => getPagePropsRaw(name),
+    async getBacklinks(name) {
+      let refs: Array<[PageEntity, BlockEntity[]]> = []
+      try { refs = (await logseq.Editor.getPageLinkedReferences(name)) ?? [] } catch {}
+      const out: PageEntry[] = []
+      const seen = new Set<string>()
+      for (const [page] of refs) {
+        const nm = page?.originalName ?? page?.name
+        if (!nm) continue
+        const lower = nm.toLowerCase()
+        if (lower === name.toLowerCase() || lower === 'synapses' || seen.has(lower)) continue
+        seen.add(lower)
+        out.push({ name: nm, props: await getPagePropsRaw(nm, page) })
+      }
+      return out
+    },
     async ensurePage(name) {
       const p = await logseq.Editor.getPage(name)
       if (!p) await logseq.Editor.createPage(name, {}, { redirect: false, createFirstBlock: true, journal: false })
