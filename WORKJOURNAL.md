@@ -164,3 +164,13 @@
       one declaration on the pre-block) so no straggler resurrects through the all-blocks read.
     - `toNames` now parses a block's raw `"[[A]], [[B]]"` string (non-greedy, keeps commas in names), not just
       the pre-split array `getPage()` returned — the old fallback was itself broken. Nested blocks not scanned.
+- **Show all connections — reads reconcile a note's own props with its backlinks (incoming links now show).**
+    - Writes stay single-sided; reads merge both directions, so a link declared only on the other note appears.
+    - New optional `DataSource.getBacklinks` (Logseq `getPageLinkedReferences`, Obsidian Dataview `inlinks`);
+      core `reconcileGraph`/`reconcileNoteAdjacency` reuse the symmetry-migration pair precedence (no dup logic).
+    - **Decision — always on (no setting); migration precedence resolves conflicts; siblings fully reconciled**
+      (a backlink read per parent so a sibling declaring the parent only on its own side still shows).
+    - **Bug: incoming links never appeared** — `wrapDataSource` rebuilt the DataSource from an allowlist that
+      dropped `getBacklinks`, so the backend's optional-method guard always fell back to empty. Now forwarded.
+    - Debug logging gains a `read` category (logs `getBacklinks`) + a console plain-text mirror (`formatPlain`)
+      as a backing sink — the read seam was unlogged, which is why the dropped method stayed invisible.
