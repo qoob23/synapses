@@ -1,7 +1,7 @@
 import { isInLogseqFolder, matchesIgnoreFilters } from '@logseq-synapses/core'
 import { TFile } from 'obsidian'
 import { getDataviewApi } from './dataview'
-import { pageToPropMap } from './dataview-map'
+import { pageToPropMap, linkPathToBasename } from './dataview-map'
 import { upsertInlineField, removeInlineField, hasInlineField } from './inline-fields'
 import { newNotePath } from './paths'
 import { chooseWriteTarget } from './write-target'
@@ -94,6 +94,25 @@ export function createObsidianDataSource(app: App): DataSource {
         if (isIgnoredPath(f.path)) continue // don't offer excluded files / logseq backups as link targets
         if (f.basename.toLowerCase().includes(query)) out.push(f.basename)
         if (out.length >= 20) break
+      }
+      return out
+    },
+    async getBacklinks(name) {
+      const api = dv(); if (!api) return []
+      const file = resolveFile(name)
+      const page = file ? api.page(file.path) : api.page(name)
+      const inlinks = page?.file?.inlinks
+      if (!inlinks) return []
+      const out: PageEntry[] = []
+      const seen = new Set<string>()
+      for (const link of inlinks) {
+        const path = (link as { path?: string })?.path
+        if (typeof path !== 'string' || isIgnoredPath(path)) continue
+        const base = linkPathToBasename(path)
+        const lower = base.toLowerCase()
+        if (lower === name.toLowerCase() || seen.has(lower)) continue
+        seen.add(lower)
+        out.push({ name: base, props: await readProps(base) })
       }
       return out
     },

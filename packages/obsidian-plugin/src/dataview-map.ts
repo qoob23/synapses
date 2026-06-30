@@ -2,7 +2,7 @@ import type { PropMap } from '@logseq-synapses/core'
 
 // Dataview page object: link/scalar fields as own keys plus a `file` descriptor.
 export interface DvPage {
-  file?: { path?: string; name?: string }
+  file?: { path?: string; name?: string; inlinks?: Iterable<unknown> }
   [k: string]: unknown
 }
 
